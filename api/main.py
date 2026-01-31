@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from api.config import settings
 
@@ -13,7 +15,14 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Sundial", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="Sundial",
+    version="0.1.0",
+    lifespan=lifespan,
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
+    redoc_url="/api/redoc",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -59,6 +68,17 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+
+# Static file serving for SPA frontend
+_ui_build = Path(__file__).resolve().parent.parent / "ui" / "build"
+if _ui_build.is_dir():
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        file_path = _ui_build / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(_ui_build / "index.html"))
 
 
 if __name__ == "__main__":
