@@ -2,7 +2,6 @@
 	import { api } from '$lib/services/api';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { ProjectResponse, ProjectList, ProjectCreate, ProjectUpdate } from '$lib/types';
-	import Card from '$lib/components/ui/Card.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
@@ -73,9 +72,11 @@
 		}
 	}
 
-	async function handleStatusChange(project: ProjectResponse, newStatus: string) {
+	async function handleStatusChange(e: Event, project: ProjectResponse) {
+		e.preventDefault();
+		e.stopPropagation();
+		const newStatus = (e.target as HTMLSelectElement).value;
 		const oldStatus = project.status;
-		// Optimistic update
 		projects = projects.map((p) =>
 			p.id === project.id ? { ...p, status: newStatus } : p
 		);
@@ -102,51 +103,53 @@
 	}
 </script>
 
-<div class="flex items-center justify-between mb-4">
-	<div class="flex items-center gap-1.5 flex-wrap">
-		{#each statusFilters as filter}
-			<button
-				class="btn btn-xs {statusFilter === filter ? 'btn-primary' : 'btn-ghost'}"
-				onclick={() => (statusFilter = filter)}
-			>
-				{filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
-				{#if filter !== 'all'}
-					<span class="badge badge-xs {statusFilter === filter ? 'badge-primary-content' : 'badge-ghost'}">
-						{projects.filter((p) => p.status === filter).length}
-					</span>
-				{/if}
-			</button>
-		{/each}
+<div class="absolute inset-0 flex flex-col overflow-hidden">
+	<!-- Header toolbar -->
+	<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
+		<div class="flex items-center gap-1.5 flex-1 flex-wrap">
+			{#each statusFilters as filter}
+				<button
+					class="btn btn-xs {statusFilter === filter ? 'btn-primary' : 'btn-ghost'}"
+					onclick={() => (statusFilter = filter)}
+				>
+					{filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+					{#if filter !== 'all'}
+						<span class="badge badge-xs {statusFilter === filter ? 'badge-primary-content' : 'badge-ghost'}">
+							{projects.filter((p) => p.status === filter).length}
+						</span>
+					{/if}
+				</button>
+			{/each}
+		</div>
+		<button class="btn btn-primary btn-sm" onclick={openCreateModal}>
+			<Plus size={16} />
+			New Project
+		</button>
 	</div>
-	<button class="btn btn-primary btn-sm" onclick={openCreateModal}>
-		<Plus size={16} />
-		New Project
-	</button>
-</div>
 
-{#if loading}
-	<div class="flex items-center justify-center py-20">
-		<span class="loading loading-spinner loading-lg"></span>
-	</div>
-{:else if filteredProjects.length > 0}
-	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-		{#each filteredProjects as project (project.id)}
-			<a href="/projects/{project.id}" class="block">
-				<Card hoverable>
-					<div class="flex gap-3">
-						{#if project.color}
-							<div class="w-1 rounded-full shrink-0" style:background-color={project.color}></div>
-						{/if}
-						<div class="flex-1 min-w-0">
-							<div class="flex items-start justify-between gap-2">
-								<h3 class="font-semibold truncate">{project.name}</h3>
+	<!-- Scrollable content -->
+	<div class="flex-1 overflow-y-auto p-4">
+		{#if loading}
+			<div class="flex items-center justify-center py-20">
+				<span class="loading loading-spinner loading-lg"></span>
+			</div>
+		{:else if filteredProjects.length > 0}
+			<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+				{#each filteredProjects as project (project.id)}
+					<a href="/projects/{project.id}" class="card bg-base-100 shadow-sm border border-base-300 hover:shadow-md transition-shadow">
+						<div class="card-body p-4 gap-2">
+							<div class="flex items-center gap-2">
+								{#if project.color}
+									<div class="w-2.5 h-2.5 rounded-full shrink-0" style:background-color={project.color}></div>
+								{/if}
+								<h3 class="font-semibold text-sm truncate flex-1 min-w-0">{project.name}</h3>
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<div onclick={(e) => e.preventDefault()}>
 									<select
-										class="select select-bordered select-xs {statusBadge(project.status)} min-h-0 h-5 leading-none"
+										class="select select-bordered select-xs min-h-0 h-5 leading-none text-xs {statusBadge(project.status)}"
 										value={project.status}
-										onchange={(e) => handleStatusChange(project, (e.target as HTMLSelectElement).value)}
+										onchange={(e) => handleStatusChange(e, project)}
 									>
 										<option value="active">Active</option>
 										<option value="paused">Paused</option>
@@ -156,9 +159,9 @@
 								</div>
 							</div>
 							{#if project.description}
-								<p class="text-sm text-base-content/60 mt-1 line-clamp-2">{project.description}</p>
+								<p class="text-xs text-base-content/60 line-clamp-2">{project.description}</p>
 							{/if}
-							<div class="flex items-center gap-4 mt-3 text-xs text-base-content/50">
+							<div class="flex items-center gap-4 text-xs text-base-content/50 pt-1">
 								<span class="flex items-center gap-1">
 									<CheckSquare size={12} />
 									{project.task_count} tasks
@@ -169,25 +172,25 @@
 								</span>
 							</div>
 						</div>
-					</div>
-				</Card>
-			</a>
-		{/each}
+					</a>
+				{/each}
+			</div>
+		{:else if projects.length > 0}
+			<div class="text-center py-20">
+				<p class="text-base-content/40">No {statusFilter} projects</p>
+			</div>
+		{:else}
+			<div class="text-center py-20">
+				<FolderKanban size={40} class="mx-auto text-base-content/20 mb-3" />
+				<p class="text-base-content/40 mb-4">No projects yet</p>
+				<button class="btn btn-primary btn-sm" onclick={openCreateModal}>
+					<Plus size={16} />
+					Create your first project
+				</button>
+			</div>
+		{/if}
 	</div>
-{:else if projects.length > 0}
-	<div class="text-center py-20">
-		<p class="text-base-content/40">No {statusFilter} projects</p>
-	</div>
-{:else}
-	<div class="text-center py-20">
-		<FolderKanban size={40} class="mx-auto text-base-content/20 mb-3" />
-		<p class="text-base-content/40 mb-4">No projects yet</p>
-		<button class="btn btn-primary btn-sm" onclick={openCreateModal}>
-			<Plus size={16} />
-			Create your first project
-		</button>
-	</div>
-{/if}
+</div>
 
 <Modal bind:open={createOpen} title="New Project" onclose={() => (createOpen = false)}>
 	<div class="flex flex-col gap-3">

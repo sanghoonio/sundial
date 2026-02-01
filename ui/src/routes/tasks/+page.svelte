@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { api } from '$lib/services/api';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { ProjectResponse, ProjectList, TaskResponse, TaskList, TaskMove, MilestoneCreate } from '$lib/types';
@@ -109,7 +110,9 @@
 			const res = await api.get<ProjectList>('/api/projects');
 			projects = res.projects;
 			if (projects.length > 0 && !selectedProjectId) {
-				selectedProjectId = projects[0].id;
+				const paramProject = page.url.searchParams.get('project');
+				const match = paramProject && projects.find((p) => p.id === paramProject);
+				selectedProjectId = match ? match.id : projects[0].id;
 			}
 		} catch {
 			toasts.error('Failed to load projects');

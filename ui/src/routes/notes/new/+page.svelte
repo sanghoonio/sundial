@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/services/api';
 	import { toasts } from '$lib/stores/toasts.svelte';
@@ -13,7 +14,7 @@
 	let title = $state('');
 	let blocks = $state<NoteBlock[]>([{ id: newBlockId(), type: 'md', content: '' }]);
 	let tags = $state<string[]>([]);
-	let projectId = $state<string | null>(null);
+	let projectId = $state<string | null>(page.url.searchParams.get('project'));
 	let saving = $state(false);
 	let preview = $state(false);
 	let showMeta = $state(false);
@@ -99,7 +100,7 @@
 	<div class="flex-1 overflow-y-auto p-4 md:p-6">
 		<!-- Metadata section -->
 		{#if showMeta}
-			<div class="mb-4 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col sm:flex-row gap-3">
+			<div class="mb-4 md:mb-6 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col sm:flex-row gap-3">
 				<div class="flex-1">
 					<span class="text-xs font-medium text-base-content/50 mb-1 block">Tags</span>
 					<TagInput bind:tags />

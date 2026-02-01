@@ -252,7 +252,7 @@
 		<div class="flex-1 overflow-y-auto p-4 md:p-6">
 		<!-- Metadata section -->
 		{#if showMeta}
-			<div class="mb-4 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col gap-3">
+			<div class="mb-4 md:mb-6 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col gap-3">
 				<div class="flex flex-col sm:flex-row gap-3">
 					<div class="flex-1">
 						<span class="text-xs font-medium text-base-content/50 mb-1 block">Tags</span>
