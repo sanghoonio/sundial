@@ -8,7 +8,7 @@
 	import ProjectSelect from '$lib/components/notes/ProjectSelect.svelte';
 	import NoteEditor from '$lib/components/notes/NoteEditor.svelte';
 	import { notesList } from '$lib/stores/noteslist.svelte';
-	import TaskCreateModal from '$lib/components/tasks/TaskCreateModal.svelte';
+	import TaskCreatePanel from '$lib/components/tasks/TaskCreatePanel.svelte';
 	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays } from 'lucide-svelte';
 
 	let note = $state<NoteResponse | null>(null);
@@ -249,7 +249,8 @@
 		<span class="loading loading-spinner loading-lg"></span>
 	</div>
 {:else if note}
-	<div class="flex flex-col h-full">
+	<div class="flex h-full">
+	<div class="flex-1 flex flex-col min-w-0">
 		<!-- Top bar — matches left pane header height -->
 		<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
 			<a href="/notes" class="btn btn-ghost btn-sm btn-square md:hidden">
@@ -412,16 +413,16 @@
 		{/if}
 		</div>
 	</div>
-
-	{#if createTaskProjectId}
-		<TaskCreateModal
-			bind:open={createTaskOpen}
+	{#if createTaskOpen && createTaskProjectId}
+		<TaskCreatePanel
 			projectId={createTaskProjectId}
 			projects={createTaskProjects}
 			sourceNoteId={noteId}
+			onclose={() => (createTaskOpen = false)}
 			oncreated={async () => {
 				backlinks = await api.get<BacklinksResponse>(`/api/notes/${noteId}/backlinks`);
 			}}
 		/>
 	{/if}
+	</div>
 {/if}
