@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from api.models.task import Task, TaskChecklist
-from api.models.project import ProjectMilestone
 
 
 async def create_task(
@@ -20,18 +19,6 @@ async def create_task(
     calendar_event_id: str | None = None,
     checklist: list[dict] | None = None,
 ) -> Task:
-    # If no milestone specified, use the first milestone of the project
-    if milestone_id is None:
-        result = await db.execute(
-            select(ProjectMilestone)
-            .where(ProjectMilestone.project_id == project_id)
-            .order_by(ProjectMilestone.position)
-            .limit(1)
-        )
-        first_milestone = result.scalar_one_or_none()
-        if first_milestone:
-            milestone_id = first_milestone.id
-
     # Get next position in milestone
     pos_result = await db.execute(
         select(func.coalesce(func.max(Task.position), -1))

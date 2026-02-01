@@ -10,6 +10,7 @@ class EventCreate(BaseModel):
     end_time: datetime | None = None
     all_day: bool = False
     location: str = ""
+    rrule: str | None = None
 
 
 class EventUpdate(BaseModel):
@@ -19,6 +20,7 @@ class EventUpdate(BaseModel):
     end_time: datetime | None = None
     all_day: bool | None = None
     location: str | None = None
+    rrule: str | None = None
 
 
 class LinkedNoteRef(BaseModel):
@@ -42,6 +44,9 @@ class EventResponse(BaseModel):
     location: str
     calendar_source: str
     calendar_id: str = ""
+    rrule: str | None = None
+    recurring_event_id: str | None = None
+    recurrence_id: str | None = None
     synced_at: datetime | None = None
     linked_notes: list[LinkedNoteRef] = []
     linked_tasks: list[LinkedTaskRef] = []
@@ -62,6 +67,8 @@ class CalendarSettingsResponse(BaseModel):
     selected_calendars: list[str] = []
     sync_range_past_days: int = 30
     sync_range_future_days: int = 90
+    sync_interval_minutes: int = 0
+    sync_direction: str = "import"  # "import", "export", "both"
     caldav_server_url: str = ""
     caldav_username: str = ""
     caldav_has_password: bool = False
@@ -75,6 +82,8 @@ class CalendarSettingsUpdate(BaseModel):
     selected_calendars: list[str] | None = None
     sync_range_past_days: int | None = None
     sync_range_future_days: int | None = None
+    sync_interval_minutes: int | None = None
+    sync_direction: str | None = None
     caldav_server_url: str | None = None
     caldav_username: str | None = None
     caldav_password: str | None = None

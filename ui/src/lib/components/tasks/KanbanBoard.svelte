@@ -42,6 +42,10 @@
 			.sort((a, b) => a.position - b.position);
 	}
 
+	let unsortedTasks = $derived(
+		tasks.filter((t) => !t.milestone_id).sort((a, b) => a.position - b.position)
+	);
+
 	let sortedMilestones = $derived(milestones.toSorted((a, b) => a.position - b.position));
 
 	function handleBoardDragOver(e: DragEvent) {
@@ -132,6 +136,18 @@
 	ondragleave={handleBoardDragLeave}
 	ondrop={handleBoardDrop}
 >
+	{#if unsortedTasks.length > 0}
+		<div class="snap-start">
+			<KanbanColumn
+				milestone={{ id: '__unsorted__', name: 'Unsorted', position: -1 }}
+				tasks={unsortedTasks}
+				{projectId}
+				{selectedTaskId}
+				{ontaskclick}
+			/>
+		</div>
+	{/if}
+
 	{#each sortedMilestones as ms (ms.id)}
 		{#if columnDragOverId === ms.id && columnDragSide === 'left'}
 			<div class="w-1 bg-primary rounded-full shrink-0 self-stretch my-2"></div>

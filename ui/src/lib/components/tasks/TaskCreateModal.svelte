@@ -1,30 +1,39 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import type { TaskCreate, TaskResponse, MilestoneResponse, ChecklistItemCreate } from '$lib/types';
+	import type { TaskCreate, TaskResponse, MilestoneResponse, ChecklistItemCreate, ProjectResponse } from '$lib/types';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
-	import { Plus, Trash2, Square, CheckSquare } from 'lucide-svelte';
+	import { Plus, Trash2, Square, CheckSquare, StickyNote, CalendarDays } from 'lucide-svelte';
 
 	interface Props {
 		open: boolean;
 		projectId: string;
 		milestoneId?: string | null;
 		milestones?: MilestoneResponse[];
+		projects?: ProjectResponse[];
+		sourceNoteId?: string | null;
+		calendarEventId?: string | null;
 		onclose?: () => void;
 		oncreated?: (task: TaskResponse) => void;
 	}
 
-	let { open = $bindable(false), projectId, milestoneId = null, milestones = [], onclose, oncreated }: Props = $props();
+	let { open = $bindable(false), projectId, milestoneId = null, milestones = [], projects = [], sourceNoteId = null, calendarEventId = null, onclose, oncreated }: Props = $props();
 
 	let title = $state('');
 	let description = $state('');
 	let priority = $state('medium');
 	let dueDate = $state('');
+	let selectedProjectId = $state('');
 	let selectedMilestoneId = $state<string | null>(null);
 	let checklist = $state<ChecklistItemCreate[]>([]);
 	let newCheckItem = $state('');
 	let creating = $state(false);
+
+	let selectedProject = $derived(projects.find((p) => p.id === selectedProjectId));
+	let availableMilestones = $derived(
+		projects.length > 0 ? (selectedProject?.milestones ?? []) : milestones
+	);
 
 	$effect(() => {
 		if (open) {
@@ -32,7 +41,8 @@
 			description = '';
 			priority = 'medium';
 			dueDate = '';
-			selectedMilestoneId = milestoneId ?? (milestones.length > 0 ? milestones[0].id : null);
+			selectedProjectId = projectId;
+			selectedMilestoneId = milestoneId ?? null;
 			checklist = [];
 			newCheckItem = '';
 		}
@@ -44,13 +54,15 @@
 		try {
 			const data: TaskCreate = {
 				title: title.trim(),
-				project_id: projectId,
+				project_id: selectedProjectId || projectId,
 				milestone_id: selectedMilestoneId
 			};
 			if (description.trim()) data.description = description.trim();
 			if (priority !== 'medium') data.priority = priority;
 			if (dueDate) data.due_date = new Date(dueDate).toISOString();
 			if (checklist.length > 0) data.checklist = checklist;
+			if (sourceNoteId) data.source_note_id = sourceNoteId;
+			if (calendarEventId) data.calendar_event_id = calendarEventId;
 
 			const task = await api.post<TaskResponse>('/api/tasks', data);
 			oncreated?.(task);
@@ -99,6 +111,17 @@
 			bind:value={description}
 		></textarea>
 
+		{#if projects.length > 0}
+			<div>
+				<p class="text-xs text-base-content/60 mb-1">Project</p>
+				<select class="select select-bordered select-sm w-full" bind:value={selectedProjectId} onchange={() => (selectedMilestoneId = null)}>
+					{#each projects as p}
+						<option value={p.id}>{p.name}</option>
+					{/each}
+				</select>
+			</div>
+		{/if}
+
 		<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 			<div>
 				<p class="text-xs text-base-content/60 mb-1">Priority</p>
@@ -113,11 +136,12 @@
 				<p class="text-xs text-base-content/60 mb-1">Due date</p>
 				<input type="date" class="input input-bordered input-sm w-full" bind:value={dueDate} />
 			</div>
-			{#if milestones.length > 0}
+			{#if availableMilestones.length > 0}
 				<div>
 					<p class="text-xs text-base-content/60 mb-1">Milestone</p>
 					<select class="select select-bordered select-sm w-full" bind:value={selectedMilestoneId}>
-						{#each milestones as ms}
+						<option value={null}>None</option>
+						{#each availableMilestones as ms}
 							<option value={ms.id}>{ms.name}</option>
 						{/each}
 					</select>
@@ -158,6 +182,17 @@
 				</button>
 			</div>
 		</div>
+
+		{#if sourceNoteId || calendarEventId}
+			<div class="flex items-center gap-3 text-xs text-base-content/60">
+				{#if sourceNoteId}
+					<span class="flex items-center gap-1"><StickyNote size={12} /> Linked to note</span>
+				{/if}
+				{#if calendarEventId}
+					<span class="flex items-center gap-1"><CalendarDays size={12} /> Linked to event</span>
+				{/if}
+			</div>
+		{/if}
 
 		<div class="flex items-center gap-2 mt-1">
 			<Button variant="primary" loading={creating} onclick={handleCreate}>

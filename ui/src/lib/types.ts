@@ -208,6 +208,18 @@ export interface ProjectList {
 	total: number;
 }
 
+// Linked item refs (returned by event endpoints)
+export interface LinkedNoteRef {
+	id: string;
+	title: string;
+}
+
+export interface LinkedTaskRef {
+	id: string;
+	title: string;
+	status: string;
+}
+
 // Calendar
 export interface EventCreate {
 	title: string;
@@ -216,6 +228,7 @@ export interface EventCreate {
 	end_time?: string | null;
 	all_day?: boolean;
 	location?: string;
+	rrule?: string | null;
 }
 
 export interface EventUpdate {
@@ -225,6 +238,7 @@ export interface EventUpdate {
 	end_time?: string | null;
 	all_day?: boolean;
 	location?: string;
+	rrule?: string | null;
 }
 
 export interface EventResponse {
@@ -237,6 +251,11 @@ export interface EventResponse {
 	location: string;
 	calendar_source: string;
 	calendar_id: string;
+	rrule: string | null;
+	recurring_event_id: string | null;
+	recurrence_id: string | null;
+	linked_notes: LinkedNoteRef[];
+	linked_tasks: LinkedTaskRef[];
 	synced_at: string | null;
 	created_at: string;
 	updated_at: string;
@@ -345,6 +364,8 @@ export interface CalendarSettingsResponse {
 	selected_calendars: string[];
 	sync_range_past_days: number;
 	sync_range_future_days: number;
+	sync_interval_minutes: number;
+	sync_direction: string;
 	caldav_server_url: string;
 	caldav_username: string;
 	caldav_has_password: boolean;
@@ -358,6 +379,8 @@ export interface CalendarSettingsUpdate {
 	selected_calendars?: string[];
 	sync_range_past_days?: number;
 	sync_range_future_days?: number;
+	sync_interval_minutes?: number;
+	sync_direction?: string;
 	caldav_server_url?: string;
 	caldav_username?: string;
 	caldav_password?: string;

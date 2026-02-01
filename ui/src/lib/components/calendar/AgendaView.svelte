@@ -79,7 +79,7 @@
 	}
 </script>
 
-<div class="flex flex-col gap-6 overflow-y-auto h-full pb-8">
+<div class="flex flex-col gap-6 overflow-y-auto h-full pt-4 pb-8">
 	{#if grouped.length === 0}
 		<div class="text-center text-base-content/50 py-12">
 			No events or tasks in this period.
@@ -88,10 +88,10 @@
 
 	{#each grouped as { date, items: dayItems }}
 		<div>
-			<h3 class="text-sm font-semibold text-base-content/70 border-b border-base-300 pb-1 mb-2 sticky top-0 bg-base-100 z-10">
+			<h3 class="text-sm font-semibold text-base-content/70 border-b border-base-300 pb-1 mb-2 px-4 sticky top-0 bg-base-100 z-10">
 				{formatDateHeader(date)}
 			</h3>
-			<div class="flex flex-col gap-1">
+			<div class="flex flex-col gap-1 px-4">
 				{#each dayItems as item}
 					{@const badge = typeBadge(item)}
 					<button

@@ -10,6 +10,10 @@ from api.models import *  # noqa: F401, F403 - import all models so Base.metadat
 
 async def init_database():
     """Create tables, default data, and workspace directories."""
+    # Ensure workspace directory exists before DB connection (SQLite needs it)
+    workspace = Path(settings.WORKSPACE_DIR).resolve()
+    workspace.mkdir(parents=True, exist_ok=True)
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -21,6 +25,20 @@ async def init_database():
 
         # Migrate: add caldav_href and etag columns to calendar_events
         for col, coltype in [("caldav_href", "VARCHAR"), ("etag", "VARCHAR")]:
+            try:
+                await conn.execute(text(
+                    f"ALTER TABLE calendar_events ADD COLUMN {col} {coltype}"
+                ))
+            except Exception:
+                pass  # column already exists
+
+        # Migrate: add recurrence columns to calendar_events
+        for col, coltype in [
+            ("rrule", "TEXT"),
+            ("original_timezone", "VARCHAR"),
+            ("recurrence_id", "VARCHAR"),
+            ("recurring_event_id", "VARCHAR REFERENCES calendar_events(id) ON DELETE CASCADE"),
+        ]:
             try:
                 await conn.execute(text(
                     f"ALTER TABLE calendar_events ADD COLUMN {col} {coltype}"

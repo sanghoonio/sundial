@@ -5,7 +5,8 @@
 		EventList,
 		TaskResponse,
 		TaskList,
-		CalendarItem
+		CalendarItem,
+		CalendarSettingsResponse
 	} from '$lib/types';
 	import { getItemDate } from '$lib/utils/calendar';
 	import CalendarToolbar from '$lib/components/calendar/CalendarToolbar.svelte';
@@ -28,6 +29,8 @@
 	let selectedEvent = $state<EventResponse | null>(null);
 	let selectedDate = $state('');
 	let selectedTime = $state('');
+	let syncing = $state(false);
+	let calSyncEnabled = $state(false);
 
 	function getDateRange(date: Date, v: CalendarView): { start: string; end: string } {
 		const fmt = (d: Date) =>
@@ -175,6 +178,63 @@
 		}
 	}
 
+	async function handleSeriesDeleted(masterId: string) {
+		try {
+			await api.delete(`/api/calendar/events/${masterId}/series`);
+			// Remove all events belonging to this series (master, exceptions, and virtual instances)
+			events = events.filter(
+				(e) => e.id !== masterId && e.recurring_event_id !== masterId && !e.id.startsWith(`${masterId}__rec__`)
+			);
+			panelOpen = false;
+		} catch (e) {
+			console.error('Failed to delete series', e);
+		}
+	}
+
+	// Periodic sync timer
+	let syncInterval: ReturnType<typeof setInterval> | null = null;
+
+	$effect(() => {
+		// Fetch calendar settings and set up periodic sync
+		api.get<CalendarSettingsResponse>('/api/calendar/settings').then((calSettings) => {
+			calSyncEnabled = calSettings.sync_enabled;
+			if (syncInterval) {
+				clearInterval(syncInterval);
+				syncInterval = null;
+			}
+			if (calSettings.sync_enabled && calSettings.sync_interval_minutes > 0) {
+				const ms = calSettings.sync_interval_minutes * 60 * 1000;
+				syncInterval = setInterval(async () => {
+					try {
+						await api.post('/api/calendar/sync');
+						loadData();
+					} catch (e) {
+						console.error('Periodic sync failed', e);
+					}
+				}, ms);
+			}
+		}).catch(() => {});
+
+		return () => {
+			if (syncInterval) {
+				clearInterval(syncInterval);
+				syncInterval = null;
+			}
+		};
+	});
+
+	async function handleSync() {
+		syncing = true;
+		try {
+			await api.post('/api/calendar/sync');
+			await loadData();
+		} catch (e) {
+			console.error('Calendar sync failed', e);
+		} finally {
+			syncing = false;
+		}
+	}
+
 	function handlePanelClose() {
 		panelOpen = false;
 		selectedEvent = null;
@@ -185,11 +245,13 @@
 	<CalendarToolbar
 		{currentDate}
 		{view}
+		{syncing}
 		onprev={() => navigate(-1)}
 		onnext={() => navigate(1)}
 		ontoday={goToday}
 		onviewchange={switchView}
 		onnewevent={handleNewEvent}
+		onsync={calSyncEnabled ? handleSync : undefined}
 	/>
 
 	{#if loading}
@@ -246,6 +308,7 @@
 						defaultTime={selectedTime}
 						onsaved={handleEventSaved}
 						ondeleted={handleEventDeleted}
+						onseriesdeleted={handleSeriesDeleted}
 						onclose={handlePanelClose}
 					/>
 				{/if}

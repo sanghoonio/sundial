@@ -220,6 +220,7 @@
 			.map((m, i) => ({ name: m.name, position: i }));
 		try {
 			await saveMilestones(milestones);
+			await loadTasks(selectedProjectId);
 		} catch (e) {
 			console.error('Failed to delete column', e);
 		}

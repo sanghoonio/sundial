@@ -1,19 +1,21 @@
 <script lang="ts">
-	import { ChevronLeft, ChevronRight, Plus } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-svelte';
 
 	type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
 	interface Props {
 		currentDate: Date;
 		view: CalendarView;
+		syncing?: boolean;
 		onprev: () => void;
 		onnext: () => void;
 		ontoday: () => void;
 		onviewchange: (view: CalendarView) => void;
 		onnewevent: () => void;
+		onsync?: () => void;
 	}
 
-	let { currentDate, view, onprev, onnext, ontoday, onviewchange, onnewevent }: Props = $props();
+	let { currentDate, view, syncing = false, onprev, onnext, ontoday, onviewchange, onnewevent, onsync }: Props = $props();
 
 	let label = $derived.by(() => {
 		if (view === 'day') {
@@ -42,7 +44,19 @@
 
 <div class="relative border-b border-base-300 shrink-0">
 	<div class="grid grid-cols-[1fr_auto_1fr] items-center px-4 lg:pr-68 py-3">
-		<h2 class="text-lg font-semibold">{label}</h2>
+		<div class="flex items-center gap-2">
+			<h2 class="text-lg font-semibold">{label}</h2>
+			{#if onsync}
+				<button
+					class="btn btn-ghost btn-sm btn-square"
+					onclick={onsync}
+					disabled={syncing}
+					title="Sync calendar"
+				>
+					<RefreshCw size={16} class={syncing ? 'animate-spin' : ''} />
+				</button>
+			{/if}
+		</div>
 
 		<div class="flex items-center gap-1">
 			<button class="btn btn-ghost btn-sm btn-square" onclick={onprev}>

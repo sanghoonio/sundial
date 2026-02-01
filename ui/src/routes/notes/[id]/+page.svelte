@@ -2,13 +2,14 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/services/api';
-	import type { NoteResponse, NoteUpdate, BacklinksResponse, NoteBlock } from '$lib/types';
+	import type { NoteResponse, NoteUpdate, BacklinksResponse, NoteBlock, EventResponse, ProjectList, ProjectResponse } from '$lib/types';
 	import { newBlockId } from '$lib/utils/blocks';
 	import TagInput from '$lib/components/notes/TagInput.svelte';
 	import ProjectSelect from '$lib/components/notes/ProjectSelect.svelte';
 	import NoteEditor from '$lib/components/notes/NoteEditor.svelte';
 	import { notesList } from '$lib/stores/noteslist.svelte';
-	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download } from 'lucide-svelte';
+	import TaskCreateModal from '$lib/components/tasks/TaskCreateModal.svelte';
+	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays } from 'lucide-svelte';
 
 	let note = $state<NoteResponse | null>(null);
 	let backlinks = $state<BacklinksResponse | null>(null);
@@ -23,6 +24,11 @@
 	let blocks = $state<NoteBlock[]>([]);
 	let tags = $state<string[]>([]);
 	let projectId = $state<string | null>(null);
+
+	let createTaskOpen = $state(false);
+	let createTaskProjectId = $state('');
+	let createTaskProjects = $state<ProjectResponse[]>([]);
+	let linkedEventDetails = $state<EventResponse[]>([]);
 
 	let noteId = $derived(page.params.id);
 	let loaded = $state(false);
@@ -40,6 +46,30 @@
 			title = n.title;
 			tags = [...n.tags];
 			projectId = n.project_id;
+
+			// Fetch linked event details
+			if (n.linked_events.length > 0) {
+				const events = await Promise.all(
+					n.linked_events.map((eid) =>
+						api.get<EventResponse>(`/api/calendar/events/${eid}`).catch(() => null)
+					)
+				);
+				linkedEventDetails = events.filter((e): e is EventResponse => e !== null);
+			} else {
+				linkedEventDetails = [];
+			}
+
+			// Resolve projects for task creation
+			try {
+				const pl = await api.get<ProjectList>('/api/projects');
+				createTaskProjects = pl.projects;
+				createTaskProjectId = n.project_id && pl.projects.some((p) => p.id === n.project_id)
+					? n.project_id
+					: pl.projects.length > 0 ? pl.projects[0].id : '';
+			} catch {
+				createTaskProjects = [];
+				createTaskProjectId = '';
+			}
 
 			// Use blocks from API response, fallback to single md block
 			if (n.blocks && n.blocks.length > 0) {
@@ -208,7 +238,7 @@
 	}
 
 	let hasBacklinks = $derived(
-		backlinks && (backlinks.notes.length > 0 || backlinks.tasks.length > 0)
+		backlinks && backlinks.notes.length > 0
 	);
 </script>
 
@@ -325,54 +355,73 @@
 		/>
 
 		<!-- Linked items -->
-		{#if note.linked_tasks.length > 0 || note.linked_events.length > 0}
-			<div class="mt-8 border-t border-base-300 pt-4">
-				<h3 class="font-semibold mb-2 text-sm text-base-content/60">Linked Items</h3>
-				{#if backlinks && backlinks.tasks.length > 0}
-					<div class="mb-2">
-						{#each backlinks.tasks as task}
-							<a href="/tasks?task={task.id}" class="flex items-center gap-2 text-sm py-1 hover:bg-base-200 rounded px-1 -mx-1">
-								<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
-								<span class="truncate">{task.title}</span>
-							</a>
-						{/each}
-					</div>
-				{:else if note.linked_tasks.length > 0}
-					<p class="text-sm text-base-content/60">{note.linked_tasks.length} linked task(s)</p>
-				{/if}
-				{#if note.linked_events.length > 0}
-					<p class="text-sm text-base-content/60">
-						{note.linked_events.length} linked event(s)
-					</p>
+		<div class="mt-8 border-t border-base-300 pt-4">
+			<div class="flex items-center justify-between mb-2">
+				<h3 class="font-semibold text-sm text-base-content/60">Linked Items</h3>
+				{#if createTaskProjectId}
+					<button class="btn btn-ghost btn-xs gap-1" onclick={() => (createTaskOpen = true)}>
+						<Plus size={14} />
+						Create task
+					</button>
 				{/if}
 			</div>
-		{/if}
+			{#if backlinks && backlinks.tasks.length > 0}
+				<div class="mb-2">
+					{#each backlinks.tasks as task}
+						<a href="/tasks?task={task.id}" class="flex items-center gap-2 text-sm py-1 hover:bg-base-200 rounded px-1 -mx-1">
+							<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
+							<span class="truncate">{task.title}</span>
+						</a>
+					{/each}
+				</div>
+			{:else if note.linked_tasks.length > 0}
+				<p class="text-sm text-base-content/60">{note.linked_tasks.length} linked task(s)</p>
+			{/if}
+			{#if linkedEventDetails.length > 0}
+				<div class="mb-2">
+					{#each linkedEventDetails as ev}
+						<a href="/calendar" class="flex items-center gap-2 text-sm py-1 hover:bg-base-200 rounded px-1 -mx-1">
+							<CalendarDays size={14} class="shrink-0 text-base-content/50" />
+							<span class="truncate">{ev.title}</span>
+							<span class="text-xs text-base-content/40 shrink-0">
+								{new Date(ev.start_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+							</span>
+						</a>
+					{/each}
+				</div>
+			{:else if note.linked_events.length > 0}
+				<p class="text-sm text-base-content/60">{note.linked_events.length} linked event(s)</p>
+			{/if}
+			{#if !backlinks?.tasks.length && !note.linked_tasks.length && !linkedEventDetails.length && !note.linked_events.length}
+				<p class="text-sm text-base-content/40">No linked items yet</p>
+			{/if}
+		</div>
 
-		<!-- Backlinks -->
+		<!-- Backlinks (note-to-note only) -->
 		{#if hasBacklinks}
 			<div class="mt-6 border-t border-base-300 pt-4">
 				<h3 class="font-semibold mb-2 text-sm text-base-content/60">Backlinks</h3>
-				{#if backlinks!.notes.length > 0}
-					<div class="mb-2">
-						{#each backlinks!.notes as bl}
-							<a href="/notes/{bl.id}" class="link link-primary text-sm block py-0.5">
-								{bl.title}
-							</a>
-						{/each}
-					</div>
-				{/if}
-				{#if backlinks!.tasks.length > 0}
-					<div>
-						{#each backlinks!.tasks as bl}
-							<span class="text-sm block py-0.5">
-								{bl.title}
-								<span class="badge badge-sm badge-ghost ml-1">{bl.status}</span>
-							</span>
-						{/each}
-					</div>
-				{/if}
+				<div class="mb-2">
+					{#each backlinks!.notes as bl}
+						<a href="/notes/{bl.id}" class="link link-primary text-sm block py-0.5">
+							{bl.title}
+						</a>
+					{/each}
+				</div>
 			</div>
 		{/if}
 		</div>
 	</div>
+
+	{#if createTaskProjectId}
+		<TaskCreateModal
+			bind:open={createTaskOpen}
+			projectId={createTaskProjectId}
+			projects={createTaskProjects}
+			sourceNoteId={noteId}
+			oncreated={async () => {
+				backlinks = await api.get<BacklinksResponse>(`/api/notes/${noteId}/backlinks`);
+			}}
+		/>
+	{/if}
 {/if}

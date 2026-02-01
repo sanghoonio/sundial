@@ -63,7 +63,7 @@
 	class="hidden md:flex flex-col bg-base-200 border-r border-base-300 h-screen transition-all {collapsed ? 'w-16' : 'w-56'}"
 >
 	<!-- Nav links -->
-	<nav class="flex-1 flex flex-col gap-1 pt-4 md:pt-6 pb-2 px-2">
+	<nav class="flex-1 flex flex-col gap-1 pt-2 pb-2 px-2">
 		{#each links as link}
 			<a
 				href={link.href}

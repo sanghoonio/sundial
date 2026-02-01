@@ -26,11 +26,17 @@ class CalendarEvent(Base):
     external_id = Column(String, nullable=True)
     caldav_href = Column(String, nullable=True)
     etag = Column(String, nullable=True)
+    rrule = Column(Text, nullable=True)
+    original_timezone = Column(String, nullable=True)  # e.g. "America/New_York"
+    recurrence_id = Column(String, nullable=True)
+    recurring_event_id = Column(String, ForeignKey("calendar_events.id", ondelete="CASCADE"), nullable=True)
     synced_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     note_links = relationship("NoteCalendarLink", back_populates="event", cascade="all, delete-orphan")
+    recurring_event = relationship("CalendarEvent", remote_side="CalendarEvent.id", foreign_keys=[recurring_event_id])
+    exceptions = relationship("CalendarEvent", foreign_keys=[recurring_event_id], cascade="all, delete-orphan")
 
 
 class NoteCalendarLink(Base):

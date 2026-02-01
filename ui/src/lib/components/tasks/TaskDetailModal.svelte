@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse } from '$lib/types';
+	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, NoteResponse, EventResponse } from '$lib/types';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
@@ -31,6 +31,28 @@
 	let checklistDone = $derived(checklist.filter((c) => c.is_checked).length);
 	let checklistTotal = $derived(checklist.length);
 	let checklistPct = $derived(checklistTotal > 0 ? Math.round((checklistDone / checklistTotal) * 100) : 0);
+
+	let linkedNoteTitle = $state<string | null>(null);
+	let linkedEventTitle = $state<string | null>(null);
+
+	// Fetch linked note/event titles
+	$effect(() => {
+		const noteId = task?.source_note_id;
+		if (noteId) {
+			api.get<NoteResponse>(`/api/notes/${noteId}`).then((n) => (linkedNoteTitle = n.title)).catch(() => (linkedNoteTitle = null));
+		} else {
+			linkedNoteTitle = null;
+		}
+	});
+
+	$effect(() => {
+		const eventId = task?.calendar_event_id;
+		if (eventId) {
+			api.get<EventResponse>(`/api/calendar/events/${eventId}`).then((e) => (linkedEventTitle = e.title)).catch(() => (linkedEventTitle = null));
+		} else {
+			linkedEventTitle = null;
+		}
+	});
 
 	$effect(() => {
 		if (task) {
@@ -192,17 +214,17 @@
 
 			<!-- Linked items -->
 			{#if task.source_note_id || task.calendar_event_id}
-				<div class="flex items-center gap-4 text-xs text-base-content/60">
+				<div class="flex flex-col gap-1 text-xs text-base-content/60">
 					{#if task.source_note_id}
 						<a href="/notes/{task.source_note_id}" class="flex items-center gap-1 hover:text-primary transition-colors" onclick={(e) => e.stopPropagation()}>
 							<StickyNote size={12} />
-							Linked note
+							{linkedNoteTitle ?? 'Linked note'}
 						</a>
 					{/if}
 					{#if task.calendar_event_id}
 						<a href="/calendar" class="flex items-center gap-1 hover:text-primary transition-colors" onclick={(e) => e.stopPropagation()}>
 							<CalendarDays size={12} />
-							Calendar event
+							{linkedEventTitle ?? 'Calendar event'}
 						</a>
 					{/if}
 				</div>

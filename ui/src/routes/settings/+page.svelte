@@ -35,6 +35,8 @@
 	let selectedCalendars = $state<string[]>([]);
 	let syncRangePastDays = $state(30);
 	let syncRangeFutureDays = $state(90);
+	let syncIntervalMinutes = $state(0);
+	let syncDirection = $state('import');
 	let lastSyncAt = $state<string | null>(null);
 	let lastSyncError = $state<string | null>(null);
 
@@ -70,6 +72,8 @@
 			selectedCalendars = calRes.selected_calendars;
 			syncRangePastDays = calRes.sync_range_past_days;
 			syncRangeFutureDays = calRes.sync_range_future_days;
+			syncIntervalMinutes = calRes.sync_interval_minutes;
+			syncDirection = calRes.sync_direction || 'both';
 			lastSyncAt = calRes.last_sync_at;
 			lastSyncError = calRes.last_sync_error;
 		} catch (e) {
@@ -104,6 +108,8 @@
 				selected_calendars: selectedCalendars,
 				sync_range_past_days: syncRangePastDays,
 				sync_range_future_days: syncRangeFutureDays,
+				sync_interval_minutes: syncIntervalMinutes,
+				sync_direction: syncDirection,
 				caldav_server_url: caldavServerUrl,
 				caldav_username: caldavUsername
 			};
@@ -126,8 +132,9 @@
 	async function handleTestConnection() {
 		testingConnection = true;
 		try {
-			// Save credentials first so the server has them
+			// Save credentials + source first so the server has them
 			const calUpdate: CalendarSettingsUpdate = {
+				calendar_source: calendarSource,
 				caldav_server_url: caldavServerUrl,
 				caldav_username: caldavUsername
 			};
@@ -304,7 +311,9 @@
 				</div>
 
 				{#if calendarSource === 'caldav'}
-					<div class="flex flex-col gap-3 pl-3 border-l-2 border-base-300 ml-1">
+					<!-- Connection -->
+					<div class="flex flex-col gap-3">
+						<p class="text-xs font-semibold text-base-content/50 uppercase tracking-wide">Connection</p>
 						<div>
 							<p class="text-sm mb-1">Server URL</p>
 							<input
@@ -350,80 +359,118 @@
 								Test Connection
 							</Button>
 						</div>
-
-						{#if availableCalendars.length > 0}
-							<div>
-								<p class="text-sm font-medium mb-2">Select calendars to sync:</p>
-								<div class="flex flex-col gap-1">
-									{#each availableCalendars as cal}
-										<label class="flex items-center gap-2 cursor-pointer py-1">
-											<input
-												type="checkbox"
-												class="checkbox checkbox-sm"
-												checked={selectedCalendars.includes(cal.id)}
-												onchange={() => toggleCalendarSelection(cal.id)}
-											/>
-											<span
-												class="inline-block w-3 h-3 rounded-full flex-shrink-0"
-												style:background-color={cal.color || '#6b7280'}
-											></span>
-											<span class="text-sm">{cal.name}</span>
-										</label>
-									{/each}
-								</div>
-							</div>
-						{/if}
-
-						<div class="grid grid-cols-2 gap-3">
-							<div>
-								<p class="text-sm mb-1">Sync past (days)</p>
-								<input
-									type="number"
-									class="input input-bordered input-sm w-full"
-									min="1"
-									max="365"
-									bind:value={syncRangePastDays}
-								/>
-							</div>
-							<div>
-								<p class="text-sm mb-1">Sync future (days)</p>
-								<input
-									type="number"
-									class="input input-bordered input-sm w-full"
-									min="1"
-									max="365"
-									bind:value={syncRangeFutureDays}
-								/>
-							</div>
-						</div>
-					</div>
-				{/if}
-
-				<label class="flex items-center justify-between cursor-pointer">
-					<div>
-						<p class="font-medium text-sm">Calendar sync</p>
-						<p class="text-xs text-base-content/60">Periodically sync events from your calendar</p>
-					</div>
-					<input type="checkbox" class="toggle toggle-primary" bind:checked={calendarSyncEnabled} />
-				</label>
-
-				{#if calendarSyncEnabled && calendarSource === 'caldav'}
-					<div class="flex items-center gap-3">
-						<Button variant="ghost" size="sm" loading={syncing} onclick={handleCalendarSync}>
-							<RefreshCw size={14} />
-							Sync now
-						</Button>
-						<span class="text-xs text-base-content/60">
-							Last sync: {formatSyncTime(lastSyncAt)}
-						</span>
 					</div>
 
-					{#if lastSyncError}
-						<div class="flex items-start gap-2 text-xs text-warning">
-							<AlertTriangle size={14} class="flex-shrink-0 mt-0.5" />
-							<span>{lastSyncError}</span>
+					<!-- Calendars -->
+					{#if availableCalendars.length > 0}
+						<div class="flex flex-col gap-2">
+							<p class="text-xs font-semibold text-base-content/50 uppercase tracking-wide">Calendars</p>
+							<div class="flex flex-col gap-1">
+								{#each availableCalendars as cal}
+									<label class="flex items-center gap-2 cursor-pointer py-1">
+										<input
+											type="checkbox"
+											class="checkbox checkbox-sm"
+											checked={selectedCalendars.includes(cal.id)}
+											onchange={() => toggleCalendarSelection(cal.id)}
+										/>
+										<span
+											class="inline-block w-3 h-3 rounded-full flex-shrink-0"
+											style:background-color={cal.color || '#6b7280'}
+										></span>
+										<span class="text-sm">{cal.name}</span>
+									</label>
+								{/each}
+							</div>
 						</div>
 					{/if}
+
+					<!-- Sync Options -->
+					<div class="flex flex-col gap-3">
+						<p class="text-xs font-semibold text-base-content/50 uppercase tracking-wide">Sync Options</p>
+
+						<label class="flex items-center justify-between cursor-pointer">
+							<div>
+								<p class="font-medium text-sm">Enable sync</p>
+								<p class="text-xs text-base-content/60">Sync events between Sundial and your CalDAV server</p>
+							</div>
+							<input type="checkbox" class="toggle toggle-primary" bind:checked={calendarSyncEnabled} />
+						</label>
+
+						{#if calendarSyncEnabled}
+							<div>
+								<p class="text-sm mb-1">Sync direction</p>
+								<select
+									class="select select-bordered select-sm w-full max-w-xs"
+									bind:value={syncDirection}
+								>
+									<option value="import">Import only (read from server)</option>
+									<option value="export">Export only (write to server)</option>
+									<option value="both">Two-way (import & export)</option>
+								</select>
+								<p class="text-xs text-base-content/50 mt-1">
+									Import pulls events from your CalDAV server. Export pushes local changes to it.
+								</p>
+							</div>
+
+							<div>
+								<p class="text-sm mb-1">Sync frequency</p>
+								<select
+									class="select select-bordered select-sm w-full max-w-xs"
+									bind:value={syncIntervalMinutes}
+								>
+									<option value={0}>Manual only</option>
+									<option value={15}>Every 15 minutes</option>
+									<option value={30}>Every 30 minutes</option>
+									<option value={60}>Every hour</option>
+									<option value={360}>Every 6 hours</option>
+								</select>
+								<p class="text-xs text-base-content/50 mt-1">
+									Automatic sync runs while the calendar page is open
+								</p>
+							</div>
+
+							<div class="grid grid-cols-2 gap-3">
+								<div>
+									<p class="text-sm mb-1">Sync past (days)</p>
+									<input
+										type="number"
+										class="input input-bordered input-sm w-full"
+										min="1"
+										max="365"
+										bind:value={syncRangePastDays}
+									/>
+								</div>
+								<div>
+									<p class="text-sm mb-1">Sync future (days)</p>
+									<input
+										type="number"
+										class="input input-bordered input-sm w-full"
+										min="1"
+										max="365"
+										bind:value={syncRangeFutureDays}
+									/>
+								</div>
+							</div>
+
+							<div class="flex items-center gap-3">
+								<Button variant="ghost" size="sm" loading={syncing} onclick={handleCalendarSync}>
+									<RefreshCw size={14} />
+									Sync now
+								</Button>
+								<span class="text-xs text-base-content/60">
+									Last sync: {formatSyncTime(lastSyncAt)}
+								</span>
+							</div>
+
+							{#if lastSyncError}
+								<div class="flex items-start gap-2 text-xs text-warning">
+									<AlertTriangle size={14} class="flex-shrink-0 mt-0.5" />
+									<span>{lastSyncError}</span>
+								</div>
+							{/if}
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</Card>
