@@ -14,7 +14,7 @@ router = APIRouter(prefix="/tags", tags=["tags"], dependencies=[Depends(get_curr
 async def list_tags(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Tag.name, func.count(NoteTag.note_id).label("count"))
-        .outerjoin(NoteTag, Tag.id == NoteTag.tag_id)
+        .join(NoteTag, Tag.id == NoteTag.tag_id)
         .group_by(Tag.id)
         .order_by(func.count(NoteTag.note_id).desc())
     )

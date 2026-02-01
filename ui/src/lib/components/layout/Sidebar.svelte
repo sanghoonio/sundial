@@ -1,13 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { LayoutDashboard, StickyNote, CheckSquare, ChevronLeft, ChevronRight, BookOpen } from 'lucide-svelte';
+	import { LayoutDashboard, StickyNote, CheckSquare, Calendar, FolderKanban, Search, Settings, ChevronLeft, ChevronRight, BookOpen } from 'lucide-svelte';
 
 	let collapsed = $state(false);
 
 	const links = [
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/notes', label: 'Notes', icon: StickyNote },
-		{ href: '/tasks', label: 'Tasks', icon: CheckSquare }
+		{ href: '/tasks', label: 'Tasks', icon: CheckSquare },
+		{ href: '/calendar', label: 'Calendar', icon: Calendar },
+		{ href: '/projects', label: 'Projects', icon: FolderKanban },
+		{ href: '/search', label: 'Search', icon: Search }
 	];
 
 	function isActive(href: string): boolean {
@@ -49,7 +52,19 @@
 		{/each}
 	</nav>
 
-	<div class="py-2 px-2 border-t border-base-300">
+	<div class="py-2 px-2 border-t border-base-300 flex flex-col gap-1">
+		<a
+			href="/settings"
+			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
+				{isActive('/settings') ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}
+				{collapsed ? 'justify-center' : ''}"
+			title={collapsed ? 'Settings' : undefined}
+		>
+			<Settings size={20} />
+			{#if !collapsed}
+				<span>Settings</span>
+			{/if}
+		</a>
 		<a
 			href="/api/docs"
 			target="_blank"

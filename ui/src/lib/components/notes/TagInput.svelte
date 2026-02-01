@@ -61,9 +61,9 @@
 	}
 </script>
 
-<div class="flex flex-wrap items-center gap-1 p-2 border border-base-300 rounded-lg bg-base-100 min-h-10">
+<div class="input input-bordered w-full h-auto min-h-[var(--size)] flex flex-wrap gap-1 px-3 py-1">
 	{#each tags as tag}
-		<Badge variant="primary" removable onremove={() => removeTag(tag)}>{tag}</Badge>
+		<Badge variant="primary" removable onremove={() => removeTag(tag)} class="badge-sm">{tag}</Badge>
 	{/each}
 	<div class="relative flex-1 min-w-24">
 		<input

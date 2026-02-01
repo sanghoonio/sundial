@@ -51,10 +51,24 @@ async def _get_or_create_tags(db: AsyncSession, tag_names: list[str]) -> list[Ta
 
 async def _sync_note_tags(db: AsyncSession, note_id: str, tag_names: list[str]) -> None:
     """Replace all tags for a note using explicit junction table operations."""
+    # Get current tag IDs before removing associations
+    old_result = await db.execute(select(NoteTag.tag_id).where(NoteTag.note_id == note_id))
+    old_tag_ids = [row[0] for row in old_result.fetchall()]
+
     await db.execute(delete(NoteTag).where(NoteTag.note_id == note_id))
     tag_objects = await _get_or_create_tags(db, tag_names)
+    new_tag_ids = {tag.id for tag in tag_objects}
     for tag in tag_objects:
         db.add(NoteTag(note_id=note_id, tag_id=tag.id))
+
+    # Clean up orphaned tags (old tags no longer used by any note)
+    removed_ids = [tid for tid in old_tag_ids if tid not in new_tag_ids]
+    for tag_id in removed_ids:
+        count_result = await db.execute(
+            select(func.count()).select_from(NoteTag).where(NoteTag.tag_id == tag_id)
+        )
+        if count_result.scalar() == 0:
+            await db.execute(delete(Tag).where(Tag.id == tag_id))
 
 
 # --- CRUD ---

@@ -3,11 +3,24 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+class ChatMessageSchema(BaseModel):
+    role: str
+    content: str
+
+
+class BlockSchema(BaseModel):
+    id: str
+    type: str  # "md" or "chat"
+    content: str = ""
+    messages: list[ChatMessageSchema] = []
+
+
 class NoteCreate(BaseModel):
     title: str
     content: str = ""
     tags: list[str] = []
     project_id: str | None = None
+    blocks: list[dict] | None = None
 
 
 class NoteUpdate(BaseModel):
@@ -15,6 +28,7 @@ class NoteUpdate(BaseModel):
     content: str | None = None
     tags: list[str] | None = None
     project_id: str | None = None
+    blocks: list[dict] | None = None
 
 
 class NoteResponse(BaseModel):
@@ -22,6 +36,7 @@ class NoteResponse(BaseModel):
     title: str
     filepath: str
     content: str
+    blocks: list[BlockSchema] = []
     tags: list[str]
     project_id: str | None
     is_archived: bool = False

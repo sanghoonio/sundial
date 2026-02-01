@@ -9,12 +9,35 @@ export interface UserResponse {
 	settings: Record<string, unknown>;
 }
 
+// Notes — Block types
+export interface ChatMessage {
+	role: 'user' | 'assistant';
+	content: string;
+}
+
+export interface MarkdownBlockData {
+	id: string;
+	type: 'md';
+	content: string;
+	messages?: ChatMessage[];
+}
+
+export interface ChatBlockData {
+	id: string;
+	type: 'chat';
+	content?: string;
+	messages: ChatMessage[];
+}
+
+export type NoteBlock = MarkdownBlockData | ChatBlockData;
+
 // Notes
 export interface NoteCreate {
 	title: string;
 	content?: string;
 	tags?: string[];
 	project_id?: string | null;
+	blocks?: NoteBlock[];
 }
 
 export interface NoteUpdate {
@@ -22,6 +45,7 @@ export interface NoteUpdate {
 	content?: string;
 	tags?: string[];
 	project_id?: string | null;
+	blocks?: NoteBlock[];
 }
 
 export interface NoteResponse {
@@ -29,6 +53,7 @@ export interface NoteResponse {
 	title: string;
 	filepath: string;
 	content: string;
+	blocks: NoteBlock[];
 	tags: string[];
 	project_id: string | null;
 	is_archived: boolean;

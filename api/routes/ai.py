@@ -10,6 +10,7 @@ router = APIRouter(prefix="/ai", tags=["ai"], dependencies=[Depends(get_current_
 class ChatRequest(BaseModel):
     message: str
     note_id: str | None = None
+    context: str | None = None
 
 
 class AIResponse(BaseModel):
@@ -23,7 +24,7 @@ class DailySuggestionsResponse(BaseModel):
 
 @router.post("/chat", response_model=AIResponse)
 async def ai_chat(body: ChatRequest):
-    result = await ai_service.chat(body.message, note_id=body.note_id)
+    result = await ai_service.chat(body.message, note_id=body.note_id, context=body.context)
     return AIResponse(result=result)
 
 

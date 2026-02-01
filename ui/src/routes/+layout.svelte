@@ -46,6 +46,11 @@
 		if (path.startsWith('/notes/')) return 'Note';
 		if (path === '/notes') return 'Notes';
 		if (path === '/tasks') return 'Tasks';
+		if (path === '/calendar') return 'Calendar';
+		if (path.startsWith('/projects/')) return 'Project';
+		if (path === '/projects') return 'Projects';
+		if (path === '/search') return 'Search';
+		if (path === '/settings') return 'Settings';
 		return '';
 	});
 </script>

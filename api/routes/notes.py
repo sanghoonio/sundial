@@ -8,6 +8,7 @@ from api.schemas.note import (
     BacklinkItem,
     BacklinkTaskItem,
     BacklinksResponse,
+    BlockSchema,
     NoteCreate,
     NoteList,
     NoteListItem,
@@ -15,6 +16,7 @@ from api.schemas.note import (
     NoteUpdate,
 )
 from api.services import note_service
+from api.services.block_parser import extract_markdown_text, parse_blocks, serialize_blocks
 from api.utils.auth import get_current_user
 from api.utils.websocket import manager
 
@@ -23,8 +25,11 @@ router = APIRouter(prefix="/notes", tags=["notes"], dependencies=[Depends(get_cu
 
 @router.post("", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
 async def create_note(body: NoteCreate, db: AsyncSession = Depends(get_db)):
+    content = body.content
+    if body.blocks is not None:
+        content = serialize_blocks(body.blocks)
     note = await note_service.create_note(
-        db, title=body.title, content=body.content, tags=body.tags, project_id=body.project_id,
+        db, title=body.title, content=content, tags=body.tags, project_id=body.project_id,
     )
     resp = _note_to_response(note)
     await manager.broadcast("note_created", {"id": note.id, "title": note.title})
@@ -56,8 +61,11 @@ async def get_note(note_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.put("/{note_id}", response_model=NoteResponse)
 async def update_note(note_id: str, body: NoteUpdate, db: AsyncSession = Depends(get_db)):
+    content = body.content
+    if body.blocks is not None:
+        content = serialize_blocks(body.blocks)
     note = await note_service.update_note(
-        db, note_id, title=body.title, content=body.content, tags=body.tags, project_id=body.project_id,
+        db, note_id, title=body.title, content=content, tags=body.tags, project_id=body.project_id,
     )
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
@@ -105,16 +113,21 @@ def _note_to_response(note) -> NoteResponse:
     if hasattr(note, "calendar_links") and note.calendar_links:
         linked_events = [cl.event_id for cl in note.calendar_links]
 
+    # Parse content into blocks
+    blocks_raw = parse_blocks(note.content or "")
+    blocks = [BlockSchema(**b) for b in blocks_raw]
+
     return NoteResponse(
         id=note.id,
         title=note.title,
         filepath=note.filepath,
-        content=note.content,
+        content=note.content or "",
+        blocks=blocks,
         tags=[t.name for t in note.tags],
         project_id=note.project_id,
         is_archived=note.is_archived or False,
         linked_notes=linked_notes,
-        linked_tasks=[],  # Populated by caller if needed, or via backlinks
+        linked_tasks=[],
         linked_events=linked_events,
         created_at=note.created_at,
         updated_at=note.updated_at,
@@ -124,7 +137,8 @@ def _note_to_response(note) -> NoteResponse:
 def _note_to_list_item(note) -> NoteListItem:
     preview = ""
     if note.content:
-        preview = note.content[:200].strip()
+        md_text = extract_markdown_text(note.content)
+        preview = md_text[:200].strip()
 
     return NoteListItem(
         id=note.id,

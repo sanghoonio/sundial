@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { LayoutDashboard, StickyNote, CheckSquare } from 'lucide-svelte';
+	import { LayoutDashboard, StickyNote, CheckSquare, Calendar, Search } from 'lucide-svelte';
 
 	const links = [
-		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
+		{ href: '/', label: 'Home', icon: LayoutDashboard },
 		{ href: '/notes', label: 'Notes', icon: StickyNote },
-		{ href: '/tasks', label: 'Tasks', icon: CheckSquare }
+		{ href: '/tasks', label: 'Tasks', icon: CheckSquare },
+		{ href: '/calendar', label: 'Calendar', icon: Calendar },
+		{ href: '/search', label: 'Search', icon: Search }
 	];
 
 	function isActive(href: string): boolean {
