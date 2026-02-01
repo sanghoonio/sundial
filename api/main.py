@@ -43,6 +43,7 @@ from api.routes.dashboard import router as dashboard_router
 from api.routes.ai import router as ai_router
 from api.routes.tags import router as tags_router
 from api.routes.settings import router as settings_router
+from api.routes.workspace import router as workspace_router
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(notes_router, prefix="/api")
@@ -54,6 +55,7 @@ app.include_router(dashboard_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
 app.include_router(tags_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(workspace_router, prefix="/api")
 
 
 # WebSocket endpoint

@@ -304,8 +304,17 @@ export interface SearchResultItem {
 	rank: number;
 }
 
+export interface TaskSearchResultItem {
+	id: string;
+	title: string;
+	description: string;
+	status: string;
+	project_id: string;
+}
+
 export interface SearchResult {
 	results: SearchResultItem[];
+	tasks: TaskSearchResultItem[];
 	total: number;
 	query: string;
 }

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { TaskCreate, TaskResponse, MilestoneResponse, ChecklistItemCreate } from '$lib/types';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -56,8 +55,8 @@
 			const task = await api.post<TaskResponse>('/api/tasks', data);
 			oncreated?.(task);
 			open = false;
-		} catch {
-			toasts.error('Failed to create task');
+		} catch (e) {
+			console.error('Failed to create task', e);
 		} finally {
 			creating = false;
 		}

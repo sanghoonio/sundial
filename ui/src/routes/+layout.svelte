@@ -5,7 +5,6 @@
 	import { ws } from '$lib/stores/websocket.svelte';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import MobileNav from '$lib/components/layout/MobileNav.svelte';
-	import Toast from '$lib/components/ui/Toast.svelte';
 	import '../app.css';
 
 	let { children } = $props();
@@ -57,5 +56,3 @@
 	</div>
 	<MobileNav />
 {/if}
-
-<Toast />

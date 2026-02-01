@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { TaskCreate, TaskResponse } from '$lib/types';
 	import { Plus } from 'lucide-svelte';
 
@@ -28,8 +27,8 @@
 			title = '';
 			showForm = false;
 			oncreated?.(task);
-		} catch {
-			toasts.error('Failed to create task');
+		} catch (e) {
+			console.error('Failed to create task', e);
 		} finally {
 			adding = false;
 		}

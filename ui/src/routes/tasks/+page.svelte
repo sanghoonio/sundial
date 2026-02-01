@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { ProjectResponse, ProjectList, TaskResponse, TaskList, TaskMove, MilestoneCreate } from '$lib/types';
 	import KanbanBoard from '$lib/components/tasks/KanbanBoard.svelte';
 	import TaskDetailPanel from '$lib/components/tasks/TaskDetailPanel.svelte';
@@ -114,8 +113,8 @@
 				const match = paramProject && projects.find((p) => p.id === paramProject);
 				selectedProjectId = match ? match.id : projects[0].id;
 			}
-		} catch {
-			toasts.error('Failed to load projects');
+		} catch (e) {
+			console.error('Failed to load projects', e);
 			loading = false;
 		}
 	}
@@ -127,8 +126,8 @@
 				`/api/tasks?project_id=${projectId}&limit=200`
 			);
 			tasks = res.tasks;
-		} catch {
-			toasts.error('Failed to load tasks');
+		} catch (e) {
+			console.error('Failed to load tasks', e);
 		} finally {
 			loading = false;
 		}
@@ -166,9 +165,9 @@
 			const move: TaskMove = { milestone_id: milestoneId, position };
 			const updated = await api.put<TaskResponse>(`/api/tasks/${taskId}/move`, move);
 			tasks = tasks.map((t) => (t.id === taskId ? updated : t));
-		} catch {
+		} catch (e) {
 			tasks = oldTasks;
-			toasts.error('Failed to move task');
+			console.error('Failed to move task', e);
 		}
 	}
 
@@ -208,8 +207,8 @@
 		}));
 		try {
 			await saveMilestones(milestones);
-		} catch {
-			toasts.error('Failed to rename column');
+		} catch (e) {
+			console.error('Failed to rename column', e);
 		}
 	}
 
@@ -221,8 +220,8 @@
 			.map((m, i) => ({ name: m.name, position: i }));
 		try {
 			await saveMilestones(milestones);
-		} catch {
-			toasts.error('Failed to delete column');
+		} catch (e) {
+			console.error('Failed to delete column', e);
 		}
 	}
 
@@ -234,8 +233,8 @@
 		];
 		try {
 			await saveMilestones(milestones);
-		} catch {
-			toasts.error('Failed to create column');
+		} catch (e) {
+			console.error('Failed to create column', e);
 		}
 	}
 
@@ -252,8 +251,8 @@
 		}));
 		try {
 			await saveMilestones(milestones);
-		} catch {
-			toasts.error('Failed to reorder columns');
+		} catch (e) {
+			console.error('Failed to reorder columns', e);
 		}
 	}
 

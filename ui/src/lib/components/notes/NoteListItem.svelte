@@ -41,8 +41,11 @@
 	{#if previewText}
 		<p class="text-xs text-base-content/50 truncate mt-2.5 mb-2">{previewText}</p>
 	{/if}
-	{#if note.tags.length > 0}
-		<div class="flex gap-1 mt-4 mb-2">
+	{#if note.tags.length > 0 || note.linked_tasks.length > 0}
+		<div class="flex gap-1 mt-4 mb-2 items-center">
+			{#if note.linked_tasks.length > 0}
+				<span class="badge badge-xs badge-outline gap-0.5">{note.linked_tasks.length} task{note.linked_tasks.length > 1 ? 's' : ''}</span>
+			{/if}
 			{#each note.tags.slice(0, 2) as tag}
 				<span class="badge badge-xs badge-ghost">{tag}</span>
 			{/each}

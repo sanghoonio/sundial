@@ -2,14 +2,13 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { NoteResponse, NoteUpdate, BacklinksResponse, NoteBlock } from '$lib/types';
 	import { newBlockId } from '$lib/utils/blocks';
 	import TagInput from '$lib/components/notes/TagInput.svelte';
 	import ProjectSelect from '$lib/components/notes/ProjectSelect.svelte';
 	import NoteEditor from '$lib/components/notes/NoteEditor.svelte';
 	import { notesList } from '$lib/stores/noteslist.svelte';
-	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info } from 'lucide-svelte';
+	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download } from 'lucide-svelte';
 
 	let note = $state<NoteResponse | null>(null);
 	let backlinks = $state<BacklinksResponse | null>(null);
@@ -48,8 +47,8 @@
 			} else {
 				blocks = [{ id: newBlockId(), type: 'md', content: n.content || '' }];
 			}
-		} catch {
-			toasts.error('Failed to load note');
+		} catch (e) {
+			console.error('Failed to load note', e);
 			goto('/notes');
 		} finally {
 			loading = false;
@@ -120,10 +119,9 @@
 		try {
 			await api.delete(`/api/notes/${noteId}`);
 			notesList.refresh();
-			toasts.success('Note deleted');
 			goto('/notes');
-		} catch {
-			toasts.error('Failed to delete note');
+		} catch (e) {
+			console.error('Failed to delete note', e);
 		}
 	}
 
@@ -139,31 +137,73 @@
 				const newTags = result.suggested_tags.filter((t: string) => !tags.includes(t));
 				if (newTags.length > 0) {
 					tags = [...tags, ...newTags];
-					toasts.success(`Added ${newTags.length} suggested tag(s)`);
 				}
 			}
-
-			if (Array.isArray(result.extracted_tasks) && result.extracted_tasks.length > 0) {
-				toasts.info(`AI found ${result.extracted_tasks.length} potential task(s)`);
-			}
-
-			if (
-				(!result.suggested_tags || (result.suggested_tags as string[]).length === 0) &&
-				(!result.extracted_tasks || (result.extracted_tasks as string[]).length === 0)
-			) {
-				toasts.info('No suggestions from AI analysis');
-			}
-		} catch {
-			toasts.error('AI analysis failed');
+		} catch (e) {
+			console.error('AI analysis failed', e);
 		} finally {
 			analyzing = false;
 		}
+	}
+
+	function handleExport() {
+		if (!note) return;
+
+		// Build YAML frontmatter
+		const fm = [
+			'---',
+			`title: "${title.replace(/"/g, '\\"')}"`,
+			`tags: [${tags.map((t) => `"${t}"`).join(', ')}]`,
+			`created: ${note.created_at}`,
+			`updated: ${note.updated_at}`,
+			'---',
+			''
+		].join('\n');
+
+		// Gather markdown content from blocks
+		const content = blocks
+			.filter((b) => b.type === 'md')
+			.map((b) => b.content)
+			.join('\n\n');
+
+		const markdown = fm + content;
+		const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = slugify(title) + '.md';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
+
+	function slugify(text: string): string {
+		return text
+			.toLowerCase()
+			.replace(/[^\w\s-]/g, '')
+			.replace(/\s+/g, '-')
+			.replace(/-+/g, '-')
+			.trim() || 'note';
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
 		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
 			e.preventDefault();
 			handleSave();
+		}
+	}
+
+	function handleContentDblClick(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		if (preview) {
+			// Preview: dblclick anywhere switches to edit (except links)
+			if (target.closest('a')) return;
+			preview = false;
+		} else {
+			// Edit: only toggle on whitespace outside blocks
+			if (target.closest('[data-note-block], button, a, input, textarea')) return;
+			preview = true;
 		}
 	}
 
@@ -243,13 +283,17 @@
 					Preview
 				{/if}
 			</button>
+			<button class="btn btn-ghost btn-sm" onclick={handleExport} title="Download as markdown">
+				<Download size={16} />
+			</button>
 			<button class="btn btn-ghost btn-sm text-error" onclick={handleDelete}>
 				<Trash2 size={16} />
 			</button>
 		</div>
 
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<!-- Scrollable content -->
-		<div class="flex-1 overflow-y-auto p-4 md:p-6">
+		<div class="flex-1 overflow-y-auto p-4 md:p-6" ondblclick={handleContentDblClick}>
 		<!-- Metadata section -->
 		{#if showMeta}
 			<div class="mb-4 md:mb-6 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col gap-3">
@@ -284,7 +328,16 @@
 		{#if note.linked_tasks.length > 0 || note.linked_events.length > 0}
 			<div class="mt-8 border-t border-base-300 pt-4">
 				<h3 class="font-semibold mb-2 text-sm text-base-content/60">Linked Items</h3>
-				{#if note.linked_tasks.length > 0}
+				{#if backlinks && backlinks.tasks.length > 0}
+					<div class="mb-2">
+						{#each backlinks.tasks as task}
+							<a href="/tasks?task={task.id}" class="flex items-center gap-2 text-sm py-1 hover:bg-base-200 rounded px-1 -mx-1">
+								<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
+								<span class="truncate">{task.title}</span>
+							</a>
+						{/each}
+					</div>
+				{:else if note.linked_tasks.length > 0}
 					<p class="text-sm text-base-content/60">{note.linked_tasks.length} linked task(s)</p>
 				{/if}
 				{#if note.linked_events.length > 0}

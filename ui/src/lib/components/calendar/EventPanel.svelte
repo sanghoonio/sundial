@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { EventResponse, EventCreate, EventUpdate } from '$lib/types';
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import { Trash2, X, Check, Save } from 'lucide-svelte';
 
@@ -150,9 +149,9 @@
 				showSavedText = false;
 				saveStatus = 'idle';
 			}, 2000);
-		} catch {
+		} catch (e) {
 			saveStatus = 'error';
-			toasts.error('Failed to save event');
+			console.error('Failed to save event', e);
 		} finally {
 			saving = false;
 		}

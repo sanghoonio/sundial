@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse } from '$lib/types';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -63,8 +62,8 @@
 			const updated = await api.put<TaskResponse>(`/api/tasks/${task.id}`, update);
 			onsaved?.(updated);
 			open = false;
-		} catch {
-			toasts.error('Failed to update task');
+		} catch (e) {
+			console.error('Failed to update task', e);
 		} finally {
 			saving = false;
 		}
@@ -74,11 +73,10 @@
 		if (!task || !confirm('Delete this task?')) return;
 		try {
 			await api.delete(`/api/tasks/${task.id}`);
-			toasts.success('Task deleted');
 			ondeleted?.(task.id);
 			open = false;
-		} catch {
-			toasts.error('Failed to delete task');
+		} catch (e) {
+			console.error('Failed to delete task', e);
 		}
 	}
 

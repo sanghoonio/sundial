@@ -15,7 +15,16 @@ class SearchResultItem(BaseModel):
     rank: float
 
 
+class TaskSearchResultItem(BaseModel):
+    id: str
+    title: str
+    description: str
+    status: str
+    project_id: str
+
+
 class SearchResult(BaseModel):
     results: list[SearchResultItem]
+    tasks: list[TaskSearchResultItem] = []
     total: int
     query: str

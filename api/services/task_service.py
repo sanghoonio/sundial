@@ -79,6 +79,7 @@ async def list_tasks(
     project_id: str | None = None,
     milestone_id: str | None = None,
     status: str | None = None,
+    ai_suggested: bool | None = None,
     due_after: datetime | None = None,
     due_before: datetime | None = None,
     limit: int = 50,
@@ -92,6 +93,8 @@ async def list_tasks(
         query = query.where(Task.milestone_id == milestone_id)
     if status:
         query = query.where(Task.status == status)
+    if ai_suggested is not None:
+        query = query.where(Task.ai_suggested == ai_suggested)
     if due_after:
         query = query.where(Task.due_date >= due_after)
     if due_before:
@@ -102,6 +105,8 @@ async def list_tasks(
         count_query = count_query.where(Task.project_id == project_id)
     if status:
         count_query = count_query.where(Task.status == status)
+    if ai_suggested is not None:
+        count_query = count_query.where(Task.ai_suggested == ai_suggested)
     if due_after:
         count_query = count_query.where(Task.due_date >= due_after)
     if due_before:

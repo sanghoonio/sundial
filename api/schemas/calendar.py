@@ -21,6 +21,17 @@ class EventUpdate(BaseModel):
     location: str | None = None
 
 
+class LinkedNoteRef(BaseModel):
+    id: str
+    title: str
+
+
+class LinkedTaskRef(BaseModel):
+    id: str
+    title: str
+    status: str
+
+
 class EventResponse(BaseModel):
     id: str
     title: str
@@ -32,6 +43,8 @@ class EventResponse(BaseModel):
     calendar_source: str
     calendar_id: str = ""
     synced_at: datetime | None = None
+    linked_notes: list[LinkedNoteRef] = []
+    linked_tasks: list[LinkedTaskRef] = []
     created_at: datetime
     updated_at: datetime
 

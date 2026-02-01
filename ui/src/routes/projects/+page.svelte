@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { ProjectResponse, ProjectList, ProjectCreate, ProjectUpdate } from '$lib/types';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -31,8 +30,8 @@
 		try {
 			const res = await api.get<ProjectList>('/api/projects');
 			projects = res.projects;
-		} catch {
-			toasts.error('Failed to load projects');
+		} catch (e) {
+			console.error('Failed to load projects', e);
 		} finally {
 			loading = false;
 		}
@@ -64,9 +63,8 @@
 			const created = await api.post<ProjectResponse>('/api/projects', data);
 			projects = [...projects, created];
 			createOpen = false;
-			toasts.success('Project created');
-		} catch {
-			toasts.error('Failed to create project');
+		} catch (e) {
+			console.error('Failed to create project', e);
 		} finally {
 			creating = false;
 		}
@@ -84,11 +82,11 @@
 			await api.put<ProjectResponse>(`/api/projects/${project.id}`, {
 				status: newStatus
 			} as ProjectUpdate);
-		} catch {
+		} catch (e) {
 			projects = projects.map((p) =>
 				p.id === project.id ? { ...p, status: oldStatus } : p
 			);
-			toasts.error('Failed to update status');
+			console.error('Failed to update status', e);
 		}
 	}
 

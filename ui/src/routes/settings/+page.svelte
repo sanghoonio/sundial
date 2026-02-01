@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type {
 		SettingsResponse,
 		SettingsUpdate,
@@ -11,7 +10,7 @@
 	} from '$lib/types';
 	import Card from '$lib/components/ui/Card.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
-	import { Bot, Calendar, Palette, Save, RefreshCw, Check, AlertTriangle } from 'lucide-svelte';
+	import { Bot, Calendar, Palette, Save, RefreshCw, Check, AlertTriangle, Download, Upload, Database } from 'lucide-svelte';
 
 	let settings = $state<SettingsResponse | null>(null);
 	let calSettings = $state<CalendarSettingsResponse | null>(null);
@@ -42,6 +41,12 @@
 	// CalDAV calendar list from test connection
 	let availableCalendars = $state<CalDAVCalendarInfo[]>([]);
 
+	// Workspace export/import
+	let exporting = $state(false);
+	let importing = $state(false);
+	let importResult = $state<string | null>(null);
+	let importFileInput = $state<HTMLInputElement>();
+
 	async function loadSettings() {
 		loading = true;
 		try {
@@ -67,8 +72,8 @@
 			syncRangeFutureDays = calRes.sync_range_future_days;
 			lastSyncAt = calRes.last_sync_at;
 			lastSyncError = calRes.last_sync_error;
-		} catch {
-			toasts.error('Failed to load settings');
+		} catch (e) {
+			console.error('Failed to load settings', e);
 		} finally {
 			loading = false;
 		}
@@ -110,10 +115,9 @@
 			caldavHasPassword = calSettings.caldav_has_password;
 			caldavPassword = '';
 
-			toasts.success('Settings saved');
 			document.documentElement.setAttribute('data-theme', theme);
-		} catch {
-			toasts.error('Failed to save settings');
+		} catch (e) {
+			console.error('Failed to save settings', e);
 		} finally {
 			saving = false;
 		}
@@ -134,10 +138,8 @@
 
 			const calendars = await api.get<CalDAVCalendarInfo[]>('/api/calendar/caldav/calendars');
 			availableCalendars = calendars;
-			toasts.success(`Found ${calendars.length} calendar(s)`);
 		} catch (e: unknown) {
-			const msg = e instanceof Error ? e.message : 'Connection failed';
-			toasts.error(msg);
+			console.error('Calendar connection failed', e);
 			availableCalendars = [];
 		} finally {
 			testingConnection = false;
@@ -151,15 +153,11 @@
 			lastSyncAt = result.last_sync;
 			if (result.errors.length > 0) {
 				lastSyncError = result.errors[0];
-				toasts.error(`Sync completed with errors: ${result.errors[0]}`);
 			} else {
 				lastSyncError = null;
-				toasts.success(
-					`Synced: ${result.created} created, ${result.updated} updated, ${result.deleted} deleted`
-				);
 			}
-		} catch {
-			toasts.error('Calendar sync failed');
+		} catch (e) {
+			console.error('Calendar sync failed', e);
 		} finally {
 			syncing = false;
 		}
@@ -179,6 +177,67 @@
 			return new Date(iso).toLocaleString();
 		} catch {
 			return iso;
+		}
+	}
+
+	async function handleExportWorkspace() {
+		exporting = true;
+		try {
+			const res = await fetch('/api/export/workspace', {
+				headers: api.authHeaders()
+			});
+			if (!res.ok) throw new Error('Export failed');
+			const blob = await res.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = 'sundial-backup.zip';
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			console.error('Failed to export workspace', e);
+		} finally {
+			exporting = false;
+		}
+	}
+
+	async function handleImportWorkspace(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		if (!confirm('This will replace ALL existing data with the backup. Continue?')) {
+			input.value = '';
+			return;
+		}
+
+		importing = true;
+		importResult = null;
+		try {
+			const formData = new FormData();
+			formData.append('file', file);
+			const res = await fetch('/api/import/workspace', {
+				method: 'POST',
+				headers: api.authHeaders(),
+				body: formData
+			});
+			const result = await res.json();
+			if (result.error) {
+				importResult = `Error: ${result.error}`;
+			} else {
+				const total = Object.values(result.restored as Record<string, number>).reduce((a: number, b: number) => a + b, 0);
+				importResult = `Restored ${total} records and ${result.files} files`;
+				// Reload settings since they were restored
+				loadSettings();
+			}
+		} catch (e) {
+			console.error('Failed to import workspace', e);
+			importResult = 'Import failed';
+		} finally {
+			importing = false;
+			input.value = '';
 		}
 	}
 </script>
@@ -234,10 +293,7 @@
 			</h2>
 			<div class="flex flex-col gap-4">
 				<div>
-					<!-- svelte-ignore a11y_label_has_associated_control -->
-					<label class="label"
-						><span class="label-text text-sm font-medium">Calendar source</span></label
-					>
+					<p class="text-sm font-medium mb-1">Calendar source</p>
 					<select
 						class="select select-bordered select-sm w-full max-w-xs"
 						bind:value={calendarSource}
@@ -248,12 +304,9 @@
 				</div>
 
 				{#if calendarSource === 'caldav'}
-					<div class="flex flex-col gap-3 pl-2 border-l-2 border-base-300 ml-1">
+					<div class="flex flex-col gap-3 pl-3 border-l-2 border-base-300 ml-1">
 						<div>
-							<!-- svelte-ignore a11y_label_has_associated_control -->
-							<label class="label"
-								><span class="label-text text-sm">Server URL</span></label
-							>
+							<p class="text-sm mb-1">Server URL</p>
 							<input
 								type="url"
 								class="input input-bordered input-sm w-full"
@@ -263,8 +316,7 @@
 						</div>
 
 						<div>
-							<!-- svelte-ignore a11y_label_has_associated_control -->
-							<label class="label"><span class="label-text text-sm">Username</span></label>
+							<p class="text-sm mb-1">Username</p>
 							<input
 								type="text"
 								class="input input-bordered input-sm w-full"
@@ -274,10 +326,7 @@
 						</div>
 
 						<div>
-							<!-- svelte-ignore a11y_label_has_associated_control -->
-							<label class="label"
-								><span class="label-text text-sm">App-specific password</span></label
-							>
+							<p class="text-sm mb-1">App-specific password</p>
 							<input
 								type="password"
 								class="input input-bordered input-sm w-full"
@@ -327,10 +376,7 @@
 
 						<div class="grid grid-cols-2 gap-3">
 							<div>
-								<!-- svelte-ignore a11y_label_has_associated_control -->
-								<label class="label"
-									><span class="label-text text-sm">Sync past (days)</span></label
-								>
+								<p class="text-sm mb-1">Sync past (days)</p>
 								<input
 									type="number"
 									class="input input-bordered input-sm w-full"
@@ -340,10 +386,7 @@
 								/>
 							</div>
 							<div>
-								<!-- svelte-ignore a11y_label_has_associated_control -->
-								<label class="label"
-									><span class="label-text text-sm">Sync future (days)</span></label
-								>
+								<p class="text-sm mb-1">Sync future (days)</p>
 								<input
 									type="number"
 									class="input input-bordered input-sm w-full"
@@ -392,8 +435,7 @@
 				Appearance
 			</h2>
 			<div>
-				<!-- svelte-ignore a11y_label_has_associated_control -->
-				<label class="label"><span class="label-text text-sm font-medium">Theme</span></label>
+				<p class="text-sm font-medium mb-1">Theme</p>
 				<select class="select select-bordered select-sm w-full max-w-xs" bind:value={theme}>
 					<option value="light">Light</option>
 					<option value="dark">Dark</option>
@@ -401,8 +443,51 @@
 			</div>
 		</Card>
 
+		<!-- Data -->
+		<Card>
+			<h2 class="font-semibold flex items-center gap-2 mb-4">
+				<Database size={18} />
+				Data
+			</h2>
+			<div class="flex flex-col gap-4">
+				<div>
+					<p class="text-sm font-medium mb-1">Export workspace</p>
+					<p class="text-xs text-base-content/60 mb-2">Download all notes, tasks, projects, and settings as a ZIP file</p>
+					<Button variant="ghost" size="sm" loading={exporting} onclick={handleExportWorkspace}>
+						<Download size={14} />
+						Export Workspace
+					</Button>
+				</div>
+				<div class="border-t border-base-300 pt-4">
+					<p class="text-sm font-medium mb-1">Restore from backup</p>
+					<p class="text-xs text-base-content/60 mb-2">Upload a previously exported ZIP to restore all data</p>
+					<input
+						type="file"
+						accept=".zip"
+						class="hidden"
+						bind:this={importFileInput}
+						onchange={handleImportWorkspace}
+					/>
+					<Button
+						variant="ghost"
+						size="sm"
+						loading={importing}
+						onclick={() => importFileInput?.click()}
+					>
+						<Upload size={14} />
+						Restore from Backup
+					</Button>
+					{#if importResult}
+						<p class="text-xs mt-2 {importResult.startsWith('Error') ? 'text-error' : 'text-success'}">
+							{importResult}
+						</p>
+					{/if}
+				</div>
+			</div>
+		</Card>
+
 		<!-- Save -->
-		<div class="flex items-center gap-2">
+		<div class="sticky bottom-0 py-4 bg-base-100 border-t border-base-300 -mx-4 px-4 flex items-center">
 			<Button variant="primary" loading={saving} onclick={handleSave}>
 				<Save size={16} />
 				Save Settings

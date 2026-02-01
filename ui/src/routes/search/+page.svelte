@@ -2,10 +2,9 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
-	import type { SearchResult, SearchResultItem } from '$lib/types';
+	import type { SearchResult, SearchResultItem, TaskSearchResultItem } from '$lib/types';
 	import Card from '$lib/components/ui/Card.svelte';
-	import { Search, FileText, StickyNote } from 'lucide-svelte';
+	import { Search, StickyNote, CheckSquare } from 'lucide-svelte';
 
 	let query = $state('');
 	let results = $state<SearchResult | null>(null);
@@ -42,8 +41,8 @@
 		try {
 			const params = new URLSearchParams({ q, limit: '50' });
 			results = await api.get<SearchResult>(`/api/search?${params}`);
-		} catch {
-			toasts.error('Search failed');
+		} catch (e) {
+			console.error('Search failed', e);
 		} finally {
 			loading = false;
 		}
@@ -57,13 +56,9 @@
 		}
 	}
 
-	function getResultHref(item: SearchResultItem): string {
-		// filepath determines what type of result this is
-		if (item.filepath.startsWith('notes/')) {
-			return `/notes/${item.id}`;
-		}
-		return `/notes/${item.id}`;
-	}
+	let hasResults = $derived(
+		results && (results.results.length > 0 || results.tasks.length > 0)
+	);
 </script>
 
 <div class="max-w-2xl mx-auto">
@@ -86,30 +81,57 @@
 		<div class="flex items-center justify-center py-12">
 			<span class="loading loading-spinner loading-lg"></span>
 		</div>
-	{:else if results && results.results.length > 0}
+	{:else if hasResults}
 		<p class="text-sm text-base-content/50 mb-4">
-			{results.total} result{results.total === 1 ? '' : 's'} for "{results.query}"
+			{results!.total} result{results!.total === 1 ? '' : 's'} for "{results!.query}"
 		</p>
-		<div class="flex flex-col gap-3">
-			{#each results.results as item (item.id)}
-				<a href={getResultHref(item)} class="block">
-					<Card hoverable compact>
-						<div class="flex items-start gap-3">
-							<div class="text-base-content/40 mt-0.5">
-								<StickyNote size={18} />
+
+		{#if results!.results.length > 0}
+			<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-2">Notes</h3>
+			<div class="flex flex-col gap-3 mb-6">
+				{#each results!.results as item (item.id)}
+					<a href="/notes/{item.id}" class="block">
+						<Card hoverable compact>
+							<div class="flex items-start gap-3">
+								<div class="text-base-content/40 mt-0.5">
+									<StickyNote size={18} />
+								</div>
+								<div class="flex-1 min-w-0">
+									<h3 class="font-medium">{item.title}</h3>
+									{#if item.snippet}
+										<p class="text-sm text-base-content/60 mt-1 line-clamp-2">{item.snippet}</p>
+									{/if}
+								</div>
 							</div>
-							<div class="flex-1 min-w-0">
-								<h3 class="font-medium">{item.title}</h3>
-								{#if item.snippet}
-									<p class="text-sm text-base-content/60 mt-1 line-clamp-2">{item.snippet}</p>
-								{/if}
-								<p class="text-xs text-base-content/40 mt-1">{item.filepath}</p>
+						</Card>
+					</a>
+				{/each}
+			</div>
+		{/if}
+
+		{#if results!.tasks.length > 0}
+			<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-2">Tasks</h3>
+			<div class="flex flex-col gap-3">
+				{#each results!.tasks as task (task.id)}
+					<a href="/tasks?project={task.project_id}" class="block">
+						<Card hoverable compact>
+							<div class="flex items-start gap-3">
+								<div class="text-base-content/40 mt-0.5">
+									<CheckSquare size={18} />
+								</div>
+								<div class="flex-1 min-w-0">
+									<h3 class="font-medium">{task.title}</h3>
+									{#if task.description}
+										<p class="text-sm text-base-content/60 mt-1 line-clamp-2">{task.description}</p>
+									{/if}
+									<span class="badge badge-xs badge-ghost mt-1">{task.status}</span>
+								</div>
 							</div>
-						</div>
-					</Card>
-				</a>
-			{/each}
-		</div>
+						</Card>
+					</a>
+				{/each}
+			</div>
+		{/if}
 	{:else if hasSearched}
 		<div class="text-center py-12">
 			<p class="text-base-content/40">No results found for "{query}"</p>

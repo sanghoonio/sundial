@@ -7,8 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.database import get_db
-from api.models.calendar import CalendarEvent
+from api.models.calendar import CalendarEvent, NoteCalendarLink
+from api.models.note import Note
 from api.models.settings import UserSettings
+from api.models.task import Task
 from api.schemas.calendar import (
     CalDAVCalendarInfo,
     CalendarSettingsResponse,
@@ -18,6 +20,8 @@ from api.schemas.calendar import (
     EventList,
     EventResponse,
     EventUpdate,
+    LinkedNoteRef,
+    LinkedTaskRef,
 )
 from api.services.calendar_sync import caldav_sync_service
 from api.utils.auth import get_current_user
@@ -68,6 +72,40 @@ async def _upsert_setting(db: AsyncSession, key: str, value: str):
         db.add(UserSettings(key=key, value=value, updated_at=now))
 
 
+async def _build_event_response(event: CalendarEvent, db: AsyncSession) -> EventResponse:
+    """Build EventResponse with linked notes and tasks."""
+    # Linked notes via note_calendar_links
+    note_link_result = await db.execute(
+        select(Note.id, Note.title)
+        .join(NoteCalendarLink, NoteCalendarLink.note_id == Note.id)
+        .where(NoteCalendarLink.event_id == event.id)
+    )
+    linked_notes = [LinkedNoteRef(id=row[0], title=row[1]) for row in note_link_result.fetchall()]
+
+    # Linked tasks via tasks.calendar_event_id
+    task_result = await db.execute(
+        select(Task.id, Task.title, Task.status).where(Task.calendar_event_id == event.id)
+    )
+    linked_tasks = [LinkedTaskRef(id=row[0], title=row[1], status=row[2]) for row in task_result.fetchall()]
+
+    return EventResponse(
+        id=event.id,
+        title=event.title,
+        description=event.description or "",
+        start_time=event.start_time,
+        end_time=event.end_time,
+        all_day=event.all_day,
+        location=event.location or "",
+        calendar_source=event.calendar_source or "local",
+        calendar_id=event.calendar_id or "",
+        synced_at=event.synced_at,
+        linked_notes=linked_notes,
+        linked_tasks=linked_tasks,
+        created_at=event.created_at,
+        updated_at=event.updated_at,
+    )
+
+
 @router.post("/events", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 async def create_event(body: EventCreate, db: AsyncSession = Depends(get_db)):
     event = CalendarEvent(
@@ -104,7 +142,7 @@ async def create_event(body: EventCreate, db: AsyncSession = Depends(get_db)):
     except Exception:
         logger.exception("CalDAV push failed for new event (non-blocking)")
 
-    return event
+    return await _build_event_response(event, db)
 
 
 @router.get("/events", response_model=EventList)
@@ -128,7 +166,8 @@ async def list_events(
 
     result = await db.execute(query.offset(offset).limit(limit))
     events = list(result.scalars().all())
-    return EventList(events=events, total=total)
+    event_responses = [await _build_event_response(e, db) for e in events]
+    return EventList(events=event_responses, total=total)
 
 
 @router.get("/events/{event_id}", response_model=EventResponse)
@@ -136,7 +175,7 @@ async def get_event(event_id: str, db: AsyncSession = Depends(get_db)):
     event = await db.get(CalendarEvent, event_id)
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
-    return event
+    return await _build_event_response(event, db)
 
 
 @router.put("/events/{event_id}", response_model=EventResponse)
@@ -160,7 +199,7 @@ async def update_event(event_id: str, body: EventUpdate, db: AsyncSession = Depe
         except Exception:
             logger.exception("CalDAV update failed for event (non-blocking)")
 
-    return event
+    return await _build_event_response(event, db)
 
 
 @router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)

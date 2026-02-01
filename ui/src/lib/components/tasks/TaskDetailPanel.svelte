@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, ProjectResponse } from '$lib/types';
 	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X, Save, Check } from 'lucide-svelte';
 
@@ -96,9 +95,9 @@
 				showSavedText = false;
 				saveStatus = 'idle';
 			}, 2000);
-		} catch {
+		} catch (e) {
 			saveStatus = 'error';
-			toasts.error('Failed to update task');
+			console.error('Failed to update task', e);
 		} finally {
 			saving = false;
 		}
@@ -123,10 +122,9 @@
 		if (!confirm('Delete this task?')) return;
 		try {
 			await api.delete(`/api/tasks/${task.id}`);
-			toasts.success('Task deleted');
 			ondeleted?.(task.id);
-		} catch {
-			toasts.error('Failed to delete task');
+		} catch (e) {
+			console.error('Failed to delete task', e);
 		}
 	}
 

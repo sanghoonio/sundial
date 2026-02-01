@@ -70,7 +70,7 @@
 		{/if}
 
 		<!-- Block wrapper with hover gutter -->
-		<div class="group/block flex gap-2 relative">
+		<div class="group/block flex gap-2 relative" data-note-block>
 			<!-- Gutter controls -->
 			{#if !preview}
 				<div class="w-6 pt-1 flex-shrink-0">

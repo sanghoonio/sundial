@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { DashboardResponse } from '$lib/types';
 	import Card from '$lib/components/ui/Card.svelte';
 	import EventCard from '$lib/components/calendar/EventCard.svelte';
@@ -14,8 +13,8 @@
 	async function load() {
 		try {
 			dashboard = await api.get<DashboardResponse>('/api/dashboard/today');
-		} catch {
-			toasts.error('Failed to load dashboard');
+		} catch (e) {
+			console.error('Failed to load dashboard', e);
 		} finally {
 			loading = false;
 		}

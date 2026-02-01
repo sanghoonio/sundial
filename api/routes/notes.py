@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +33,7 @@ async def create_note(body: NoteCreate, db: AsyncSession = Depends(get_db)):
     note = await note_service.create_note(
         db, title=body.title, content=content, tags=body.tags, project_id=body.project_id,
     )
-    resp = _note_to_response(note)
+    resp = await _note_to_response(note, db)
     await manager.broadcast("note_created", {"id": note.id, "title": note.title})
     return resp
 
@@ -40,14 +42,24 @@ async def create_note(body: NoteCreate, db: AsyncSession = Depends(get_db)):
 async def list_notes(
     project_id: str | None = Query(None),
     tag: str | None = Query(None),
+    tags: str | None = Query(None, description="Comma-separated tag names for multi-tag filtering"),
+    search: str | None = Query(None, description="FTS5 full-text search query"),
+    date_from: datetime | None = Query(None, description="Filter notes created on or after this date"),
+    date_to: datetime | None = Query(None, description="Filter notes created on or before this date"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    notes, total = await note_service.list_notes(db, limit=limit, offset=offset, project_id=project_id, tag=tag)
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
+    notes, total = await note_service.list_notes(
+        db, limit=limit, offset=offset, project_id=project_id, tag=tag,
+        tags=tag_list, search=search, date_from=date_from, date_to=date_to,
+    )
     return NoteList(
-        notes=[_note_to_list_item(n) for n in notes],
+        notes=[await _note_to_list_item(n, db) for n in notes],
         total=total,
+        limit=limit,
+        offset=offset,
     )
 
 
@@ -56,7 +68,7 @@ async def get_note(note_id: str, db: AsyncSession = Depends(get_db)):
     note = await note_service.get_note(db, note_id)
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
-    return _note_to_response(note)
+    return await _note_to_response(note, db)
 
 
 @router.put("/{note_id}", response_model=NoteResponse)
@@ -69,7 +81,7 @@ async def update_note(note_id: str, body: NoteUpdate, db: AsyncSession = Depends
     )
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
-    resp = _note_to_response(note)
+    resp = await _note_to_response(note, db)
     await manager.broadcast("note_updated", {"id": note.id, "title": note.title})
     return resp
 
@@ -102,7 +114,7 @@ async def get_backlinks(note_id: str, db: AsyncSession = Depends(get_db)):
     )
 
 
-def _note_to_response(note) -> NoteResponse:
+async def _note_to_response(note, db: AsyncSession) -> NoteResponse:
     # Gather linked notes (from incoming_links)
     linked_notes = []
     if hasattr(note, "incoming_links") and note.incoming_links:
@@ -112,6 +124,12 @@ def _note_to_response(note) -> NoteResponse:
     linked_events = []
     if hasattr(note, "calendar_links") and note.calendar_links:
         linked_events = [cl.event_id for cl in note.calendar_links]
+
+    # Gather linked tasks
+    task_result = await db.execute(
+        select(Task.id).where(Task.source_note_id == note.id)
+    )
+    linked_tasks = list(task_result.scalars().all())
 
     # Parse content into blocks
     blocks_raw = parse_blocks(note.content or "")
@@ -127,18 +145,24 @@ def _note_to_response(note) -> NoteResponse:
         project_id=note.project_id,
         is_archived=note.is_archived or False,
         linked_notes=linked_notes,
-        linked_tasks=[],
+        linked_tasks=linked_tasks,
         linked_events=linked_events,
         created_at=note.created_at,
         updated_at=note.updated_at,
     )
 
 
-def _note_to_list_item(note) -> NoteListItem:
+async def _note_to_list_item(note, db: AsyncSession) -> NoteListItem:
     preview = ""
     if note.content:
         md_text = extract_markdown_text(note.content)
         preview = md_text[:200].strip()
+
+    # Gather linked tasks
+    task_result = await db.execute(
+        select(Task.id).where(Task.source_note_id == note.id)
+    )
+    linked_tasks = list(task_result.scalars().all())
 
     return NoteListItem(
         id=note.id,
@@ -146,7 +170,7 @@ def _note_to_list_item(note) -> NoteListItem:
         filepath=note.filepath,
         tags=[t.name for t in note.tags],
         project_id=note.project_id,
-        linked_tasks=[],
+        linked_tasks=linked_tasks,
         linked_events=[],
         preview=preview,
         created_at=note.created_at,

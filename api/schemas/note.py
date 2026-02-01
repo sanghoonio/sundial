@@ -67,6 +67,8 @@ class NoteListItem(BaseModel):
 class NoteList(BaseModel):
     notes: list[NoteListItem]
     total: int
+    limit: int = 50
+    offset: int = 0
 
 
 class BacklinkItem(BaseModel):

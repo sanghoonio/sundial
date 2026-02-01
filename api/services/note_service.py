@@ -128,10 +128,34 @@ async def get_note_by_title(db: AsyncSession, title: str) -> Note | None:
     return result.scalar_one_or_none()
 
 
-async def list_notes(db: AsyncSession, limit: int = 50, offset: int = 0, project_id: str | None = None, tag: str | None = None) -> tuple[list[Note], int]:
-    query = select(Note).options(selectinload(Note.tags)).order_by(Note.updated_at.desc())
+async def list_notes(
+    db: AsyncSession,
+    limit: int = 50,
+    offset: int = 0,
+    project_id: str | None = None,
+    tag: str | None = None,
+    tags: list[str] | None = None,
+    search: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+) -> tuple[list[Note], int]:
+    # If search is provided, use FTS5 to get matching note IDs first
+    fts_note_ids: list[str] | None = None
+    if search:
+        fts_result = await db.execute(
+            text("SELECT id FROM notes_fts WHERE notes_fts MATCH :query ORDER BY rank LIMIT 500"),
+            {"query": search},
+        )
+        fts_note_ids = [row[0] for row in fts_result.fetchall()]
+        if not fts_note_ids:
+            return [], 0
 
+    query = select(Note).options(selectinload(Note.tags)).order_by(Note.updated_at.desc())
     count_query = select(func.count()).select_from(Note)
+
+    if fts_note_ids is not None:
+        query = query.where(Note.id.in_(fts_note_ids))
+        count_query = count_query.where(Note.id.in_(fts_note_ids))
 
     if project_id:
         query = query.where(Note.project_id == project_id)
@@ -139,6 +163,31 @@ async def list_notes(db: AsyncSession, limit: int = 50, offset: int = 0, project
     if tag:
         query = query.join(NoteTag).join(Tag).where(Tag.name == tag.lower())
         count_query = count_query.join(NoteTag).join(Tag).where(Tag.name == tag.lower())
+    if tags:
+        # Multi-tag filter: note must have ALL specified tags
+        for t in tags:
+            tag_alias = NoteTag.__table__.alias()
+            tag_obj_alias = Tag.__table__.alias()
+            query = query.where(
+                Note.id.in_(
+                    select(tag_alias.c.note_id)
+                    .join(tag_obj_alias, tag_alias.c.tag_id == tag_obj_alias.c.id)
+                    .where(tag_obj_alias.c.name == t.strip().lower())
+                )
+            )
+            count_query = count_query.where(
+                Note.id.in_(
+                    select(tag_alias.c.note_id)
+                    .join(tag_obj_alias, tag_alias.c.tag_id == tag_obj_alias.c.id)
+                    .where(tag_obj_alias.c.name == t.strip().lower())
+                )
+            )
+    if date_from:
+        query = query.where(Note.created_at >= date_from)
+        count_query = count_query.where(Note.created_at >= date_from)
+    if date_to:
+        query = query.where(Note.created_at <= date_to)
+        count_query = count_query.where(Note.created_at <= date_to)
 
     count_result = await db.execute(count_query)
     total = count_result.scalar()

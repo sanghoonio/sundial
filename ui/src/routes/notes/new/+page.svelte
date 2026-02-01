@@ -2,51 +2,87 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { NoteCreate, NoteResponse, NoteBlock } from '$lib/types';
 	import { newBlockId } from '$lib/utils/blocks';
 	import TagInput from '$lib/components/notes/TagInput.svelte';
 	import ProjectSelect from '$lib/components/notes/ProjectSelect.svelte';
 	import NoteEditor from '$lib/components/notes/NoteEditor.svelte';
-	import { ArrowLeft, Eye, Pencil, Info } from 'lucide-svelte';
+	import { ArrowLeft, Eye, Pencil, Save, Check, Info } from 'lucide-svelte';
 	import { notesList } from '$lib/stores/noteslist.svelte';
 
 	let title = $state('');
 	let blocks = $state<NoteBlock[]>([{ id: newBlockId(), type: 'md', content: '' }]);
 	let tags = $state<string[]>([]);
 	let projectId = $state<string | null>(page.url.searchParams.get('project'));
-	let saving = $state(false);
 	let preview = $state(false);
 	let showMeta = $state(false);
 
-	async function handleSave() {
-		if (!title.trim()) {
-			toasts.warning('Title is required');
-			return;
-		}
-		saving = true;
+	let creating = $state(false);
+	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+	let showSavedText = $state(false);
+	let savedTextTimer: ReturnType<typeof setTimeout>;
+
+	function hasContent(): boolean {
+		return blocks.some((b) => {
+			if (b.type === 'md') return b.content.trim().length > 0;
+			if (b.type === 'chat') return (b.messages?.length ?? 0) > 0;
+			return false;
+		});
+	}
+
+	async function handleCreate() {
+		if (creating || !hasContent()) return;
+		creating = true;
+		saveStatus = 'saving';
 		try {
-			const data: NoteCreate = {
-				title: title.trim(),
-				blocks,
-				tags,
-				project_id: projectId
-			};
+			const data: NoteCreate = { title: title.trim() || 'Untitled', blocks, tags, project_id: projectId };
 			const note = await api.post<NoteResponse>('/api/notes', data);
 			notesList.refresh();
-			toasts.success('Note created');
+			saveStatus = 'saved';
+			showSavedText = true;
+			clearTimeout(savedTextTimer);
+			// Navigate to the edit page which handles autosave going forward
 			goto(`/notes/${note.id}`);
-		} catch {
-			toasts.error('Failed to create note');
-		} finally {
-			saving = false;
+		} catch (e) {
+			console.error('Failed to create note', e);
+			saveStatus = 'error';
+			creating = false;
 		}
 	}
+
+	// Auto-create: debounced 1s after title + content exist
+	let autoCreateTimer: ReturnType<typeof setTimeout>;
+
+	$effect(() => {
+		// Track reactive deps
+		title;
+		blocks;
+
+		if (creating) return;
+		clearTimeout(autoCreateTimer);
+
+		if (hasContent()) {
+			autoCreateTimer = setTimeout(() => handleCreate(), 1000);
+		}
+
+		return () => clearTimeout(autoCreateTimer);
+	});
 
 	function handleKeydown(e: KeyboardEvent) {
 		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
 			e.preventDefault();
-			handleSave();
+			handleCreate();
+		}
+	}
+
+	function handleContentDblClick(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		if (preview) {
+			if (target.closest('a')) return;
+			preview = false;
+		} else {
+			if (target.closest('[data-note-block], button, a, input, textarea')) return;
+			preview = true;
 		}
 	}
 </script>
@@ -67,11 +103,24 @@
 			autofocus
 			class="flex-1 min-w-0 font-semibold bg-transparent border-none outline-none focus:bg-base-200 rounded px-2 py-0.5 truncate"
 		/>
-		<button class="btn btn-primary btn-sm" onclick={handleSave} disabled={saving}>
-			{#if saving}
+		<button
+			class="btn btn-ghost btn-sm"
+			onclick={() => handleCreate()}
+			disabled={creating || !hasContent()}
+			title="Save"
+		>
+			{#if saveStatus === 'saving'}
 				<span class="loading loading-spinner loading-xs"></span>
+			{:else if saveStatus === 'saved'}
+				<Check size={16} class="text-success" />
+				{#if showSavedText}
+					<span class="text-xs">Saved!</span>
+				{/if}
+			{:else if saveStatus === 'error'}
+				<Save size={16} class="text-error" />
+			{:else}
+				<Save size={16} />
 			{/if}
-			Create
 		</button>
 		<button
 			class="btn btn-ghost btn-sm"
@@ -96,8 +145,9 @@
 		</button>
 	</div>
 
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<!-- Scrollable content -->
-	<div class="flex-1 overflow-y-auto p-4 md:p-6">
+	<div class="flex-1 overflow-y-auto p-4 md:p-6" ondblclick={handleContentDblClick}>
 		<!-- Metadata section -->
 		{#if showMeta}
 			<div class="mb-4 md:mb-6 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col sm:flex-row gap-3">

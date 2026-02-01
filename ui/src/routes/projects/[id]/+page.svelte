@@ -2,7 +2,6 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type {
 		ProjectResponse,
 		ProjectUpdate,
@@ -91,8 +90,8 @@
 			} catch {
 				notes = [];
 			}
-		} catch {
-			toasts.error('Failed to load project');
+		} catch (e) {
+			console.error('Failed to load project', e);
 			goto('/projects');
 		} finally {
 			loading = false;
@@ -124,9 +123,9 @@
 				showSavedText = false;
 				saveStatus = 'idle';
 			}, 2000);
-		} catch {
+		} catch (e) {
 			saveStatus = 'error';
-			toasts.error('Failed to update project');
+			console.error('Failed to update project', e);
 		} finally {
 			saving = false;
 		}
@@ -149,10 +148,9 @@
 		if (!confirm('Delete this project and all its tasks?')) return;
 		try {
 			await api.delete(`/api/projects/${projectId}`);
-			toasts.success('Project deleted');
 			goto('/projects');
-		} catch {
-			toasts.error('Failed to delete project');
+		} catch (e) {
+			console.error('Failed to delete project', e);
 		}
 	}
 

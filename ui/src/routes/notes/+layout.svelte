@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import { notesList } from '$lib/stores/noteslist.svelte';
 	import type { NoteList, NoteListItem, TagListResponse } from '$lib/types';
 	import NoteListItemComponent from '$lib/components/notes/NoteListItem.svelte';
+	import NoteImportButton from '$lib/components/notes/NoteImportButton.svelte';
 	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA } from 'lucide-svelte';
 
 	let { children } = $props();
@@ -24,6 +24,18 @@
 	let selectedNoteId = $derived(page.params.id ?? null);
 	let isNewNote = $derived(page.url.pathname === '/notes/new');
 
+	// Debounce search to avoid hammering the API
+	let searchDebounceTimer: ReturnType<typeof setTimeout>;
+	let activeSearch = $state('');
+
+	function handleSearchInput(val: string) {
+		search = val;
+		clearTimeout(searchDebounceTimer);
+		searchDebounceTimer = setTimeout(() => {
+			activeSearch = val.trim();
+		}, 300);
+	}
+
 	async function load(append = false) {
 		if (append) {
 			loadingMore = true;
@@ -34,6 +46,7 @@
 		try {
 			const params = new URLSearchParams();
 			if (selectedTag) params.set('tag', selectedTag);
+			if (activeSearch) params.set('search', activeSearch);
 			params.set('limit', String(PAGE_SIZE));
 			params.set('offset', String(append ? offset : 0));
 			const qs = params.toString();
@@ -45,8 +58,8 @@
 			}
 			total = res.total;
 			offset = notes.length;
-		} catch {
-			toasts.error('Failed to load notes');
+		} catch (e) {
+			console.error('Failed to load notes', e);
 		} finally {
 			loading = false;
 			loadingMore = false;
@@ -63,28 +76,15 @@
 	}
 
 	$effect(() => {
-		// Re-fetch when tag filter changes or child routes signal a refresh
+		// Re-fetch when tag/search filter changes or child routes signal a refresh
 		selectedTag;
+		activeSearch;
 		notesList.refreshKey;
 		load();
 		loadTags();
 	});
 
-	// Client-side search filter
-	let searchLower = $derived(search.trim().toLowerCase());
-
-	let filteredNotes = $derived.by(() => {
-		let result = notes;
-		if (searchLower) {
-			result = result.filter(
-				(n) =>
-					n.title.toLowerCase().includes(searchLower) ||
-					n.preview.toLowerCase().includes(searchLower) ||
-					n.tags.some((t) => t.toLowerCase().includes(searchLower))
-			);
-		}
-		return sortNotes(result, sortBy);
-	});
+	let displayNotes = $derived(sortNotes(notes, sortBy));
 
 	function sortNotes(list: NoteListItem[], sort: typeof sortBy): NoteListItem[] {
 		const sorted = [...list];
@@ -119,6 +119,7 @@
 	function clearSearch(e: MouseEvent) {
 		e.preventDefault();
 		search = '';
+		activeSearch = '';
 		searchOpen = false;
 	}
 </script>
@@ -142,13 +143,14 @@
 						<!-- svelte-ignore a11y_autofocus -->
 						<input
 							type="text"
-							placeholder="Filter notes..."
+							placeholder="Search notes..."
 							class="bg-transparent outline-none flex-1 min-w-0 text-sm font-normal"
 							bind:value={search}
 							bind:this={searchInput}
 							onblur={closeSearch}
+							oninput={(e) => handleSearchInput((e.target as HTMLInputElement).value)}
 							onclick={(e) => e.stopPropagation()}
-							onkeydown={(e) => { if (e.key === 'Escape') { search = ''; searchOpen = false; } }}
+							onkeydown={(e) => { if (e.key === 'Escape') { clearSearch(e as unknown as MouseEvent); } }}
 						/>
 						{#if search}
 							<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -180,6 +182,7 @@
 						<li><button class={sortBy === 'title_desc' ? 'active' : ''} onclick={() => (sortBy = 'title_desc')}><ArrowDownZA size={14} />Title Z-A</button></li>
 					</ul>
 				</div>
+				<NoteImportButton />
 				<a href="/notes/new" class="btn btn-primary btn-sm btn-square" title="New note">
 					<Plus size={16} />
 				</a>
@@ -212,12 +215,12 @@
 				<div class="flex items-center justify-center py-10">
 					<span class="loading loading-spinner loading-md"></span>
 				</div>
-			{:else if filteredNotes.length > 0}
-				{#each filteredNotes as note (note.id)}
+			{:else if displayNotes.length > 0}
+				{#each displayNotes as note (note.id)}
 					<NoteListItemComponent {note} selected={selectedNoteId === note.id} />
 				{/each}
 
-				{#if hasMore && !searchLower}
+				{#if hasMore && !activeSearch}
 					<div class="flex justify-center py-3">
 						<button
 							class="btn btn-ghost btn-xs"
@@ -231,15 +234,11 @@
 						</button>
 					</div>
 				{/if}
-			{:else if searchLower}
+			{:else if activeSearch}
 				<p class="text-center text-sm text-base-content/40 py-10">No matches</p>
 			{:else}
 				<div class="text-center py-10 px-4">
-					<p class="text-sm text-base-content/40 mb-3">No notes yet</p>
-					<a href="/notes/new" class="btn btn-primary btn-sm">
-						<Plus size={14} />
-						Create note
-					</a>
+					<p class="text-sm text-base-content/40">No notes found.</p>
 				</div>
 			{/if}
 		</div>

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import { toasts } from '$lib/stores/toasts.svelte';
 	import type {
 		EventResponse,
 		EventList,
@@ -82,8 +81,8 @@
 			]);
 			events = eventRes.events;
 			tasks = taskRes.tasks;
-		} catch {
-			toasts.error('Failed to load calendar data');
+		} catch (e) {
+			console.error('Failed to load calendar data', e);
 		} finally {
 			loading = false;
 		}
@@ -171,9 +170,8 @@
 			await api.delete(`/api/calendar/events/${eventId}`);
 			events = events.filter((e) => e.id !== eventId);
 			panelOpen = false;
-			toasts.success('Event deleted');
-		} catch {
-			toasts.error('Failed to delete event');
+		} catch (e) {
+			console.error('Failed to delete event', e);
 		}
 	}
 
