@@ -247,6 +247,11 @@ export interface EventList {
 	total: number;
 }
 
+// Calendar items (unified type for events + tasks on calendar)
+export type CalendarItem =
+	| { type: 'event'; data: EventResponse }
+	| { type: 'task'; data: TaskResponse };
+
 // Dashboard
 export interface DashboardEvent {
 	id: string;

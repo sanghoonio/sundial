@@ -1,47 +1,91 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
 	import { toasts } from '$lib/stores/toasts.svelte';
-	import type { EventResponse, EventList, EventCreate, EventUpdate } from '$lib/types';
+	import type {
+		EventResponse,
+		EventList,
+		EventCreate,
+		EventUpdate,
+		TaskResponse,
+		TaskList,
+		CalendarItem
+	} from '$lib/types';
+	import { getItemDate } from '$lib/utils/calendar';
+	import CalendarToolbar from '$lib/components/calendar/CalendarToolbar.svelte';
 	import CalendarGrid from '$lib/components/calendar/CalendarGrid.svelte';
+	import WeekView from '$lib/components/calendar/WeekView.svelte';
+	import DayView from '$lib/components/calendar/DayView.svelte';
+	import AgendaView from '$lib/components/calendar/AgendaView.svelte';
+	import MiniCalendar from '$lib/components/calendar/MiniCalendar.svelte';
 	import EventModal from '$lib/components/calendar/EventModal.svelte';
-	import { Plus } from 'lucide-svelte';
+
+	type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
 	let events = $state<EventResponse[]>([]);
+	let tasks = $state<TaskResponse[]>([]);
 	let currentDate = $state(new Date());
+	let view = $state<CalendarView>('month');
 	let loading = $state(true);
 
 	let modalOpen = $state(false);
 	let selectedEvent = $state<EventResponse | null>(null);
 	let selectedDate = $state('');
+	let selectedTime = $state('');
 
-	function getMonthRange(date: Date): { start: string; end: string } {
-		const year = date.getFullYear();
-		const month = date.getMonth();
-		const start = new Date(year, month, 1);
-		const end = new Date(year, month + 1, 0);
-		// Extend to show padding days
-		start.setDate(start.getDate() - start.getDay());
-		end.setDate(end.getDate() + (6 - end.getDay()));
-		return {
-			start: formatDate(start),
-			end: formatDate(end)
-		};
+	function getDateRange(date: Date, v: CalendarView): { start: string; end: string } {
+		const fmt = (d: Date) =>
+			`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+		if (v === 'month') {
+			const year = date.getFullYear();
+			const month = date.getMonth();
+			const start = new Date(year, month, 1);
+			const end = new Date(year, month + 1, 0);
+			start.setDate(start.getDate() - start.getDay());
+			end.setDate(end.getDate() + (6 - end.getDay()));
+			return { start: fmt(start), end: fmt(end) };
+		}
+		if (v === 'week') {
+			const start = new Date(date);
+			start.setDate(start.getDate() - start.getDay());
+			const end = new Date(start);
+			end.setDate(end.getDate() + 6);
+			return { start: fmt(start), end: fmt(end) };
+		}
+		if (v === 'day') {
+			return { start: fmt(date), end: fmt(date) };
+		}
+		// agenda: 30 days forward
+		const end = new Date(date);
+		end.setDate(end.getDate() + 30);
+		return { start: fmt(date), end: fmt(end) };
 	}
 
 	function formatDate(d: Date): string {
 		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 	}
 
-	async function loadEvents() {
+	let calendarItems = $derived<CalendarItem[]>([
+		...events.map((e) => ({ type: 'event' as const, data: e })),
+		...tasks
+			.filter((t) => t.due_date)
+			.map((t) => ({ type: 'task' as const, data: t }))
+	]);
+
+	let itemDates = $derived(new Set(calendarItems.map((item) => getItemDate(item)).filter(Boolean)));
+
+	async function loadData() {
 		loading = true;
 		try {
-			const { start, end } = getMonthRange(currentDate);
-			const res = await api.get<EventList>(
-				`/api/calendar/events?start_date=${start}&end_date=${end}`
-			);
-			events = res.events;
+			const { start, end } = getDateRange(currentDate, view);
+			const [eventRes, taskRes] = await Promise.all([
+				api.get<EventList>(`/api/calendar/events?start=${start}&end=${end}`),
+				api.get<TaskList>(`/api/tasks?due_after=${start}&due_before=${end}&limit=200`)
+			]);
+			events = eventRes.events;
+			tasks = taskRes.tasks;
 		} catch {
-			toasts.error('Failed to load events');
+			toasts.error('Failed to load calendar data');
 		} finally {
 			loading = false;
 		}
@@ -49,32 +93,70 @@
 
 	$effect(() => {
 		currentDate;
-		loadEvents();
+		view;
+		loadData();
 	});
 
-	function prevMonth() {
-		currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+	function navigate(direction: -1 | 1) {
+		const d = new Date(currentDate);
+		if (view === 'month') {
+			d.setMonth(d.getMonth() + direction);
+		} else if (view === 'week') {
+			d.setDate(d.getDate() + 7 * direction);
+		} else if (view === 'day') {
+			d.setDate(d.getDate() + direction);
+		} else {
+			d.setDate(d.getDate() + 30 * direction);
+		}
+		currentDate = d;
 	}
 
-	function nextMonth() {
-		currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+	function goToday() {
+		currentDate = new Date();
+	}
+
+	function switchView(v: CalendarView) {
+		view = v;
+	}
+
+	function goToDay(date: Date) {
+		currentDate = date;
+		view = 'day';
+	}
+
+	function handleMiniCalendarClick(date: Date) {
+		currentDate = date;
 	}
 
 	function handleDayClick(date: Date) {
 		selectedEvent = null;
 		selectedDate = formatDate(date);
+		selectedTime = '';
 		modalOpen = true;
 	}
 
-	function handleEventClick(event: EventResponse) {
-		selectedEvent = event;
-		selectedDate = '';
-		modalOpen = true;
+	function handleItemClick(item: CalendarItem) {
+		if (item.type === 'event') {
+			selectedEvent = item.data;
+			selectedDate = '';
+			selectedTime = '';
+			modalOpen = true;
+		} else {
+			window.location.href = `/tasks?project=${item.data.project_id}`;
+		}
 	}
 
 	function handleNewEvent() {
 		selectedEvent = null;
-		selectedDate = formatDate(new Date());
+		selectedDate = formatDate(currentDate);
+		selectedTime = '';
+		modalOpen = true;
+	}
+
+	function handleNewEventAtTime(date: Date, hour: number) {
+		selectedEvent = null;
+		selectedDate = formatDate(date);
+		selectedTime = `${String(hour).padStart(2, '0')}:00`;
 		modalOpen = true;
 	}
 
@@ -115,34 +197,73 @@
 	}
 </script>
 
-<div class="flex items-center justify-end mb-4">
-	<button class="btn btn-primary btn-sm" onclick={handleNewEvent}>
-		<Plus size={16} />
-		New Event
-	</button>
-</div>
+<div class="absolute inset-0 flex flex-col overflow-hidden">
+	<CalendarToolbar
+		{currentDate}
+		{view}
+		onprev={() => navigate(-1)}
+		onnext={() => navigate(1)}
+		ontoday={goToday}
+		onviewchange={switchView}
+		onnewevent={handleNewEvent}
+	/>
 
-{#if loading}
-	<div class="flex items-center justify-center py-20">
-		<span class="loading loading-spinner loading-lg"></span>
-	</div>
-{:else}
-	<div class="h-[calc(100vh-12rem)]">
-		<CalendarGrid
-			{events}
-			{currentDate}
-			onprevmonth={prevMonth}
-			onnextmonth={nextMonth}
-			ondayclick={handleDayClick}
-			oneventclick={handleEventClick}
-		/>
-	</div>
-{/if}
+	{#if loading}
+		<div class="flex items-center justify-center py-20">
+			<span class="loading loading-spinner loading-lg"></span>
+		</div>
+	{:else}
+		<div class="flex flex-1 overflow-hidden">
+			<!-- Main view -->
+			<div class="flex-1 min-w-0 overflow-hidden">
+				{#if view === 'month'}
+					<CalendarGrid
+						items={calendarItems}
+						{currentDate}
+						ondayclick={handleDayClick}
+						onitemclick={handleItemClick}
+						ondaynumberclick={goToDay}
+					/>
+				{:else if view === 'week'}
+					<WeekView
+						items={calendarItems}
+						{currentDate}
+						onitemclick={handleItemClick}
+						onslotclick={handleNewEventAtTime}
+						ondaynumberclick={goToDay}
+					/>
+				{:else if view === 'day'}
+					<DayView
+						items={calendarItems}
+						{currentDate}
+						onitemclick={handleItemClick}
+						onslotclick={handleNewEventAtTime}
+					/>
+				{:else if view === 'agenda'}
+					<AgendaView
+						items={calendarItems}
+						onitemclick={handleItemClick}
+					/>
+				{/if}
+			</div>
+
+			<!-- Mini-calendar sidebar on the right (desktop only) -->
+			<div class="hidden lg:block w-56 shrink-0 border-l border-base-300">
+				<MiniCalendar
+					{currentDate}
+					{itemDates}
+					ondateclick={handleMiniCalendarClick}
+				/>
+			</div>
+		</div>
+	{/if}
+</div>
 
 <EventModal
 	bind:open={modalOpen}
 	event={selectedEvent}
 	defaultDate={selectedDate}
+	defaultTime={selectedTime}
 	onsave={handleSave}
 	ondelete={handleDelete}
 	onclose={handleModalClose}

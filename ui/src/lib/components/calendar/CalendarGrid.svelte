@@ -1,17 +1,15 @@
 <script lang="ts">
-	import type { EventResponse } from '$lib/types';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import type { CalendarItem } from '$lib/types';
 
 	interface Props {
-		events: EventResponse[];
+		items: CalendarItem[];
 		currentDate: Date;
-		onprevmonth: () => void;
-		onnextmonth: () => void;
 		ondayclick: (date: Date) => void;
-		oneventclick: (event: EventResponse) => void;
+		onitemclick: (item: CalendarItem) => void;
+		ondaynumberclick?: (date: Date) => void;
 	}
 
-	let { events, currentDate, onprevmonth, onnextmonth, ondayclick, oneventclick }: Props = $props();
+	let { items, currentDate, ondayclick, onitemclick, ondaynumberclick }: Props = $props();
 
 	const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -47,17 +45,17 @@
 		return days;
 	});
 
-	let monthLabel = $derived(
-		currentDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-	);
-
-	function eventsForDate(date: Date): EventResponse[] {
+	function itemsForDate(date: Date): CalendarItem[] {
 		const dateStr = formatDateKey(date);
-		return events.filter((e) => {
-			const eventDate = e.all_day
-				? e.start_time.split('T')[0]
-				: formatDateKey(new Date(e.start_time));
-			return eventDate === dateStr;
+		return items.filter((item) => {
+			if (item.type === 'event') {
+				const eventDate = item.data.all_day
+					? item.data.start_time.split('T')[0]
+					: formatDateKey(new Date(item.data.start_time));
+				return eventDate === dateStr;
+			} else {
+				return item.data.due_date?.split('T')[0] === dateStr;
+			}
 		});
 	}
 
@@ -67,24 +65,49 @@
 
 	function isToday(d: Date): boolean {
 		const now = new Date();
-		return d.getDate() === now.getDate() &&
+		return (
+			d.getDate() === now.getDate() &&
 			d.getMonth() === now.getMonth() &&
-			d.getFullYear() === now.getFullYear();
+			d.getFullYear() === now.getFullYear()
+		);
+	}
+
+	function formatCompactTime(iso: string): string {
+		const d = new Date(iso);
+		let hours = d.getHours();
+		const mins = d.getMinutes();
+		const ampm = hours >= 12 ? 'p' : 'a';
+		hours = hours % 12 || 12;
+		return mins > 0 ? `${hours}:${String(mins).padStart(2, '0')}${ampm}` : `${hours}${ampm}`;
+	}
+
+	function chipLabel(item: CalendarItem): string {
+		if (item.type === 'event') {
+			if (item.data.all_day) return item.data.title;
+			return `${formatCompactTime(item.data.start_time)} ${item.data.title}`;
+		}
+		return item.data.title;
+	}
+
+	function isOverdue(item: CalendarItem): boolean {
+		if (item.type !== 'task') return false;
+		if (item.data.status === 'done') return false;
+		const due = item.data.due_date;
+		if (!due) return false;
+		return new Date(due) < new Date(new Date().toDateString());
+	}
+
+	function chipClasses(item: CalendarItem): string {
+		if (item.type === 'task') {
+			if (isOverdue(item)) return 'bg-error/20 text-error';
+			return 'bg-warning/20 text-warning-content';
+		}
+		if (item.data.all_day) return 'bg-primary/20 text-primary';
+		return 'bg-info/20 text-info';
 	}
 </script>
 
 <div class="flex flex-col h-full">
-	<!-- Month header -->
-	<div class="flex items-center justify-between mb-4">
-		<button class="btn btn-ghost btn-sm btn-square" onclick={onprevmonth}>
-			<ChevronLeft size={18} />
-		</button>
-		<h2 class="text-lg font-semibold">{monthLabel}</h2>
-		<button class="btn btn-ghost btn-sm btn-square" onclick={onnextmonth}>
-			<ChevronRight size={18} />
-		</button>
-	</div>
-
 	<!-- Weekday headers -->
 	<div class="grid grid-cols-7 border-b border-base-300">
 		{#each weekdays as day}
@@ -95,7 +118,7 @@
 	<!-- Day grid -->
 	<div class="grid grid-cols-7 flex-1 auto-rows-fr">
 		{#each calendarDays as { date, inMonth }}
-			{@const dayEvents = eventsForDate(date)}
+			{@const dayItems = itemsForDate(date)}
 			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 			<div
 				class="border border-base-300/50 p-1 min-h-20 text-left flex flex-col
@@ -103,24 +126,34 @@
 					hover:bg-base-200 transition-colors cursor-pointer"
 				onclick={() => ondayclick(date)}
 			>
-				<span
-					class="text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full
-						{isToday(date) ? 'bg-primary text-primary-content' : ''}"
+				<button
+					class="text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full self-start
+						{isToday(date) ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}"
+					onclick={(e) => {
+						e.stopPropagation();
+						if (ondaynumberclick) ondaynumberclick(date);
+						else ondayclick(date);
+					}}
 				>
 					{date.getDate()}
-				</span>
+				</button>
 				<div class="flex flex-col gap-0.5 mt-0.5 overflow-hidden flex-1">
-					{#each dayEvents.slice(0, 3) as event}
+					{#each dayItems.slice(0, 3) as item}
 						<button
-							class="text-xs truncate rounded px-1 py-0.5 text-left
-								{event.all_day ? 'bg-primary/20 text-primary' : 'bg-info/20 text-info'}"
-							onclick={(e) => { e.stopPropagation(); oneventclick(event); }}
+							class="text-xs truncate rounded px-1 py-0.5 text-left {chipClasses(item)}"
+							onclick={(e) => {
+								e.stopPropagation();
+								onitemclick(item);
+							}}
 						>
-							{event.title}
+							{#if item.type === 'task'}
+								<span class="inline-block w-2 h-2 rounded-sm border border-current mr-0.5 align-middle {item.data.status === 'done' ? 'bg-current' : ''}"></span>
+							{/if}
+							{chipLabel(item)}
 						</button>
 					{/each}
-					{#if dayEvents.length > 3}
-						<span class="text-xs text-base-content/40">+{dayEvents.length - 3} more</span>
+					{#if dayItems.length > 3}
+						<span class="text-xs text-base-content/40">+{dayItems.length - 3} more</span>
 					{/if}
 				</div>
 			</div>

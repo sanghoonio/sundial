@@ -79,6 +79,8 @@ async def list_tasks(
     project_id: str | None = None,
     milestone_id: str | None = None,
     status: str | None = None,
+    due_after: datetime | None = None,
+    due_before: datetime | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[Task], int]:
@@ -90,12 +92,20 @@ async def list_tasks(
         query = query.where(Task.milestone_id == milestone_id)
     if status:
         query = query.where(Task.status == status)
+    if due_after:
+        query = query.where(Task.due_date >= due_after)
+    if due_before:
+        query = query.where(Task.due_date <= due_before)
 
     count_query = select(func.count()).select_from(Task)
     if project_id:
         count_query = count_query.where(Task.project_id == project_id)
     if status:
         count_query = count_query.where(Task.status == status)
+    if due_after:
+        count_query = count_query.where(Task.due_date >= due_after)
+    if due_before:
+        count_query = count_query.where(Task.due_date <= due_before)
 
     count_result = await db.execute(count_query)
     total = count_result.scalar()

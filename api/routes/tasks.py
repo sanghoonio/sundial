@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,12 +37,21 @@ async def list_tasks(
     project_id: str | None = Query(None),
     milestone_id: str | None = Query(None),
     task_status: str | None = Query(None, alias="status"),
+    due_after: datetime | None = Query(None),
+    due_before: datetime | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
     tasks, total = await task_service.list_tasks(
-        db, project_id=project_id, milestone_id=milestone_id, status=task_status, limit=limit, offset=offset,
+        db,
+        project_id=project_id,
+        milestone_id=milestone_id,
+        status=task_status,
+        due_after=due_after,
+        due_before=due_before,
+        limit=limit,
+        offset=offset,
     )
     return TaskList(tasks=[_task_to_response(t) for t in tasks], total=total)
 

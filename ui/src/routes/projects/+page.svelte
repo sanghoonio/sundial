@@ -106,15 +106,15 @@
 <div class="absolute inset-0 flex flex-col overflow-hidden">
 	<!-- Header toolbar -->
 	<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
-		<div class="flex items-center gap-1.5 flex-1 flex-wrap">
+		<div class="flex items-center gap-2 flex-1 flex-wrap">
 			{#each statusFilters as filter}
 				<button
-					class="btn btn-xs {statusFilter === filter ? 'btn-primary' : 'btn-ghost'}"
+					class="btn btn-ghost btn-sm {statusFilter === filter ? 'btn-active' : ''}"
 					onclick={() => (statusFilter = filter)}
 				>
 					{filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
 					{#if filter !== 'all'}
-						<span class="badge badge-xs {statusFilter === filter ? 'badge-primary-content' : 'badge-ghost'}">
+						<span class="badge badge-xs badge-ghost">
 							{projects.filter((p) => p.status === filter).length}
 						</span>
 					{/if}

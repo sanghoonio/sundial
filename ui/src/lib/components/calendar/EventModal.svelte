@@ -9,12 +9,13 @@
 		open: boolean;
 		event?: EventResponse | null;
 		defaultDate?: string;
+		defaultTime?: string;
 		onsave: (data: EventCreate | EventUpdate) => void;
 		ondelete?: (id: string) => void;
 		onclose: () => void;
 	}
 
-	let { open = $bindable(false), event = null, defaultDate = '', onsave, ondelete, onclose }: Props = $props();
+	let { open = $bindable(false), event = null, defaultDate = '', defaultTime = '', onsave, ondelete, onclose }: Props = $props();
 
 	let title = $state('');
 	let description = $state('');
@@ -53,7 +54,7 @@
 				location = '';
 				allDay = false;
 				startDate = defaultDate || formatLocalDate(new Date());
-				startTime = '';
+				startTime = defaultTime || '';
 				endDate = '';
 				endTime = '';
 			}
