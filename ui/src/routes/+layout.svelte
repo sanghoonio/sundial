@@ -4,7 +4,6 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { ws } from '$lib/stores/websocket.svelte';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
-	import Header from '$lib/components/layout/Header.svelte';
 	import MobileNav from '$lib/components/layout/MobileNav.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
 	import '../app.css';
@@ -39,20 +38,6 @@
 		}
 	});
 
-	let pageTitle = $derived.by(() => {
-		const path = page.url.pathname;
-		if (path === '/') return 'Dashboard';
-		if (path === '/notes/new') return 'New Note';
-		if (path.startsWith('/notes/')) return 'Note';
-		if (path === '/notes') return 'Notes';
-		if (path === '/tasks') return 'Tasks';
-		if (path === '/calendar') return 'Calendar';
-		if (path.startsWith('/projects/')) return 'Project';
-		if (path === '/projects') return 'Projects';
-		if (path === '/search') return 'Search';
-		if (path === '/settings') return 'Settings';
-		return '';
-	});
 </script>
 
 {#if auth.loading}
@@ -65,8 +50,7 @@
 	<div class="flex h-screen overflow-hidden">
 		<Sidebar />
 		<div class="flex-1 flex flex-col min-w-0">
-			<Header title={pageTitle} />
-			<main class="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">
+			<main class="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6 relative">
 				{@render children()}
 			</main>
 		</div>

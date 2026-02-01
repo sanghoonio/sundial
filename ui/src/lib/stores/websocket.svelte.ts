@@ -11,7 +11,6 @@ const refreshCallbacks = new Set<() => void>();
 
 const messageLabels: Record<string, string> = {
 	note_created: 'Note created',
-	note_updated: 'Note updated',
 	note_deleted: 'Note deleted',
 	task_created: 'Task created',
 	task_updated: 'Task updated',

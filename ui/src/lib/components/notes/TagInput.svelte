@@ -2,6 +2,7 @@
 	import { api } from '$lib/services/api';
 	import type { TagListResponse } from '$lib/types';
 	import Badge from '$lib/components/ui/Badge.svelte';
+	import { Plus } from 'lucide-svelte';
 
 	interface Props {
 		tags: string[];
@@ -11,9 +12,9 @@
 	let { tags = $bindable([]), onchange }: Props = $props();
 
 	let input = $state('');
-	let suggestions = $state<string[]>([]);
+	let adding = $state(false);
 	let allTags = $state<string[]>([]);
-	let showSuggestions = $state(false);
+	let inputEl = $state<HTMLInputElement>();
 
 	async function loadTags() {
 		try {
@@ -43,7 +44,6 @@
 			onchange?.(tags);
 		}
 		input = '';
-		showSuggestions = false;
 	}
 
 	function removeTag(tag: string) {
@@ -51,43 +51,71 @@
 		onchange?.(tags);
 	}
 
+	function startAdding() {
+		adding = true;
+		queueMicrotask(() => inputEl?.focus());
+	}
+
+	function stopAdding() {
+		if (input.trim()) addTag(input);
+		adding = false;
+		input = '';
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			if (input.trim()) addTag(input);
-		} else if (e.key === 'Backspace' && !input && tags.length > 0) {
-			removeTag(tags[tags.length - 1]);
+			if (input.trim()) {
+				addTag(input);
+				// Keep input open for adding more
+				queueMicrotask(() => inputEl?.focus());
+			} else {
+				stopAdding();
+			}
+		} else if (e.key === 'Escape') {
+			adding = false;
+			input = '';
 		}
 	}
 </script>
 
-<div class="input input-bordered w-full h-auto min-h-[var(--size)] flex flex-wrap gap-1 px-3 py-1">
+<div class="flex flex-wrap items-center gap-1">
 	{#each tags as tag}
 		<Badge variant="primary" removable onremove={() => removeTag(tag)} class="badge-sm">{tag}</Badge>
 	{/each}
-	<div class="relative flex-1 min-w-24">
-		<input
-			type="text"
-			class="w-full bg-transparent outline-none text-sm px-1 py-0.5"
-			placeholder={tags.length === 0 ? 'Add tags...' : ''}
-			bind:value={input}
-			onkeydown={handleKeydown}
-			onfocus={() => (showSuggestions = true)}
-			onblur={() => setTimeout(() => (showSuggestions = false), 150)}
-		/>
-		{#if showSuggestions && filtered.length > 0}
-			<ul class="absolute left-0 top-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg z-10 w-48 max-h-40 overflow-auto">
-				{#each filtered.slice(0, 8) as suggestion}
-					<li>
-						<button
-							class="w-full text-left px-3 py-1.5 text-sm hover:bg-base-200 cursor-pointer"
-							onmousedown={() => addTag(suggestion)}
-						>
-							{suggestion}
-						</button>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</div>
+	{#if adding}
+		<span class="badge badge-sm badge-ghost relative">
+			<input
+				bind:this={inputEl}
+				type="text"
+				class="w-20 bg-transparent outline-none text-xs"
+				placeholder="tag name"
+				bind:value={input}
+				onkeydown={handleKeydown}
+				onblur={() => setTimeout(stopAdding, 150)}
+			/>
+			{#if filtered.length > 0}
+				<ul class="absolute left-0 top-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg z-10 w-48 max-h-40 overflow-auto">
+					{#each filtered.slice(0, 8) as suggestion}
+						<li>
+							<button
+								class="w-full text-left px-3 py-1.5 text-sm hover:bg-base-200 cursor-pointer"
+								onmousedown={() => addTag(suggestion)}
+							>
+								{suggestion}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</span>
+	{:else}
+		<button
+			class="badge badge-sm badge-dash cursor-pointer hover:badge-outline"
+			onclick={startAdding}
+			title="Add tag"
+		>
+			<Plus size={12} />
+		</button>
+	{/if}
 </div>

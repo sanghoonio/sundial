@@ -4,12 +4,11 @@
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { NoteCreate, NoteResponse, NoteBlock } from '$lib/types';
 	import { newBlockId } from '$lib/utils/blocks';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
 	import TagInput from '$lib/components/notes/TagInput.svelte';
 	import ProjectSelect from '$lib/components/notes/ProjectSelect.svelte';
 	import NoteEditor from '$lib/components/notes/NoteEditor.svelte';
-	import { Eye, Pencil } from 'lucide-svelte';
+	import { ArrowLeft, Eye, Pencil, Info } from 'lucide-svelte';
+	import { notesList } from '$lib/stores/noteslist.svelte';
 
 	let title = $state('');
 	let blocks = $state<NoteBlock[]>([{ id: newBlockId(), type: 'md', content: '' }]);
@@ -17,6 +16,7 @@
 	let projectId = $state<string | null>(null);
 	let saving = $state(false);
 	let preview = $state(false);
+	let showMeta = $state(false);
 
 	async function handleSave() {
 		if (!title.trim()) {
@@ -32,6 +32,7 @@
 				project_id: projectId
 			};
 			const note = await api.post<NoteResponse>('/api/notes', data);
+			notesList.refresh();
 			toasts.success('Note created');
 			goto(`/notes/${note.id}`);
 		} catch {
@@ -51,11 +52,36 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="max-w-3xl mx-auto">
+<div class="p-4 md:p-6">
 	<!-- Top bar -->
-	<div class="flex items-center justify-end gap-2 mb-4">
+	<div class="flex items-center gap-2 mb-4">
+		<a href="/notes" class="btn btn-ghost btn-sm btn-square md:hidden">
+			<ArrowLeft size={18} />
+		</a>
+		<!-- svelte-ignore a11y_autofocus -->
+		<input
+			type="text"
+			bind:value={title}
+			placeholder="Untitled"
+			autofocus
+			class="flex-1 min-w-0 text-lg font-semibold bg-transparent border-none outline-none focus:bg-base-200 rounded px-2 py-1 truncate"
+		/>
+		<button class="btn btn-primary btn-sm" onclick={handleSave} disabled={saving}>
+			{#if saving}
+				<span class="loading loading-spinner loading-xs"></span>
+			{/if}
+			Create
+		</button>
 		<button
 			class="btn btn-ghost btn-sm"
+			class:btn-active={showMeta}
+			onclick={() => (showMeta = !showMeta)}
+			title="Note info"
+		>
+			<Info size={16} />
+		</button>
+		<button
+			class="btn btn-ghost btn-sm gap-1.5"
 			onclick={() => (preview = !preview)}
 			title={preview ? 'Edit' : 'Preview'}
 		>
@@ -69,26 +95,19 @@
 		</button>
 	</div>
 
-	<!-- Title -->
-	<!-- svelte-ignore a11y_autofocus -->
-	<div class="mb-4">
-		<Input
-			placeholder="Note title"
-			bind:value={title}
-			class="text-xl font-semibold"
-			autofocus
-		/>
-	</div>
-
-	<!-- Tags & Project row -->
-	<div class="flex flex-col sm:flex-row gap-3 mb-4">
-		<div class="flex-1">
-			<TagInput bind:tags />
+	<!-- Metadata section -->
+	{#if showMeta}
+		<div class="mb-4 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col sm:flex-row gap-3">
+			<div class="flex-1">
+				<span class="text-xs font-medium text-base-content/50 mb-1 block">Tags</span>
+				<TagInput bind:tags />
+			</div>
+			<div class="sm:w-48">
+				<span class="text-xs font-medium text-base-content/50 mb-1 block">Project</span>
+				<ProjectSelect bind:value={projectId} />
+			</div>
 		</div>
-		<div class="sm:w-48">
-			<ProjectSelect bind:value={projectId} />
-		</div>
-	</div>
+	{/if}
 
 	<!-- Block Editor -->
 	<NoteEditor
@@ -96,13 +115,4 @@
 		{preview}
 		onchange={(b) => (blocks = b)}
 	/>
-
-	<!-- Actions -->
-	<div class="flex items-center gap-2 mt-4">
-		<Button variant="primary" loading={saving} onclick={handleSave}>Save Note</Button>
-		<a href="/notes" class="btn btn-ghost">Cancel</a>
-		<span class="text-xs text-base-content/40 ml-2">
-			{navigator?.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+S
-		</span>
-	</div>
 </div>

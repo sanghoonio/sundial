@@ -13,6 +13,8 @@
 	let { content, preview, focused, onfocus, onupdate }: Props = $props();
 
 	let textareaEl = $state<HTMLTextAreaElement>();
+	let userMinHeight = $state<number | null>(null);
+	let lastAutoHeight: number | null = null;
 
 	let renderedHtml = $derived(renderMarkdown(content));
 
@@ -28,7 +30,10 @@
 	function autoResize() {
 		if (!textareaEl) return;
 		textareaEl.style.height = '0';
-		textareaEl.style.height = Math.max(textareaEl.scrollHeight, MIN_H) + 'px';
+		const floor = userMinHeight ?? MIN_H;
+		const h = Math.max(textareaEl.scrollHeight, floor);
+		textareaEl.style.height = h + 'px';
+		lastAutoHeight = h;
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -74,6 +79,20 @@
 			queueMicrotask(autoResize);
 		}
 	});
+
+	// Track user manual resizes (via drag handle) and preserve as minimum height
+	$effect(() => {
+		if (!textareaEl) return;
+		const observer = new ResizeObserver(() => {
+			if (!textareaEl || lastAutoHeight === null) return;
+			const currentH = textareaEl.offsetHeight;
+			if (Math.abs(currentH - lastAutoHeight) > 2) {
+				userMinHeight = currentH;
+			}
+		});
+		observer.observe(textareaEl);
+		return () => observer.disconnect();
+	});
 </script>
 
 {#if preview}
@@ -85,9 +104,9 @@
 		{/if}
 	</div>
 {:else}
-	<div class="w-full">
+	<div class="w-full overflow-hidden rounded-lg border border-base-content/20 {focused ? 'shadow-[0_0_8px_rgba(0,0,0,0.06)]' : ''}">
 		{#if focused}
-			<div class="border border-base-300 rounded-t-lg px-2 py-1 bg-base-200/50">
+			<div class="px-2 py-1 bg-base-200/50 border-b border-base-content/20">
 				<MarkdownToolbar textarea={textareaEl} />
 			</div>
 		{/if}
@@ -96,9 +115,7 @@
 		<div onclick={onfocus}>
 			<textarea
 				bind:this={textareaEl}
-				class="textarea textarea-bordered w-full font-mono text-sm {focused
-					? 'border-primary/50 rounded-t-none border-t-0'
-					: ''}"
+				class="textarea w-full font-mono text-sm border-none focus:outline-none focus:shadow-none rounded-none"
 				placeholder="Write markdown..."
 				value={content}
 				onfocus={onfocus}
