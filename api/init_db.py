@@ -19,6 +19,15 @@ async def init_database():
             USING fts5(id, title, content, tags)
         """))
 
+        # Migrate: add caldav_href and etag columns to calendar_events
+        for col, coltype in [("caldav_href", "VARCHAR"), ("etag", "VARCHAR")]:
+            try:
+                await conn.execute(text(
+                    f"ALTER TABLE calendar_events ADD COLUMN {col} {coltype}"
+                ))
+            except Exception:
+                pass  # column already exists
+
     # Seed default data
     from api.database import async_session
     from api.models.project import Project, ProjectMilestone

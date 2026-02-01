@@ -41,7 +41,7 @@
 </script>
 
 <div class="relative border-b border-base-300 shrink-0">
-	<div class="grid grid-cols-[1fr_auto_1fr] items-center px-4 lg:pr-60 py-3">
+	<div class="grid grid-cols-[1fr_auto_1fr] items-center px-4 lg:pr-68 py-3">
 		<h2 class="text-lg font-semibold">{label}</h2>
 
 		<div class="flex items-center gap-1">

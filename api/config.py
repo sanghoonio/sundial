@@ -7,8 +7,6 @@ class Settings(BaseSettings):
     WORKSPACE_DIR: str = "./workspace"
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
     ANTHROPIC_API_KEY: str = ""
-    GOOGLE_CLIENT_ID: str = ""
-    GOOGLE_CLIENT_SECRET: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

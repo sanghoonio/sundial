@@ -329,6 +329,46 @@ export interface SettingsUpdate {
 	theme?: string;
 }
 
+// Calendar Settings (CalDAV)
+export interface CalendarSettingsResponse {
+	calendar_source: string;
+	sync_enabled: boolean;
+	selected_calendars: string[];
+	sync_range_past_days: number;
+	sync_range_future_days: number;
+	caldav_server_url: string;
+	caldav_username: string;
+	caldav_has_password: boolean;
+	last_sync_at: string | null;
+	last_sync_error: string | null;
+}
+
+export interface CalendarSettingsUpdate {
+	calendar_source?: string;
+	sync_enabled?: boolean;
+	selected_calendars?: string[];
+	sync_range_past_days?: number;
+	sync_range_future_days?: number;
+	caldav_server_url?: string;
+	caldav_username?: string;
+	caldav_password?: string;
+}
+
+export interface CalendarSyncResult {
+	synced_events: number;
+	created: number;
+	updated: number;
+	deleted: number;
+	errors: string[];
+	last_sync: string | null;
+}
+
+export interface CalDAVCalendarInfo {
+	id: string;
+	name: string;
+	color: string;
+}
+
 // WebSocket
 export interface WSMessage {
 	type: string;

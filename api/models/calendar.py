@@ -21,9 +21,11 @@ class CalendarEvent(Base):
     end_time = Column(DateTime, nullable=True)
     all_day = Column(Boolean, default=False)
     location = Column(String, default="")
-    calendar_source = Column(String, default="local")  # local, google, outlook
+    calendar_source = Column(String, default="local")  # local, caldav
     calendar_id = Column(String, default="")
     external_id = Column(String, nullable=True)
+    caldav_href = Column(String, nullable=True)
+    etag = Column(String, nullable=True)
     synced_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

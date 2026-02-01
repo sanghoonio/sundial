@@ -49,6 +49,11 @@ class CalendarSettingsResponse(BaseModel):
     selected_calendars: list[str] = []
     sync_range_past_days: int = 30
     sync_range_future_days: int = 90
+    caldav_server_url: str = ""
+    caldav_username: str = ""
+    caldav_has_password: bool = False
+    last_sync_at: str | None = None
+    last_sync_error: str | None = None
 
 
 class CalendarSettingsUpdate(BaseModel):
@@ -57,3 +62,21 @@ class CalendarSettingsUpdate(BaseModel):
     selected_calendars: list[str] | None = None
     sync_range_past_days: int | None = None
     sync_range_future_days: int | None = None
+    caldav_server_url: str | None = None
+    caldav_username: str | None = None
+    caldav_password: str | None = None
+
+
+class CalendarSyncResult(BaseModel):
+    synced_events: int = 0
+    created: int = 0
+    updated: int = 0
+    deleted: int = 0
+    errors: list[str] = []
+    last_sync: str | None = None
+
+
+class CalDAVCalendarInfo(BaseModel):
+    id: str
+    name: str
+    color: str = ""

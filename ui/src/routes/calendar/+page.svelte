@@ -4,8 +4,6 @@
 	import type {
 		EventResponse,
 		EventList,
-		EventCreate,
-		EventUpdate,
 		TaskResponse,
 		TaskList,
 		CalendarItem
@@ -17,7 +15,7 @@
 	import DayView from '$lib/components/calendar/DayView.svelte';
 	import AgendaView from '$lib/components/calendar/AgendaView.svelte';
 	import MiniCalendar from '$lib/components/calendar/MiniCalendar.svelte';
-	import EventModal from '$lib/components/calendar/EventModal.svelte';
+	import EventPanel from '$lib/components/calendar/EventPanel.svelte';
 
 	type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
@@ -27,7 +25,7 @@
 	let view = $state<CalendarView>('month');
 	let loading = $state(true);
 
-	let modalOpen = $state(false);
+	let panelOpen = $state(false);
 	let selectedEvent = $state<EventResponse | null>(null);
 	let selectedDate = $state('');
 	let selectedTime = $state('');
@@ -132,7 +130,7 @@
 		selectedEvent = null;
 		selectedDate = formatDate(date);
 		selectedTime = '';
-		modalOpen = true;
+		panelOpen = true;
 	}
 
 	function handleItemClick(item: CalendarItem) {
@@ -140,7 +138,7 @@
 			selectedEvent = item.data;
 			selectedDate = '';
 			selectedTime = '';
-			modalOpen = true;
+			panelOpen = true;
 		} else {
 			window.location.href = `/tasks?project=${item.data.project_id}`;
 		}
@@ -150,49 +148,37 @@
 		selectedEvent = null;
 		selectedDate = formatDate(currentDate);
 		selectedTime = '';
-		modalOpen = true;
+		panelOpen = true;
 	}
 
 	function handleNewEventAtTime(date: Date, hour: number) {
 		selectedEvent = null;
 		selectedDate = formatDate(date);
 		selectedTime = `${String(hour).padStart(2, '0')}:00`;
-		modalOpen = true;
+		panelOpen = true;
 	}
 
-	async function handleSave(data: EventCreate | EventUpdate) {
-		try {
-			if (selectedEvent) {
-				const updated = await api.put<EventResponse>(
-					`/api/calendar/events/${selectedEvent.id}`,
-					data
-				);
-				events = events.map((e) => (e.id === updated.id ? updated : e));
-				toasts.success('Event updated');
-			} else {
-				const created = await api.post<EventResponse>('/api/calendar/events', data);
-				events = [...events, created];
-				toasts.success('Event created');
-			}
-			modalOpen = false;
-		} catch {
-			toasts.error('Failed to save event');
+	function handleEventSaved(evt: EventResponse, isNew: boolean) {
+		if (isNew) {
+			events = [...events, evt];
+		} else {
+			events = events.map((e) => (e.id === evt.id ? evt : e));
 		}
 	}
 
-	async function handleDelete(eventId: string) {
+	async function handleEventDeleted(eventId: string) {
 		try {
 			await api.delete(`/api/calendar/events/${eventId}`);
 			events = events.filter((e) => e.id !== eventId);
-			modalOpen = false;
+			panelOpen = false;
 			toasts.success('Event deleted');
 		} catch {
 			toasts.error('Failed to delete event');
 		}
 	}
 
-	function handleModalClose() {
-		modalOpen = false;
+	function handlePanelClose() {
+		panelOpen = false;
 		selectedEvent = null;
 	}
 </script>
@@ -247,24 +233,25 @@
 				{/if}
 			</div>
 
-			<!-- Mini-calendar sidebar on the right (desktop only) -->
-			<div class="hidden lg:block w-56 shrink-0 border-l border-base-300">
+			<!-- Right sidebar (desktop only) -->
+			<div class="hidden lg:flex lg:flex-col w-64 shrink-0 border-l border-base-300 overflow-y-auto">
 				<MiniCalendar
 					{currentDate}
 					{itemDates}
 					ondateclick={handleMiniCalendarClick}
 				/>
+
+				{#if panelOpen}
+					<EventPanel
+						event={selectedEvent}
+						defaultDate={selectedDate}
+						defaultTime={selectedTime}
+						onsaved={handleEventSaved}
+						ondeleted={handleEventDeleted}
+						onclose={handlePanelClose}
+					/>
+				{/if}
 			</div>
 		</div>
 	{/if}
 </div>
-
-<EventModal
-	bind:open={modalOpen}
-	event={selectedEvent}
-	defaultDate={selectedDate}
-	defaultTime={selectedTime}
-	onsave={handleSave}
-	ondelete={handleDelete}
-	onclose={handleModalClose}
-/>
