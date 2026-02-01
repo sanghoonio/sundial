@@ -113,6 +113,7 @@ async def update_task(
     status: str | None = None,
     priority: str | None = None,
     due_date: datetime | None = None,
+    project_id: str | None = None,
     milestone_id: str | None = None,
     checklist: list[dict] | None = None,
 ) -> Task | None:
@@ -134,6 +135,9 @@ async def update_task(
         task.priority = priority
     if due_date is not None:
         task.due_date = due_date
+    if project_id is not None:
+        task.project_id = project_id
+        task.milestone_id = None
     if milestone_id is not None:
         task.milestone_id = milestone_id
 

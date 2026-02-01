@@ -66,11 +66,13 @@
 		</button>
 	</div>
 {:else}
-	<button
-		class="btn btn-ghost btn-sm w-full justify-start mt-2 text-base-content/50"
-		onclick={() => (showForm = true)}
-	>
-		<Plus size={14} />
-		Add task
-	</button>
+	<div class="flex items-center gap-1 mt-2">
+		<button
+			class="btn btn-ghost btn-sm flex-1 justify-start text-base-content/50"
+			onclick={() => (showForm = true)}
+		>
+			<Plus size={14} />
+			Add task
+		</button>
+	</div>
 {/if}

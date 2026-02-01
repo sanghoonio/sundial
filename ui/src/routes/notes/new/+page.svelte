@@ -52,9 +52,9 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="p-4 md:p-6">
-	<!-- Top bar -->
-	<div class="flex items-center gap-2 mb-4">
+<div class="flex flex-col h-full">
+	<!-- Top bar — matches left pane header height -->
+	<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
 		<a href="/notes" class="btn btn-ghost btn-sm btn-square md:hidden">
 			<ArrowLeft size={18} />
 		</a>
@@ -64,7 +64,7 @@
 			bind:value={title}
 			placeholder="Untitled"
 			autofocus
-			class="flex-1 min-w-0 text-lg font-semibold bg-transparent border-none outline-none focus:bg-base-200 rounded px-2 py-1 truncate"
+			class="flex-1 min-w-0 font-semibold bg-transparent border-none outline-none focus:bg-base-200 rounded px-2 py-0.5 truncate"
 		/>
 		<button class="btn btn-primary btn-sm" onclick={handleSave} disabled={saving}>
 			{#if saving}
@@ -95,24 +95,27 @@
 		</button>
 	</div>
 
-	<!-- Metadata section -->
-	{#if showMeta}
-		<div class="mb-4 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col sm:flex-row gap-3">
-			<div class="flex-1">
-				<span class="text-xs font-medium text-base-content/50 mb-1 block">Tags</span>
-				<TagInput bind:tags />
+	<!-- Scrollable content -->
+	<div class="flex-1 overflow-y-auto p-4 md:p-6">
+		<!-- Metadata section -->
+		{#if showMeta}
+			<div class="mb-4 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col sm:flex-row gap-3">
+				<div class="flex-1">
+					<span class="text-xs font-medium text-base-content/50 mb-1 block">Tags</span>
+					<TagInput bind:tags />
+				</div>
+				<div class="sm:w-48">
+					<span class="text-xs font-medium text-base-content/50 mb-1 block">Project</span>
+					<ProjectSelect bind:value={projectId} />
+				</div>
 			</div>
-			<div class="sm:w-48">
-				<span class="text-xs font-medium text-base-content/50 mb-1 block">Project</span>
-				<ProjectSelect bind:value={projectId} />
-			</div>
-		</div>
-	{/if}
+		{/if}
 
-	<!-- Block Editor -->
-	<NoteEditor
-		{blocks}
-		{preview}
-		onchange={(b) => (blocks = b)}
-	/>
+		<!-- Block Editor -->
+		<NoteEditor
+			{blocks}
+			{preview}
+			onchange={(b) => (blocks = b)}
+		/>
+	</div>
 </div>

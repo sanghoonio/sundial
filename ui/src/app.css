@@ -4,3 +4,19 @@
 @plugin "daisyui" {
 	themes: light --default, dark --prefersdark;
 }
+
+@layer base {
+	*:focus,
+	*:focus-visible,
+	*:active {
+		outline: none !important;
+		outline-offset: 0 !important;
+	}
+
+	[data-grab] {
+		cursor: grab !important;
+	}
+	[data-grab]:active {
+		cursor: grabbing !important;
+	}
+}

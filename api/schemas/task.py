@@ -35,6 +35,7 @@ class TaskUpdate(BaseModel):
     status: str | None = None
     priority: str | None = None
     due_date: datetime | None = None
+    project_id: str | None = None
     milestone_id: str | None = None
     checklist: list[ChecklistItemCreate] | None = None
 

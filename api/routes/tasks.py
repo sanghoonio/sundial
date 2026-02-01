@@ -63,6 +63,7 @@ async def update_task(task_id: str, body: TaskUpdate, db: AsyncSession = Depends
         status=body.status,
         priority=body.priority,
         due_date=body.due_date,
+        project_id=body.project_id,
         milestone_id=body.milestone_id,
         checklist=checklist,
     )

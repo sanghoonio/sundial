@@ -5,7 +5,7 @@
 	import { notesList } from '$lib/stores/noteslist.svelte';
 	import type { NoteList, NoteListItem, TagListResponse } from '$lib/types';
 	import NoteListItemComponent from '$lib/components/notes/NoteListItem.svelte';
-	import { Plus, Search, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA } from 'lucide-svelte';
+	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA } from 'lucide-svelte';
 
 	let { children } = $props();
 
@@ -102,13 +102,24 @@
 
 	let hasMore = $derived(notes.length < total);
 
-	let debounceTimer: ReturnType<typeof setTimeout>;
-	function handleSearch(e: Event) {
-		const val = (e.target as HTMLInputElement).value;
-		clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => {
-			search = val;
-		}, 200);
+	let searchOpen = $state(false);
+	let searchInput = $state<HTMLInputElement | null>(null);
+
+	function openSearch() {
+		searchOpen = true;
+		requestAnimationFrame(() => searchInput?.focus());
+	}
+
+	function closeSearch() {
+		if (!search) {
+			searchOpen = false;
+		}
+	}
+
+	function clearSearch(e: MouseEvent) {
+		e.preventDefault();
+		search = '';
+		searchOpen = false;
 	}
 </script>
 
@@ -119,17 +130,36 @@
 			{selectedNoteId || isNewNote ? 'hidden md:flex' : 'flex'}"
 	>
 		<!-- Header: search + sort + new -->
-		<div class="py-4 md:py-6 px-4 md:px-6 border-b border-base-300">
+		<div class="px-4 py-3 border-b border-base-300">
 			<div class="flex items-center gap-2">
-				<label class="input input-bordered input-sm w-full flex-1">
-					<Search size={14} class="text-base-content/40" />
-					<input
-						type="text"
-						placeholder="Filter notes..."
-						value={search}
-						oninput={handleSearch}
-					/>
-				</label>
+				<button
+					class="btn btn-ghost btn-sm flex-1 justify-start transition-[width] duration-200 !outline-none !shadow-none
+						{searchOpen ? 'bg-base-200' : ''}"
+					onclick={() => { if (!searchOpen) openSearch(); }}
+				>
+					<Search size={14} class="shrink-0" />
+					{#if searchOpen}
+						<!-- svelte-ignore a11y_autofocus -->
+						<input
+							type="text"
+							placeholder="Filter notes..."
+							class="bg-transparent outline-none flex-1 min-w-0 text-sm font-normal"
+							bind:value={search}
+							bind:this={searchInput}
+							onblur={closeSearch}
+							onclick={(e) => e.stopPropagation()}
+							onkeydown={(e) => { if (e.key === 'Escape') { search = ''; searchOpen = false; } }}
+						/>
+						{#if search}
+							<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+							<span class="hover:bg-base-content/10 rounded-full p-0.5 shrink-0 cursor-pointer" onmousedown={clearSearch}>
+								<X size={12} />
+							</span>
+						{/if}
+					{:else}
+						Search
+					{/if}
+				</button>
 				<div class="dropdown dropdown-end">
 					<button tabindex="0" class="btn btn-ghost btn-sm btn-square" title="Sort">
 						{#if sortBy === 'newest'}
@@ -158,7 +188,7 @@
 
 		<!-- Tag filter chips -->
 		{#if allTags.length > 0}
-			<div class="flex gap-1 px-4 md:px-6 py-2 overflow-x-auto border-b border-base-300">
+			<div class="flex gap-1 px-4 py-2 overflow-x-auto border-b border-base-300">
 				<button
 					class="badge badge-xs cursor-pointer shrink-0 {selectedTag === '' ? 'badge-primary' : 'badge-ghost'}"
 					onclick={() => (selectedTag = '')}
@@ -217,10 +247,10 @@
 
 	<!-- RIGHT PANE: Content -->
 	<div
-		class="flex-1 overflow-y-auto
+		class="flex-1 overflow-hidden flex flex-col
 			{!selectedNoteId && !isNewNote ? 'hidden md:flex' : 'flex'}"
 	>
-		<div class="flex-1">
+		<div class="flex-1 flex flex-col overflow-hidden">
 			{@render children()}
 		</div>
 	</div>

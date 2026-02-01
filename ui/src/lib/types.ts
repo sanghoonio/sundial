@@ -130,6 +130,7 @@ export interface TaskUpdate {
 	status?: string;
 	priority?: string;
 	due_date?: string | null;
+	project_id?: string;
 	milestone_id?: string | null;
 	checklist?: ChecklistItemCreate[];
 }
