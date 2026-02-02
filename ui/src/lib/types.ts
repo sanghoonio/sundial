@@ -9,6 +9,38 @@ export interface UserResponse {
 	settings: Record<string, unknown>;
 }
 
+// Token management
+export interface TokenListItem {
+	id: string;
+	token_type: string;
+	name: string | null;
+	scope: string;
+	last_used_at: string | null;
+	created_at: string;
+	is_current: boolean;
+}
+
+export interface ApiKeyCreatedResponse {
+	id: string;
+	name: string;
+	scope: string;
+	raw_token: string;
+}
+
+export interface PasswordChangeRequest {
+	current_password: string;
+	new_password: string;
+}
+
+export interface UsernameChangeRequest {
+	username: string;
+}
+
+export interface CreateApiKeyRequest {
+	name: string;
+	scope: string;
+}
+
 // Notes — Block types
 export interface ChatMessage {
 	role: 'user' | 'assistant';

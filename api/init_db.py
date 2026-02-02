@@ -64,7 +64,7 @@ async def init_database():
 
         # Seed default user_settings
         from sqlalchemy import select
-        for key, value in [("ai_enabled", "false"), ("calendar_sync_enabled", "false")]:
+        for key, value in [("ai_enabled", "false"), ("calendar_sync_enabled", "false"), ("username", "admin")]:
             result = await session.execute(select(UserSettings).where(UserSettings.key == key))
             if result.scalar_one_or_none() is None:
                 session.add(UserSettings(key=key, value=value))

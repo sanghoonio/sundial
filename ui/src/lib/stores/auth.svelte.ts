@@ -58,6 +58,8 @@ function createAuthStore() {
 		},
 
 		logout() {
+			// Fire server-side token deletion (best-effort, don't block UI)
+			api.delete('/api/auth/logout').catch(() => {});
 			state.token = null;
 			state.user = null;
 			clearToken();
