@@ -57,6 +57,10 @@ function createAuthStore() {
 			state.user = await api.get<UserResponse>('/api/auth/me');
 		},
 
+		setUser(user: UserResponse) {
+			state.user = user;
+		},
+
 		logout() {
 			// Fire server-side token deletion (best-effort, don't block UI)
 			api.delete('/api/auth/logout').catch(() => {});

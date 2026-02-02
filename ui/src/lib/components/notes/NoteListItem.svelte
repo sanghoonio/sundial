@@ -29,7 +29,7 @@
 
 <a
 	href="/notes/{note.id}"
-	class="block px-4 md:px-6 py-2.5 border-l-2 transition-colors
+	class="block px-4 py-2.5 border-l-2 transition-colors
 		{selected
 			? 'bg-primary/10 border-l-primary'
 			: 'border-l-transparent hover:bg-base-200'}"
@@ -39,10 +39,10 @@
 		<span class="text-xs text-base-content/40 shrink-0">{formatDate(note.updated_at)}</span>
 	</div>
 	{#if previewText}
-		<p class="text-xs text-base-content/50 truncate mt-2.5 mb-2">{previewText}</p>
+		<p class="text-xs text-base-content/50 truncate mt-1.5 mb-0.5">{previewText}</p>
 	{/if}
 	{#if note.tags.length > 0 || note.linked_tasks.length > 0}
-		<div class="flex gap-1 mt-4 mb-2 items-center">
+		<div class="flex gap-1 mt-2 mb-0.5 items-center">
 			{#if note.linked_tasks.length > 0}
 				<span class="badge badge-xs badge-outline gap-0.5">{note.linked_tasks.length} task{note.linked_tasks.length > 1 ? 's' : ''}</span>
 			{/if}

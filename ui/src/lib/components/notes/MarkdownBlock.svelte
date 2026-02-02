@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { NoteList } from '$lib/types';
 	import { renderMarkdown } from '$lib/utils/markdown';
@@ -202,9 +203,11 @@
 			);
 			if (exact) {
 				goto(`/notes/${exact.id}`);
+			} else {
+				toast.error(`Note "${title}" not found`);
 			}
 		} catch {
-			// silently ignore
+			toast.error('Failed to find linked note');
 		}
 	}
 

@@ -22,7 +22,8 @@
 		savingUsername = true;
 		usernameMsg = null;
 		try {
-			await api.put<UserResponse>('/api/auth/username', { username });
+			const updated = await api.put<UserResponse>('/api/auth/username', { username });
+			auth.setUser(updated);
 			usernameMsg = { type: 'success', text: 'Username updated' };
 		} catch (e: any) {
 			usernameMsg = { type: 'error', text: e.detail || 'Failed to update username' };

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { ProjectResponse, ProjectList, TaskResponse, TaskList, TaskMove, MilestoneCreate } from '$lib/types';
 	import KanbanBoard from '$lib/components/tasks/KanbanBoard.svelte';
@@ -168,6 +169,7 @@
 		} catch (e) {
 			tasks = oldTasks;
 			console.error('Failed to move task', e);
+			toast.error('Failed to move task');
 		}
 	}
 
@@ -209,6 +211,7 @@
 			await saveMilestones(milestones);
 		} catch (e) {
 			console.error('Failed to rename column', e);
+			toast.error('Failed to rename column');
 		}
 	}
 
@@ -223,6 +226,7 @@
 			await loadTasks(selectedProjectId);
 		} catch (e) {
 			console.error('Failed to delete column', e);
+			toast.error('Failed to delete column');
 		}
 	}
 
@@ -236,6 +240,7 @@
 			await saveMilestones(milestones);
 		} catch (e) {
 			console.error('Failed to create column', e);
+			toast.error('Failed to create column');
 		}
 	}
 
@@ -254,6 +259,7 @@
 			await saveMilestones(milestones);
 		} catch (e) {
 			console.error('Failed to reorder columns', e);
+			toast.error('Failed to reorder columns');
 		}
 	}
 

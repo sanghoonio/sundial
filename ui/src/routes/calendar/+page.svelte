@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type {
 		EventResponse,
@@ -142,7 +144,7 @@
 			selectedTime = '';
 			panelOpen = true;
 		} else {
-			window.location.href = `/tasks?project=${item.data.project_id}`;
+			goto(`/tasks?project=${item.data.project_id}`);
 		}
 	}
 
@@ -175,6 +177,7 @@
 			panelOpen = false;
 		} catch (e) {
 			console.error('Failed to delete event', e);
+			toast.error('Failed to delete event');
 		}
 	}
 
@@ -188,23 +191,21 @@
 			panelOpen = false;
 		} catch (e) {
 			console.error('Failed to delete series', e);
+			toast.error('Failed to delete event series');
 		}
 	}
 
 	// Periodic sync timer
-	let syncInterval: ReturnType<typeof setInterval> | null = null;
-
 	$effect(() => {
-		// Fetch calendar settings and set up periodic sync
+		let aborted = false;
+		let interval: ReturnType<typeof setInterval> | null = null;
+
 		api.get<CalendarSettingsResponse>('/api/calendar/settings').then((calSettings) => {
+			if (aborted) return;
 			calSyncEnabled = calSettings.sync_enabled;
-			if (syncInterval) {
-				clearInterval(syncInterval);
-				syncInterval = null;
-			}
 			if (calSettings.sync_enabled && calSettings.sync_interval_minutes > 0) {
 				const ms = calSettings.sync_interval_minutes * 60 * 1000;
-				syncInterval = setInterval(async () => {
+				interval = setInterval(async () => {
 					try {
 						await api.post('/api/calendar/sync');
 						loadData();
@@ -216,10 +217,8 @@
 		}).catch(() => {});
 
 		return () => {
-			if (syncInterval) {
-				clearInterval(syncInterval);
-				syncInterval = null;
-			}
+			aborted = true;
+			if (interval) clearInterval(interval);
 		};
 	});
 
@@ -230,6 +229,7 @@
 			await loadData();
 		} catch (e) {
 			console.error('Calendar sync failed', e);
+			toast.error('Calendar sync failed');
 		} finally {
 			syncing = false;
 		}

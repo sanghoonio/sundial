@@ -255,7 +255,7 @@
 		{#if projects.length > 0}
 			<div>
 				<p class="text-xs text-base-content/60 mb-1">Project</p>
-				<select class="select select-bordered select-sm w-full" bind:value={projectId}>
+				<select class="select select-bordered select-sm w-full" bind:value={projectId} onchange={() => { milestoneId = null; }}>
 					{#each projects as p}
 						<option value={p.id}>{p.name}</option>
 					{/each}

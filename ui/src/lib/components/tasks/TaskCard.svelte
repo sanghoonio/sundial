@@ -64,6 +64,9 @@
 				<span class="text-base-content/30 shrink-0" data-grab><GripVertical size={14} /></span>
 			{/if}
 			<span class="font-medium truncate text-sm flex-1 min-w-0">{task.title}</span>
+			{#if hasLinkedNote}
+				<span class="text-base-content/40 shrink-0" title="Linked note"><StickyNote size={12} /></span>
+			{/if}
 			{#if hasPriorityIcon}
 				<span class="{priorityColors[task.priority]} shrink-0">
 					<AlertCircle size={14} />
@@ -76,16 +79,13 @@
 		{/if}
 
 		{#if !compact}
-			{@const hasMetadata = task.due_date || hasLinkedNote || hasLinkedEvent}
+			{@const hasMetadata = task.due_date || hasLinkedEvent}
 			{#if hasMetadata}
 				<div class="flex items-center gap-2 flex-wrap">
 					{#if task.due_date}
 						<span class="badge badge-xs {overdue ? 'badge-error' : 'badge-ghost'}">
 							{overdue ? 'Overdue' : 'Due'} {formatDate(task.due_date)}
 						</span>
-					{/if}
-					{#if hasLinkedNote}
-						<span class="text-base-content/40" title="Linked note"><StickyNote size={12} /></span>
 					{/if}
 					{#if hasLinkedEvent}
 						<span class="text-base-content/40" title="Calendar event"><CalendarDays size={12} /></span>

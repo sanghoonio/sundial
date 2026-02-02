@@ -5,6 +5,7 @@
 	import { ws } from '$lib/stores/websocket.svelte';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import MobileNav from '$lib/components/layout/MobileNav.svelte';
+	import { Toaster } from 'svelte-sonner';
 	import '../app.css';
 
 	let { children } = $props();
@@ -55,4 +56,5 @@
 		</div>
 	</div>
 	<MobileNav />
+	<Toaster richColors closeButton />
 {/if}

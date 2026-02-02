@@ -25,16 +25,15 @@
 	let isNewNote = $derived(page.url.pathname === '/notes/new');
 
 	// Debounce search to avoid hammering the API
-	let searchDebounceTimer: ReturnType<typeof setTimeout>;
 	let activeSearch = $state('');
 
-	function handleSearchInput(val: string) {
-		search = val;
-		clearTimeout(searchDebounceTimer);
-		searchDebounceTimer = setTimeout(() => {
-			activeSearch = val.trim();
+	$effect(() => {
+		const val = search.trim();
+		const timer = setTimeout(() => {
+			activeSearch = val;
 		}, 300);
-	}
+		return () => clearTimeout(timer);
+	});
 
 	async function load(append = false) {
 		if (append) {
@@ -148,7 +147,6 @@
 							bind:value={search}
 							bind:this={searchInput}
 							onblur={closeSearch}
-							oninput={(e) => handleSearchInput((e.target as HTMLInputElement).value)}
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => { if (e.key === 'Escape') { clearSearch(e as unknown as MouseEvent); } }}
 						/>

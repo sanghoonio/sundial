@@ -1,10 +1,14 @@
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from api.models.task import Task, TaskChecklist
+
+# Sentinel to distinguish "not provided" from explicit None
+_UNSET: Any = object()
 
 
 async def create_task(
@@ -114,9 +118,9 @@ async def update_task(
     description: str | None = None,
     status: str | None = None,
     priority: str | None = None,
-    due_date: datetime | None = None,
+    due_date: datetime | None = _UNSET,
     project_id: str | None = None,
-    milestone_id: str | None = None,
+    milestone_id: str | None = _UNSET,
     checklist: list[dict] | None = None,
 ) -> Task | None:
     task = await get_task(db, task_id)
@@ -135,13 +139,29 @@ async def update_task(
             task.completed_at = None
     if priority is not None:
         task.priority = priority
-    if due_date is not None:
+    if due_date is not _UNSET:
         task.due_date = due_date
+    project_changed = False
     if project_id is not None:
+        project_changed = project_id != task.project_id
         task.project_id = project_id
-        task.milestone_id = None
-    if milestone_id is not None:
-        task.milestone_id = milestone_id
+        if project_changed:
+            task.milestone_id = None
+    if milestone_id is not _UNSET:
+        # If project just changed, validate milestone belongs to the new project
+        if project_changed and milestone_id is not None:
+            from api.models.project import ProjectMilestone
+            result = await db.execute(
+                select(ProjectMilestone.id).where(
+                    ProjectMilestone.id == milestone_id,
+                    ProjectMilestone.project_id == task.project_id,
+                )
+            )
+            if result.scalar_one_or_none() is not None:
+                task.milestone_id = milestone_id
+            # else: silently ignore stale milestone_id
+        else:
+            task.milestone_id = milestone_id
 
     if checklist is not None:
         # Replace checklist items
