@@ -1,5 +1,24 @@
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import python from 'highlight.js/lib/languages/python';
+import r from 'highlight.js/lib/languages/r';
+import rust from 'highlight.js/lib/languages/rust';
+import cpp from 'highlight.js/lib/languages/cpp';
+
+// Register syntax highlighting languages
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('js', javascript);
+hljs.registerLanguage('typescript', typescript);
+hljs.registerLanguage('ts', typescript);
+hljs.registerLanguage('python', python);
+hljs.registerLanguage('py', python);
+hljs.registerLanguage('r', r);
+hljs.registerLanguage('rust', rust);
+hljs.registerLanguage('cpp', cpp);
+hljs.registerLanguage('c++', cpp);
 
 // Custom extension for [[wiki-links]]
 const wikiLinkExtension = {
@@ -49,8 +68,46 @@ function escapeAttr(str: string): string {
 	return str.replace(/"/g, '&quot;').replace(/&/g, '&amp;');
 }
 
+/**
+ * Parse code block info string parameters (e.g., "mermaid width=400" -> { width: "400" })
+ */
+function parseCodeParams(paramString: string): Record<string, string> {
+	const params: Record<string, string> = {};
+	const regex = /(\w+)=(\S+)/g;
+	let match;
+	while ((match = regex.exec(paramString)) !== null) {
+		params[match[1]] = match[2];
+	}
+	return params;
+}
+
 const marked = new Marked();
 marked.use({ extensions: [wikiLinkExtension] });
+
+// Custom renderer for code blocks with syntax highlighting
+marked.use({
+	renderer: {
+		code({ text, lang }) {
+			// Parse "mermaid width=400" into { language: "mermaid", params: { width: "400" } }
+			const [language, ...paramParts] = (lang || '').split(/\s+/);
+			const params = parseCodeParams(paramParts.join(' '));
+
+			// Build data attributes for post-processing (e.g., mermaid width)
+			const dataAttrs = Object.entries(params)
+				.map(([k, v]) => `data-${k}="${escapeAttr(v)}"`)
+				.join(' ');
+
+			// Apply syntax highlighting if language is supported (skip mermaid - it's post-processed)
+			let highlighted = escapeHtml(text);
+			if (language && language !== 'mermaid' && hljs.getLanguage(language)) {
+				highlighted = hljs.highlight(text, { language }).value;
+			}
+
+			const dataAttrStr = dataAttrs ? ` ${dataAttrs}` : '';
+			return `<pre${dataAttrStr}><code class="language-${language || ''}">${highlighted}</code></pre>`;
+		}
+	}
+});
 
 /**
  * Render markdown content to sanitized HTML.
@@ -59,7 +116,7 @@ export function renderMarkdown(content: string): string {
 	if (!content) return '';
 	const raw = marked.parse(content) as string;
 	return DOMPurify.sanitize(raw, {
-		ADD_ATTR: ['data-title', 'data-type', 'data-id'],
+		ADD_ATTR: ['data-title', 'data-type', 'data-id', 'data-width'],
 		ADD_TAGS: []
 	});
 }
@@ -75,6 +132,7 @@ export function markdownPreview(content: string, maxLength = 200): string {
 		.replace(/\*\*(.+?)\*\*/g, '$1') // bold
 		.replace(/\*(.+?)\*/g, '$1') // italic
 		.replace(/`(.+?)`/g, '$1') // inline code
+		.replace(/```mermaid[\s\S]*?```/g, '[diagram]') // mermaid diagrams
 		.replace(/```[\s\S]*?```/g, '') // code blocks
 		.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
 		.replace(/\[\[([^\]]+)\]\]/g, '$1') // wiki links

@@ -240,8 +240,12 @@
 		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
 			e.preventDefault();
 			handleSave();
+		} else if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+			e.preventDefault();
+			preview = !preview;
 		}
 	}
+
 
 	function handleContentDblClick(e: MouseEvent) {
 		const target = e.target as HTMLElement;
@@ -399,7 +403,7 @@
 			<button
 				class="btn btn-ghost btn-sm gap-1.5"
 				onclick={() => (preview = !preview)}
-				title={preview ? 'Edit' : 'Preview'}
+				title={preview ? 'Edit (Ctrl+D)' : 'Preview (Ctrl+D)'}
 			>
 				{#if preview}
 					<Pencil size={16} />

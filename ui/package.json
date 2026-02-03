@@ -30,7 +30,9 @@
 	"dependencies": {
 		"@types/dompurify": "^3.0.5",
 		"dompurify": "^3.3.1",
+		"highlight.js": "^11.11.1",
 		"marked": "^17.0.1",
+		"mermaid": "^11.12.2",
 		"svelte-sonner": "^1.0.7"
 	}
 }

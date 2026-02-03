@@ -4,8 +4,10 @@ Exposes notes, tasks, and calendar events as MCP tools.
 Tool handlers query the database directly via SQLAlchemy.
 """
 
+import zoneinfo
 from datetime import datetime, timedelta, timezone
 
+from dateutil.rrule import rrulestr
 from mcp.server import Server
 from mcp.types import TextContent, Tool
 
@@ -14,9 +16,9 @@ from sqlalchemy.orm import selectinload
 
 from api.database import async_session
 from api.models.calendar import CalendarEvent
-from api.models.note import Note, NoteTag, Tag
+from api.models.note import Note, NoteLink, NoteTag, Tag
 from api.models.project import Project
-from api.models.task import Task
+from api.models.task import Task, TaskNote
 from api.services.block_parser import extract_markdown_text
 from api.services.note_service import create_note as service_create_note, update_note as service_update_note
 
@@ -74,7 +76,7 @@ def _tool_list() -> list[Tool]:
         ),
         Tool(
             name="create_task",
-            description="Create a new task in Sundial.",
+            description="Create a new task in Sundial. Use note_ids to link the task to existing notes.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -83,13 +85,14 @@ def _tool_list() -> list[Tool]:
                     "priority": {"type": "string", "description": "Priority: low/medium/high", "default": "medium"},
                     "due_date": {"type": "string", "description": "Due date in ISO format (YYYY-MM-DD)"},
                     "project_id": {"type": "string", "description": "Project ID (default: inbox)"},
+                    "note_ids": {"type": "array", "items": {"type": "string"}, "description": "Note IDs to link to this task"},
                 },
                 "required": ["title"],
             },
         ),
         Tool(
             name="update_task",
-            description="Update an existing task.",
+            description="Update an existing task. Use note_ids to replace linked notes.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -97,6 +100,7 @@ def _tool_list() -> list[Tool]:
                     "title": {"type": "string", "description": "New title"},
                     "status": {"type": "string", "description": "New status (open/in_progress/done)", "enum": ["open", "in_progress", "done"]},
                     "priority": {"type": "string", "description": "New priority (low/medium/high)"},
+                    "note_ids": {"type": "array", "items": {"type": "string"}, "description": "Note IDs to link (replaces all existing links)"},
                 },
                 "required": ["task_id"],
             },
@@ -153,7 +157,7 @@ def _tool_list() -> list[Tool]:
         ),
         Tool(
             name="update_note",
-            description="Update an existing note's title, content, or tags.",
+            description="Update an existing note's title, content, tags, or project.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -161,8 +165,43 @@ def _tool_list() -> list[Tool]:
                     "title": {"type": "string", "description": "New title"},
                     "content": {"type": "string", "description": "New content in markdown"},
                     "tags": {"type": "array", "items": {"type": "string"}, "description": "Replace all tags with these"},
+                    "project_id": {"type": "string", "description": "New project ID (use empty string to unassign)"},
                 },
                 "required": ["note_id"],
+            },
+        ),
+        Tool(
+            name="link_note_to_task",
+            description="Link an existing note to an existing task. Creates a backlink without removing other linked notes.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "Task ID to link to"},
+                    "note_id": {"type": "string", "description": "Note ID to link"},
+                },
+                "required": ["task_id", "note_id"],
+            },
+        ),
+        Tool(
+            name="get_note_links",
+            description="Get all links for a note: outgoing (this note links to) and incoming (links to this note). Includes linked notes, tasks, and events.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "note_id": {"type": "string", "description": "Note ID"},
+                },
+                "required": ["note_id"],
+            },
+        ),
+        Tool(
+            name="get_task_links",
+            description="Get all notes linked to a task, including both explicit links and wiki-link references ([[task:id]]).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "Task ID"},
+                },
+                "required": ["task_id"],
             },
         ),
     ]
@@ -200,6 +239,12 @@ async def handle_call_tool(name: str, arguments: dict) -> list[TextContent]:
             return await _create_note(db, arguments)
         elif name == "update_note":
             return await _update_note(db, arguments)
+        elif name == "link_note_to_task":
+            return await _link_note_to_task(db, arguments)
+        elif name == "get_note_links":
+            return await _get_note_links(db, arguments)
+        elif name == "get_task_links":
+            return await _get_task_links(db, arguments)
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
@@ -338,10 +383,26 @@ async def _create_task(db, args: dict) -> list[TextContent]:
         position=next_pos,
     )
     db.add(task)
+    await db.flush()  # Get task.id before creating links
+
+    # Link notes if provided
+    note_ids = args.get("note_ids", [])
+    linked_notes = []
+    for note_id in note_ids:
+        # Verify note exists
+        note_result = await db.execute(select(Note).where(Note.id == note_id))
+        note = note_result.scalar_one_or_none()
+        if note:
+            db.add(TaskNote(task_id=task.id, note_id=note_id))
+            linked_notes.append(note.title)
+
     await db.commit()
     await db.refresh(task)
 
-    return [TextContent(type="text", text=f"Task created: **{task.title}** (id: {task.id})")]
+    result_text = f"Task created: **{task.title}** (id: {task.id})"
+    if linked_notes:
+        result_text += f"\nLinked notes: {', '.join(linked_notes)}"
+    return [TextContent(type="text", text=result_text)]
 
 
 async def _update_task(db, args: dict) -> list[TextContent]:
@@ -349,7 +410,9 @@ async def _update_task(db, args: dict) -> list[TextContent]:
     if not task_id:
         return [TextContent(type="text", text="task_id is required.")]
 
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    result = await db.execute(
+        select(Task).where(Task.id == task_id).options(selectinload(Task.notes))
+    )
     task = result.scalar_one_or_none()
     if not task:
         return [TextContent(type="text", text=f"Task '{task_id}' not found.")]
@@ -363,38 +426,149 @@ async def _update_task(db, args: dict) -> list[TextContent]:
     if "priority" in args:
         task.priority = args["priority"]
 
+    # Handle note_ids: replace all linked notes
+    linked_notes = []
+    if "note_ids" in args:
+        # Delete existing links
+        for note_link in task.notes:
+            await db.delete(note_link)
+        await db.flush()
+
+        # Create new links
+        for note_id in args["note_ids"]:
+            note_result = await db.execute(select(Note).where(Note.id == note_id))
+            note = note_result.scalar_one_or_none()
+            if note:
+                db.add(TaskNote(task_id=task.id, note_id=note_id))
+                linked_notes.append(note.title)
+
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
 
-    return [TextContent(type="text", text=f"Task updated: **{task.title}** (status: {task.status}, priority: {task.priority})")]
+    result_text = f"Task updated: **{task.title}** (status: {task.status}, priority: {task.priority})"
+    if "note_ids" in args:
+        if linked_notes:
+            result_text += f"\nLinked notes: {', '.join(linked_notes)}"
+        else:
+            result_text += "\nLinked notes: none"
+    return [TextContent(type="text", text=result_text)]
 
 
 async def _get_calendar_events(db, args: dict) -> list[TextContent]:
     try:
-        start = datetime.strptime(args["start_date"], "%Y-%m-%d")
-        end = datetime.strptime(args["end_date"], "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+        start = datetime.strptime(args["start_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        end = datetime.strptime(args["end_date"], "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
     except (KeyError, ValueError):
         return [TextContent(type="text", text="start_date and end_date are required in YYYY-MM-DD format.")]
 
-    result = await db.execute(
-        select(CalendarEvent)
-        .where(CalendarEvent.start_time.between(start, end))
-        .order_by(CalendarEvent.start_time)
-        .limit(50)
-    )
-    events = result.scalars().all()
+    events_out = []
 
-    if not events:
+    # 1. Non-recurring events (no rrule, no recurring_event_id)
+    non_recurring_result = await db.execute(
+        select(CalendarEvent)
+        .where(
+            CalendarEvent.rrule.is_(None),
+            CalendarEvent.recurring_event_id.is_(None),
+            CalendarEvent.start_time >= start,
+            CalendarEvent.start_time <= end,
+        )
+    )
+    for e in non_recurring_result.scalars().all():
+        events_out.append((e.start_time, e.title, e.end_time, e.all_day, e.location, e.id))
+
+    # 2. Recurring masters - expand their RRULEs
+    masters_result = await db.execute(
+        select(CalendarEvent).where(
+            CalendarEvent.rrule.isnot(None),
+            CalendarEvent.recurring_event_id.is_(None),
+        )
+    )
+    masters = masters_result.scalars().all()
+
+    # 3. Exception instances in range
+    exc_result = await db.execute(
+        select(CalendarEvent).where(
+            CalendarEvent.recurring_event_id.isnot(None),
+            CalendarEvent.start_time >= start,
+            CalendarEvent.start_time <= end,
+        )
+    )
+    exceptions = exc_result.scalars().all()
+
+    # Build exception map: master_id -> {recurrence_id -> exception}
+    exc_by_master: dict[str, dict[str, CalendarEvent]] = {}
+    for exc in exceptions:
+        if exc.recurring_event_id not in exc_by_master:
+            exc_by_master[exc.recurring_event_id] = {}
+        if exc.recurrence_id:
+            exc_by_master[exc.recurring_event_id][exc.recurrence_id] = exc
+
+    # Expand each master
+    for master in masters:
+        try:
+            duration = (master.end_time - master.start_time) if master.end_time else timedelta(hours=1)
+
+            # Handle timezone-aware expansion
+            orig_tz = None
+            if master.original_timezone:
+                try:
+                    orig_tz = zoneinfo.ZoneInfo(master.original_timezone)
+                except Exception:
+                    pass
+
+            if orig_tz:
+                dtstart_utc = master.start_time
+                if dtstart_utc.tzinfo is None:
+                    dtstart_utc = dtstart_utc.replace(tzinfo=timezone.utc)
+                dtstart_local = dtstart_utc.astimezone(orig_tz)
+                local_start = start.astimezone(orig_tz)
+                local_end = end.astimezone(orig_tz)
+                rule = rrulestr(master.rrule, dtstart=dtstart_local)
+                occurrences_local = rule.between(local_start, local_end, inc=True)
+                occurrences = [occ.astimezone(timezone.utc) for occ in occurrences_local]
+            else:
+                dtstart = master.start_time
+                if dtstart.tzinfo is None:
+                    dtstart = dtstart.replace(tzinfo=timezone.utc)
+                rule = rrulestr(master.rrule, dtstart=dtstart)
+                occurrences = rule.between(start, end, inc=True)
+
+            master_exceptions = exc_by_master.get(master.id, {})
+
+            for occ_dt in occurrences:
+                occ_iso = occ_dt.isoformat()
+                if occ_iso in master_exceptions:
+                    exc_event = master_exceptions[occ_iso]
+                    events_out.append((exc_event.start_time, exc_event.title, exc_event.end_time, exc_event.all_day, exc_event.location, exc_event.id))
+                else:
+                    occ_end = occ_dt + duration
+                    synthetic_id = f"{master.id}__rec__{occ_dt.strftime('%Y%m%dT%H%M%S')}"
+                    events_out.append((occ_dt, master.title, occ_end, master.all_day, master.location, synthetic_id))
+        except Exception:
+            # If RRULE expansion fails, include the master event itself
+            events_out.append((master.start_time, master.title, master.end_time, master.all_day, master.location, master.id))
+
+    # Add any exceptions not already included (edge case: moved outside original date)
+    included_ids = {e[5] for e in events_out}
+    for exc in exceptions:
+        if exc.id not in included_ids:
+            events_out.append((exc.start_time, exc.title, exc.end_time, exc.all_day, exc.location, exc.id))
+
+    # Sort by start time and limit
+    events_out.sort(key=lambda e: e[0])
+    events_out = events_out[:50]
+
+    if not events_out:
         return [TextContent(type="text", text=f"No events between {args['start_date']} and {args['end_date']}.")]
 
     lines = []
-    for e in events:
-        time_str = e.start_time.strftime("%H:%M") if not e.all_day else "All day"
-        end_str = f" - {e.end_time.strftime('%H:%M')}" if e.end_time and not e.all_day else ""
-        location = f" @ {e.location}" if e.location else ""
-        lines.append(f"- {e.start_time.strftime('%Y-%m-%d')} {time_str}{end_str}: **{e.title}**{location} (id: {e.id})")
+    for start_time, title, end_time, all_day, location, event_id in events_out:
+        time_str = start_time.strftime("%H:%M") if not all_day else "All day"
+        end_str = f" - {end_time.strftime('%H:%M')}" if end_time and not all_day else ""
+        location_str = f" @ {location}" if location else ""
+        lines.append(f"- {start_time.strftime('%Y-%m-%d')} {time_str}{end_str}: **{title}**{location_str} (id: {event_id})")
 
-    return [TextContent(type="text", text=f"Found {len(events)} events:\n\n" + "\n".join(lines))]
+    return [TextContent(type="text", text=f"Found {len(events_out)} events:\n\n" + "\n".join(lines))]
 
 
 async def _get_dashboard(db, args: dict) -> list[TextContent]:
@@ -403,14 +577,86 @@ async def _get_dashboard(db, args: dict) -> list[TextContent]:
     today_end = today_start + timedelta(days=1)
     seven_days_ago = today_start - timedelta(days=7)
 
-    # Events
-    event_result = await db.execute(
-        select(CalendarEvent)
-        .where(CalendarEvent.start_time.between(today_start, today_end))
-        .order_by(CalendarEvent.start_time)
-        .limit(10)
+    # Events - with proper recurring event expansion
+    events_out = []
+
+    # Non-recurring events today
+    non_recurring_result = await db.execute(
+        select(CalendarEvent).where(
+            CalendarEvent.rrule.is_(None),
+            CalendarEvent.recurring_event_id.is_(None),
+            CalendarEvent.start_time >= today_start,
+            CalendarEvent.start_time <= today_end,
+        )
     )
-    events = event_result.scalars().all()
+    for e in non_recurring_result.scalars().all():
+        events_out.append((e.start_time, e.title, e.all_day))
+
+    # Recurring masters - expand to today
+    masters_result = await db.execute(
+        select(CalendarEvent).where(
+            CalendarEvent.rrule.isnot(None),
+            CalendarEvent.recurring_event_id.is_(None),
+        )
+    )
+    masters = masters_result.scalars().all()
+
+    # Exceptions today
+    exc_result = await db.execute(
+        select(CalendarEvent).where(
+            CalendarEvent.recurring_event_id.isnot(None),
+            CalendarEvent.start_time >= today_start,
+            CalendarEvent.start_time <= today_end,
+        )
+    )
+    exceptions = exc_result.scalars().all()
+    exc_by_master: dict[str, dict[str, CalendarEvent]] = {}
+    for exc in exceptions:
+        if exc.recurring_event_id not in exc_by_master:
+            exc_by_master[exc.recurring_event_id] = {}
+        if exc.recurrence_id:
+            exc_by_master[exc.recurring_event_id][exc.recurrence_id] = exc
+
+    for master in masters:
+        try:
+            orig_tz = None
+            if master.original_timezone:
+                try:
+                    orig_tz = zoneinfo.ZoneInfo(master.original_timezone)
+                except Exception:
+                    pass
+
+            if orig_tz:
+                dtstart_utc = master.start_time
+                if dtstart_utc.tzinfo is None:
+                    dtstart_utc = dtstart_utc.replace(tzinfo=timezone.utc)
+                dtstart_local = dtstart_utc.astimezone(orig_tz)
+                local_start = today_start.astimezone(orig_tz)
+                local_end = today_end.astimezone(orig_tz)
+                rule = rrulestr(master.rrule, dtstart=dtstart_local)
+                occurrences_local = rule.between(local_start, local_end, inc=True)
+                occurrences = [occ.astimezone(timezone.utc) for occ in occurrences_local]
+            else:
+                dtstart = master.start_time
+                if dtstart.tzinfo is None:
+                    dtstart = dtstart.replace(tzinfo=timezone.utc)
+                rule = rrulestr(master.rrule, dtstart=dtstart)
+                occurrences = rule.between(today_start, today_end, inc=True)
+
+            master_exceptions = exc_by_master.get(master.id, {})
+            for occ_dt in occurrences:
+                occ_iso = occ_dt.isoformat()
+                if occ_iso in master_exceptions:
+                    exc_event = master_exceptions[occ_iso]
+                    events_out.append((exc_event.start_time, exc_event.title, exc_event.all_day))
+                else:
+                    events_out.append((occ_dt, master.title, master.all_day))
+        except Exception:
+            pass
+
+    # Sort and limit
+    events_out.sort(key=lambda e: e[0])
+    events_out = events_out[:10]
 
     # Due tasks
     task_result = await db.execute(
@@ -432,11 +678,11 @@ async def _get_dashboard(db, args: dict) -> list[TextContent]:
 
     parts = [f"# Dashboard for {today_start.strftime('%Y-%m-%d')}\n"]
 
-    if events:
+    if events_out:
         parts.append("## Today's Events")
-        for e in events:
-            time_str = e.start_time.strftime("%H:%M") if not e.all_day else "All day"
-            parts.append(f"- {time_str}: {e.title}")
+        for start_time, title, all_day in events_out:
+            time_str = start_time.strftime("%H:%M") if not all_day else "All day"
+            parts.append(f"- {time_str}: {title}")
     else:
         parts.append("## Today's Events\nNo events today.")
 
@@ -527,9 +773,202 @@ async def _update_note(db, args: dict) -> list[TextContent]:
     content = args.get("content")
     tags = args.get("tags")
 
-    note = await service_update_note(db, note_id=note_id, title=title, content=content, tags=tags)
+    # Handle project_id - empty string means unassign (set to None)
+    project_id = args.get("project_id")
+    if project_id == "":
+        project_id = None
+
+    note = await service_update_note(db, note_id=note_id, title=title, content=content, tags=tags, project_id=project_id)
     if note is None:
         return [TextContent(type="text", text=f"Failed to update note '{note_id}'.")]
 
     tag_str = ", ".join(t.name for t in note.tags) if note.tags else "none"
-    return [TextContent(type="text", text=f"Note updated: **{note.title}** (id: {note.id})\nTags: {tag_str}")]
+    project_str = f"\nProject: {note.project_id}" if note.project_id else ""
+    return [TextContent(type="text", text=f"Note updated: **{note.title}** (id: {note.id})\nTags: {tag_str}{project_str}")]
+
+
+async def _link_note_to_task(db, args: dict) -> list[TextContent]:
+    task_id = args.get("task_id", "")
+    note_id = args.get("note_id", "")
+
+    if not task_id or not note_id:
+        return [TextContent(type="text", text="Both task_id and note_id are required.")]
+
+    # Verify task exists
+    task_result = await db.execute(select(Task).where(Task.id == task_id))
+    task = task_result.scalar_one_or_none()
+    if not task:
+        return [TextContent(type="text", text=f"Task '{task_id}' not found.")]
+
+    # Verify note exists
+    note_result = await db.execute(select(Note).where(Note.id == note_id))
+    note = note_result.scalar_one_or_none()
+    if not note:
+        return [TextContent(type="text", text=f"Note '{note_id}' not found.")]
+
+    # Check if link already exists
+    existing_link = await db.execute(
+        select(TaskNote).where(TaskNote.task_id == task_id, TaskNote.note_id == note_id)
+    )
+    if existing_link.scalar_one_or_none():
+        return [TextContent(type="text", text=f"Note **{note.title}** is already linked to task **{task.title}**.")]
+
+    # Create the link
+    db.add(TaskNote(task_id=task_id, note_id=note_id))
+    await db.commit()
+
+    return [TextContent(type="text", text=f"Linked note **{note.title}** to task **{task.title}**.")]
+
+
+async def _get_note_links(db, args: dict) -> list[TextContent]:
+    note_id = args.get("note_id", "")
+    if not note_id:
+        return [TextContent(type="text", text="note_id is required.")]
+
+    # Verify note exists
+    result = await db.execute(select(Note).where(Note.id == note_id))
+    note = result.scalar_one_or_none()
+    if not note:
+        return [TextContent(type="text", text=f"Note '{note_id}' not found.")]
+
+    lines = [f"# Links for: {note.title}\n"]
+
+    # --- Outgoing links (this note links TO these) ---
+    lines.append("## Outgoing Links (this note links to)")
+
+    # Outgoing note links
+    outgoing_note_links = await db.execute(
+        select(NoteLink).where(
+            NoteLink.source_note_id == note_id,
+            NoteLink.link_type == "note",
+            NoteLink.target_note_id.isnot(None),
+        )
+    )
+    outgoing_note_link_ids = [link.target_note_id for link in outgoing_note_links.scalars().all()]
+
+    if outgoing_note_link_ids:
+        outgoing_notes_result = await db.execute(
+            select(Note).where(Note.id.in_(outgoing_note_link_ids))
+        )
+        outgoing_notes = outgoing_notes_result.scalars().all()
+        for n in outgoing_notes:
+            lines.append(f"- **Note:** {n.title} (id: {n.id})")
+    else:
+        lines.append("- No outgoing note links")
+
+    # Outgoing task links
+    outgoing_task_links = await db.execute(
+        select(NoteLink).where(
+            NoteLink.source_note_id == note_id,
+            NoteLink.link_type == "task",
+        )
+    )
+    outgoing_task_ids = [link.target_identifier for link in outgoing_task_links.scalars().all()]
+
+    if outgoing_task_ids:
+        outgoing_tasks_result = await db.execute(
+            select(Task).where(Task.id.in_(outgoing_task_ids))
+        )
+        for t in outgoing_tasks_result.scalars().all():
+            lines.append(f"- **Task:** {t.title} (id: {t.id}, status: {t.status})")
+
+    # Outgoing event links
+    from api.models.calendar import CalendarEvent
+    outgoing_event_links = await db.execute(
+        select(NoteLink).where(
+            NoteLink.source_note_id == note_id,
+            NoteLink.link_type == "event",
+        )
+    )
+    outgoing_event_ids = [link.target_identifier for link in outgoing_event_links.scalars().all()]
+
+    if outgoing_event_ids:
+        outgoing_events_result = await db.execute(
+            select(CalendarEvent).where(CalendarEvent.id.in_(outgoing_event_ids))
+        )
+        for e in outgoing_events_result.scalars().all():
+            lines.append(f"- **Event:** {e.title} (id: {e.id})")
+
+    # --- Incoming links (these link TO this note) ---
+    lines.append("\n## Incoming Links (link to this note)")
+
+    # Incoming note links (notes that link to this note via wiki-links)
+    from api.services.note_service import get_backlinks
+    incoming_notes = await get_backlinks(db, note_id)
+    if incoming_notes:
+        for n in incoming_notes:
+            lines.append(f"- **Note:** {n.title} (id: {n.id})")
+    else:
+        lines.append("- No incoming note links")
+
+    # Incoming task links (tasks created from this note via source_note_id)
+    incoming_tasks_result = await db.execute(
+        select(Task).where(Task.source_note_id == note_id)
+    )
+    incoming_tasks = incoming_tasks_result.scalars().all()
+    if incoming_tasks:
+        for t in incoming_tasks:
+            lines.append(f"- **Task:** {t.title} (id: {t.id}, status: {t.status})")
+
+    return [TextContent(type="text", text="\n".join(lines))]
+
+
+async def _get_task_links(db, args: dict) -> list[TextContent]:
+    task_id = args.get("task_id", "")
+    if not task_id:
+        return [TextContent(type="text", text="task_id is required.")]
+
+    # Verify task exists
+    result = await db.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task:
+        return [TextContent(type="text", text=f"Task '{task_id}' not found.")]
+
+    lines = [f"# Notes linked to task: {task.title}\n"]
+
+    # 1. Explicit links via TaskNote table (from link_note_to_task or create_task(note_ids))
+    explicit_link_result = await db.execute(
+        select(TaskNote).where(TaskNote.task_id == task_id)
+    )
+    explicit_note_ids = [link.note_id for link in explicit_link_result.scalars().all()]
+
+    explicit_notes = []
+    if explicit_note_ids:
+        explicit_notes_result = await db.execute(
+            select(Note).where(Note.id.in_(explicit_note_ids))
+        )
+        explicit_notes = list(explicit_notes_result.scalars().all())
+
+    # 2. Wiki-link references via NoteLink (notes with [[task:task_id]] in content)
+    wikilink_result = await db.execute(
+        select(NoteLink).where(
+            NoteLink.link_type == "task",
+            NoteLink.target_identifier == task_id,
+        )
+    )
+    wikilink_note_ids = [link.source_note_id for link in wikilink_result.scalars().all()]
+
+    wikilink_notes = []
+    if wikilink_note_ids:
+        # Exclude notes already in explicit links to avoid duplicates
+        remaining_ids = [nid for nid in wikilink_note_ids if nid not in explicit_note_ids]
+        if remaining_ids:
+            wikilink_notes_result = await db.execute(
+                select(Note).where(Note.id.in_(remaining_ids))
+            )
+            wikilink_notes = list(wikilink_notes_result.scalars().all())
+
+    if explicit_notes:
+        lines.append("## Explicitly linked notes")
+        for n in explicit_notes:
+            lines.append(f"- **{n.title}** (id: {n.id})")
+
+    if wikilink_notes:
+        lines.append("\n## Notes referencing this task (via [[task:...]])")
+        for n in wikilink_notes:
+            lines.append(f"- **{n.title}** (id: {n.id})")
+
+    if not explicit_notes and not wikilink_notes:
+        lines.append("No notes linked to this task.")
+
+    return [TextContent(type="text", text="\n".join(lines))]

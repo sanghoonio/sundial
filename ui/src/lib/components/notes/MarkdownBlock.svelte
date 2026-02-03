@@ -5,6 +5,7 @@
 	import { api } from '$lib/services/api';
 	import type { NoteList } from '$lib/types';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { renderMermaidInContainer } from '$lib/utils/mermaid';
 	import MarkdownToolbar from './MarkdownToolbar.svelte';
 	import WikiLinkSuggest from './WikiLinkSuggest.svelte';
 
@@ -22,6 +23,7 @@
 	let userMinHeight = $state<number | null>(null);
 	let lastAutoHeight: number | null = null;
 	let editorWrapperEl = $state<HTMLDivElement>();
+	let previewEl = $state<HTMLDivElement>();
 
 	let renderedHtml = $derived(renderMarkdown(content));
 
@@ -132,6 +134,44 @@
 		if (suggestActive && suggestComponent) {
 			const handled = suggestComponent.handleKey(e);
 			if (handled) return;
+		}
+
+		// Tab/Shift+Tab: indent/unindent (supports multi-line selection)
+		if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && textareaEl) {
+			e.preventDefault();
+			const { selectionStart, selectionEnd, value } = textareaEl;
+
+			// Find the start of the first selected line and end of the last
+			const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+			const lineEnd = value.indexOf('\n', selectionEnd);
+			const blockEnd = lineEnd === -1 ? value.length : lineEnd;
+
+			const selectedBlock = value.slice(lineStart, blockEnd);
+			const lines = selectedBlock.split('\n');
+
+			let newBlock: string;
+			let newSelectionStart: number;
+			let newSelectionEnd: number;
+
+			if (e.shiftKey) {
+				// Unindent: remove leading tab from each line
+				newBlock = lines.map(line => line.startsWith('\t') ? line.slice(1) : line).join('\n');
+				const removedBefore = selectedBlock.slice(0, selectionStart - lineStart).split('\n')
+					.reduce((count, line) => count + (line.startsWith('\t') ? 1 : 0), 0);
+				const totalRemoved = lines.filter(line => line.startsWith('\t')).length;
+				newSelectionStart = Math.max(lineStart, selectionStart - removedBefore);
+				newSelectionEnd = selectionEnd - totalRemoved + (selectionEnd === selectionStart ? removedBefore - totalRemoved : 0);
+			} else {
+				// Indent: add tab to start of each line
+				newBlock = lines.map(line => '\t' + line).join('\n');
+				newSelectionStart = selectionStart + 1;
+				newSelectionEnd = selectionEnd + lines.length;
+			}
+
+			textareaEl.setRangeText(newBlock, lineStart, blockEnd, 'select');
+			textareaEl.setSelectionRange(newSelectionStart, newSelectionEnd);
+			textareaEl.dispatchEvent(new Event('input', { bubbles: true }));
+			return;
 		}
 
 		if (e.key !== 'Enter' || e.shiftKey || !textareaEl) return;
@@ -249,12 +289,21 @@
 		observer.observe(textareaEl);
 		return () => observer.disconnect();
 	});
+
+	// Render mermaid diagrams after preview HTML is injected
+	$effect(() => {
+		// Track renderedHtml to re-run when content changes
+		if (previewEl && preview && renderedHtml) {
+			// Use tick to ensure DOM is updated with the new HTML
+			queueMicrotask(() => renderMermaidInContainer(previewEl!));
+		}
+	});
 </script>
 
 {#if preview}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="prose prose-sm max-w-none min-h-8 py-1" onclick={handlePreviewClick}>
+	<div bind:this={previewEl} class="prose prose-sm max-w-none min-h-8 py-1" onclick={handlePreviewClick}>
 		{#if content}
 			{@html renderedHtml}
 		{:else}

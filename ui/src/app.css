@@ -20,3 +20,50 @@
 		cursor: grabbing !important;
 	}
 }
+
+@layer components {
+	.mermaid-diagram {
+		@apply my-4 flex justify-center overflow-x-auto;
+	}
+	.mermaid-diagram svg {
+		@apply max-w-full h-auto;
+	}
+	.mermaid-error {
+		@apply my-4 p-3 rounded-lg bg-error/10 border border-error/20;
+	}
+
+	/* Syntax highlighting - GitHub-inspired colors adapted for DaisyUI */
+	.prose pre code .hljs-keyword { @apply text-purple-600; }
+	.prose pre code .hljs-string { @apply text-green-600; }
+	.prose pre code .hljs-number { @apply text-blue-600; }
+	.prose pre code .hljs-comment { @apply text-base-content/50 italic; }
+	.prose pre code .hljs-function { @apply text-blue-500; }
+	.prose pre code .hljs-title { @apply text-amber-600; }
+	.prose pre code .hljs-built_in { @apply text-cyan-600; }
+	.prose pre code .hljs-params { @apply text-base-content; }
+	.prose pre code .hljs-attr { @apply text-amber-500; }
+	.prose pre code .hljs-literal { @apply text-red-500; }
+	.prose pre code .hljs-type { @apply text-cyan-600; }
+	.prose pre code .hljs-meta { @apply text-base-content/60; }
+	.prose pre code .hljs-variable { @apply text-orange-500; }
+	.prose pre code .hljs-operator { @apply text-pink-600; }
+	.prose pre code .hljs-property { @apply text-blue-600; }
+	.prose pre code .hljs-class { @apply text-amber-600; }
+	.prose pre code .hljs-symbol { @apply text-amber-600; }
+}
+
+/* Dark mode overrides for syntax highlighting */
+[data-theme="dark"] .prose pre code .hljs-keyword { @apply text-purple-400; }
+[data-theme="dark"] .prose pre code .hljs-string { @apply text-green-400; }
+[data-theme="dark"] .prose pre code .hljs-number { @apply text-blue-400; }
+[data-theme="dark"] .prose pre code .hljs-function { @apply text-blue-400; }
+[data-theme="dark"] .prose pre code .hljs-title { @apply text-amber-400; }
+[data-theme="dark"] .prose pre code .hljs-built_in { @apply text-cyan-400; }
+[data-theme="dark"] .prose pre code .hljs-attr { @apply text-amber-400; }
+[data-theme="dark"] .prose pre code .hljs-literal { @apply text-red-400; }
+[data-theme="dark"] .prose pre code .hljs-type { @apply text-cyan-400; }
+[data-theme="dark"] .prose pre code .hljs-variable { @apply text-orange-400; }
+[data-theme="dark"] .prose pre code .hljs-operator { @apply text-pink-400; }
+[data-theme="dark"] .prose pre code .hljs-property { @apply text-blue-400; }
+[data-theme="dark"] .prose pre code .hljs-class { @apply text-amber-400; }
+[data-theme="dark"] .prose pre code .hljs-symbol { @apply text-amber-400; }

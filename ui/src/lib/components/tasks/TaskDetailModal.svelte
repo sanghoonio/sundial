@@ -6,7 +6,7 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
-	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock } from 'lucide-svelte';
+	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X } from 'lucide-svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	interface Props {
@@ -209,7 +209,14 @@
 				</div>
 				<div>
 					<p class="text-xs text-base-content/60 mb-1">Due date</p>
-					<input type="date" class="input input-bordered input-sm w-full" bind:value={dueDate} />
+					<div class="flex gap-1">
+						<input type="date" class="input input-bordered input-sm flex-1" bind:value={dueDate} />
+						{#if dueDate}
+							<button type="button" class="btn btn-ghost btn-sm btn-square text-error" onclick={() => dueDate = ''} title="Clear due date">
+								<X size={14} />
+							</button>
+						{/if}
+					</div>
 				</div>
 			</div>
 
