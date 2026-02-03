@@ -321,7 +321,7 @@
 					<span class="loading loading-spinner loading-lg"></span>
 				</div>
 			{:else if filteredProjects.length > 0}
-				<div class="grid gap-3 grid-cols-[repeat(auto-fill,220px)]">
+				<div class="grid gap-3 grid-cols-[repeat(auto-fill,180px)]">
 					{#each filteredProjects as project (project.id)}
 						<button
 							class="card bg-base-100 border border-base-300 text-left transition-all aspect-square
@@ -331,7 +331,7 @@
 							onclick={() => selectProject(project.id)}
 						>
 							<div class="card-body p-4 flex flex-col justify-between h-full">
-								<div>
+								<div class="flex-1">
 									<div class="flex items-start gap-2">
 										<div class="shrink-0 mt-0.5" style:color={project.color || '#6b7280'}>
 											<ProjectIcon name={project.icon || 'folder-kanban'} size={18} />
@@ -339,7 +339,7 @@
 										<h3 class="font-semibold text-sm line-clamp-2 flex-1 min-w-0">{project.name}</h3>
 									</div>
 									{#if project.description}
-										<p class="text-xs text-base-content/50 line-clamp-2 mt-2">{project.description}</p>
+										<p class="text-xs text-base-content/50 line-clamp-5 mt-2">{project.description}</p>
 									{/if}
 								</div>
 								<div class="flex items-center justify-between mt-auto pt-3">
