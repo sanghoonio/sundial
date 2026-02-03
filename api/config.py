@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./workspace/sundial.db"
     WORKSPACE_DIR: str = "./workspace"
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    BASE_PATH: str = ""  # e.g., "/sundial" for subpath deployment
 
     @property
     def cors_origins_list(self) -> list[str]:

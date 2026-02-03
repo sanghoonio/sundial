@@ -50,7 +50,8 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(
+# Create the actual API application
+api_app = FastAPI(
     title="Sundial",
     version="0.1.0",
     lifespan=lifespan,
@@ -60,7 +61,7 @@ app = FastAPI(
     default_response_class=UTCJSONResponse,
 )
 
-app.add_middleware(
+api_app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
@@ -81,28 +82,28 @@ from api.routes.tags import router as tags_router
 from api.routes.settings import router as settings_router
 from api.routes.workspace import router as workspace_router
 
-app.include_router(auth_router, prefix="/api")
-app.include_router(notes_router, prefix="/api")
-app.include_router(tasks_router, prefix="/api")
-app.include_router(projects_router, prefix="/api")
-app.include_router(calendar_router, prefix="/api")
-app.include_router(search_router, prefix="/api")
-app.include_router(dashboard_router, prefix="/api")
-app.include_router(ai_router, prefix="/api")
-app.include_router(tags_router, prefix="/api")
-app.include_router(settings_router, prefix="/api")
-app.include_router(workspace_router, prefix="/api")
+api_app.include_router(auth_router, prefix="/api")
+api_app.include_router(notes_router, prefix="/api")
+api_app.include_router(tasks_router, prefix="/api")
+api_app.include_router(projects_router, prefix="/api")
+api_app.include_router(calendar_router, prefix="/api")
+api_app.include_router(search_router, prefix="/api")
+api_app.include_router(dashboard_router, prefix="/api")
+api_app.include_router(ai_router, prefix="/api")
+api_app.include_router(tags_router, prefix="/api")
+api_app.include_router(settings_router, prefix="/api")
+api_app.include_router(workspace_router, prefix="/api")
 
 # Mount MCP server (Starlette sub-app for SSE transport)
 from api.mcp.routes import mcp_app
-app.mount("/mcp", mcp_app)
+api_app.mount("/mcp", mcp_app)
 
 
 # WebSocket endpoint
 from api.utils.websocket import manager
 
 
-@app.websocket("/ws")
+@api_app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
@@ -115,12 +116,20 @@ async def websocket_endpoint(websocket: WebSocket):
 # Static file serving for SPA frontend
 _ui_build = Path(__file__).resolve().parent.parent / "ui" / "build"
 if _ui_build.is_dir():
-    @app.get("/{full_path:path}")
+    @api_app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         file_path = _ui_build / full_path
         if file_path.is_file():
             return FileResponse(str(file_path))
         return FileResponse(str(_ui_build / "index.html"))
+
+
+# Mount api_app at BASE_PATH if configured, otherwise use it directly as the root app
+if settings.BASE_PATH:
+    app = FastAPI()
+    app.mount(settings.BASE_PATH, api_app)
+else:
+    app = api_app
 
 
 if __name__ == "__main__":

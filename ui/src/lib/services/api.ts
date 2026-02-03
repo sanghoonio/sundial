@@ -1,3 +1,5 @@
+import { base } from '$app/paths';
+
 const TOKEN_KEY = 'sundial_token';
 
 export class ApiError extends Error {
@@ -31,7 +33,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 		headers['Content-Type'] = 'application/json';
 	}
 
-	const res = await fetch(path, {
+	const fullPath = `${base}${path}`;
+	const res = await fetch(fullPath, {
 		method,
 		headers,
 		body: body !== undefined ? JSON.stringify(body) : undefined

@@ -36,6 +36,7 @@
 <div class="min-h-screen flex items-center justify-center bg-base-200">
 	<div class="card bg-base-100 shadow-xl w-full max-w-sm">
 		<div class="card-body">
+			<h1 class="text-center text-2xl font-light text-base-content/70 mb-4">Sundial</h1>
 			<form onsubmit={handleSubmit}>
 				<div class="form-control mb-4">
 					<Input

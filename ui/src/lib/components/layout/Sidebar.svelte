@@ -13,6 +13,7 @@
 		ChevronLeft,
 		ChevronRight,
 		BookOpen,
+		Github,
 		Sun,
 		Moon,
 		LogOut
@@ -108,6 +109,21 @@
 			<BookOpen size={20} />
 			{#if !collapsed}
 				<span>API Docs</span>
+			{/if}
+		</a>
+
+		<!-- GitHub -->
+		<a
+			href="https://github.com/sanghoonio/sundial"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-base-300
+				{collapsed ? 'justify-center' : ''}"
+			title={collapsed ? 'GitHub' : undefined}
+		>
+			<Github size={20} />
+			{#if !collapsed}
+				<span>GitHub</span>
 			{/if}
 		</a>
 	</div>
