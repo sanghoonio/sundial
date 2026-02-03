@@ -269,6 +269,12 @@ async def delete_note(db: AsyncSession, note_id: str) -> bool:
     if note is None:
         return False
 
+    # Get tag IDs before deletion to check for orphans
+    result = await db.execute(
+        select(NoteTag.tag_id).where(NoteTag.note_id == note_id)
+    )
+    tag_ids = [row[0] for row in result.all()]
+
     delete_note_file(note.filepath)
 
     # Remove from FTS index
@@ -276,6 +282,17 @@ async def delete_note(db: AsyncSession, note_id: str) -> bool:
 
     await db.delete(note)
     await db.commit()
+
+    # Clean up orphaned tags (tags with no remaining notes)
+    if tag_ids:
+        for tag_id in tag_ids:
+            count_result = await db.execute(
+                select(func.count()).select_from(NoteTag).where(NoteTag.tag_id == tag_id)
+            )
+            if count_result.scalar() == 0:
+                await db.execute(delete(Tag).where(Tag.id == tag_id))
+        await db.commit()
+
     return True
 
 

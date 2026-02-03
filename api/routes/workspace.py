@@ -1,6 +1,7 @@
 import io
 import json
 import zipfile
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, UploadFile, File
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.config import settings
 from api.database import get_db
 from api.models.note import Note, Tag, NoteTag, NoteLink
-from api.models.task import Task, TaskChecklist
+from api.models.task import Task, TaskChecklist, TaskNote
 from api.models.project import Project, ProjectMilestone
 from api.models.calendar import CalendarEvent, NoteCalendarLink
 from api.models.settings import UserSettings
@@ -33,6 +34,33 @@ def _row_to_dict(row) -> dict:
     return d
 
 
+def _parse_datetime(val: str | None) -> datetime | None:
+    """Parse an ISO format datetime string back to a datetime object."""
+    if val is None:
+        return None
+    try:
+        return datetime.fromisoformat(val)
+    except (ValueError, TypeError):
+        return None
+
+
+def _dict_to_model_kwargs(row_data: dict, model) -> dict:
+    """Convert a dict from JSON to model kwargs, parsing datetime strings."""
+    from sqlalchemy import DateTime
+    valid_cols = {c.name for c in model.__table__.columns}
+    datetime_cols = {c.name for c in model.__table__.columns if isinstance(c.type, DateTime)}
+
+    result = {}
+    for k, v in row_data.items():
+        if k not in valid_cols:
+            continue
+        if k in datetime_cols and isinstance(v, str):
+            result[k] = _parse_datetime(v)
+        else:
+            result[k] = v
+    return result
+
+
 @router.get("/export/workspace")
 async def export_workspace(db: AsyncSession = Depends(get_db)):
     """Export the entire workspace as a ZIP file containing data.json and note files."""
@@ -46,6 +74,7 @@ async def export_workspace(db: AsyncSession = Depends(get_db)):
         ("note_links", NoteLink),
         ("tasks", Task),
         ("task_checklists", TaskChecklist),
+        ("task_notes", TaskNote),
         ("projects", Project),
         ("project_milestones", ProjectMilestone),
         ("calendar_events", CalendarEvent),
@@ -101,6 +130,7 @@ async def import_workspace(
     # Clear existing data in reverse dependency order
     await db.execute(delete(NoteCalendarLink))
     await db.execute(delete(TaskChecklist))
+    await db.execute(delete(TaskNote))
     await db.execute(delete(NoteTag))
     await db.execute(delete(NoteLink))
     await db.execute(delete(Task))
@@ -122,6 +152,7 @@ async def import_workspace(
         "note_links": NoteLink,
         "tasks": Task,
         "task_checklists": TaskChecklist,
+        "task_notes": TaskNote,
         "calendar_events": CalendarEvent,
         "note_calendar_links": NoteCalendarLink,
         "user_settings": UserSettings,
@@ -131,10 +162,8 @@ async def import_workspace(
     for key, model in model_map.items():
         rows = data.get(key, [])
         for row_data in rows:
-            # Filter to only known columns
-            valid_cols = {c.name for c in model.__table__.columns}
-            filtered = {k: v for k, v in row_data.items() if k in valid_cols}
-            db.add(model(**filtered))
+            kwargs = _dict_to_model_kwargs(row_data, model)
+            db.add(model(**kwargs))
         counts[key] = len(rows)
 
     await db.commit()

@@ -36,9 +36,6 @@
 <div class="min-h-screen flex items-center justify-center bg-base-200">
 	<div class="card bg-base-100 shadow-xl w-full max-w-sm">
 		<div class="card-body">
-			<h1 class="text-2xl font-bold text-center mb-2">Sundial</h1>
-			<p class="text-center text-base-content/60 mb-6">Enter your password to continue</p>
-
 			<form onsubmit={handleSubmit}>
 				<div class="form-control mb-4">
 					<Input
