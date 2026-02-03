@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { api } from '$lib/services/api';
 	import type { DashboardResponse } from '$lib/types';
 	import Card from '$lib/components/ui/Card.svelte';
@@ -69,7 +70,7 @@
 						</div>
 						<h2 class="font-semibold">Today's Events</h2>
 					</div>
-					<a href="/calendar" class="text-xs text-base-content/50 hover:text-base-content transition-colors">
+					<a href="{base}/calendar" class="text-xs text-base-content/50 hover:text-base-content transition-colors">
 						View all
 					</a>
 				</div>
@@ -96,7 +97,7 @@
 						</div>
 						<h2 class="font-semibold">Tasks Due</h2>
 					</div>
-					<a href="/tasks" class="btn btn-ghost btn-xs gap-1">
+					<a href="{base}/tasks" class="btn btn-ghost btn-xs gap-1">
 						<Plus size={14} />
 						New
 					</a>
@@ -105,7 +106,7 @@
 					<div class="text-center py-6">
 						<CheckSquare size={32} class="mx-auto text-base-content/20 mb-2" />
 						<p class="text-base-content/40 text-sm">No tasks due today</p>
-						<a href="/tasks" class="btn btn-ghost btn-xs mt-2 text-primary">
+						<a href="{base}/tasks" class="btn btn-ghost btn-xs mt-2 text-primary">
 							View all tasks
 						</a>
 					</div>
@@ -127,7 +128,7 @@
 						</div>
 						<h2 class="font-semibold">Recent Notes</h2>
 					</div>
-					<a href="/notes/new" class="btn btn-ghost btn-xs gap-1">
+					<a href="{base}/notes/new" class="btn btn-ghost btn-xs gap-1">
 						<Plus size={14} />
 						New
 					</a>
@@ -136,7 +137,7 @@
 					<div class="text-center py-6">
 						<StickyNote size={32} class="mx-auto text-base-content/20 mb-2" />
 						<p class="text-base-content/40 text-sm">No notes yet</p>
-						<a href="/notes/new" class="btn btn-ghost btn-xs mt-2 text-primary">
+						<a href="{base}/notes/new" class="btn btn-ghost btn-xs mt-2 text-primary">
 							Create your first note
 						</a>
 					</div>

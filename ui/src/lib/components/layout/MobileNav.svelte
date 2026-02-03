@@ -1,17 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { base } from '$app/paths';
 	import { LayoutDashboard, StickyNote, CheckSquare, Calendar, Search } from 'lucide-svelte';
 
 	const links = [
-		{ href: '/', label: 'Home', icon: LayoutDashboard },
-		{ href: '/notes', label: 'Notes', icon: StickyNote },
-		{ href: '/tasks', label: 'Tasks', icon: CheckSquare },
-		{ href: '/calendar', label: 'Calendar', icon: Calendar },
-		{ href: '/search', label: 'Search', icon: Search }
+		{ href: `${base}/`, label: 'Home', icon: LayoutDashboard },
+		{ href: `${base}/notes`, label: 'Notes', icon: StickyNote },
+		{ href: `${base}/tasks`, label: 'Tasks', icon: CheckSquare },
+		{ href: `${base}/calendar`, label: 'Calendar', icon: Calendar },
+		{ href: `${base}/search`, label: 'Search', icon: Search }
 	];
 
 	function isActive(href: string): boolean {
-		if (href === '/') return page.url.pathname === '/';
+		if (href === `${base}/`) return page.url.pathname === `${base}/` || page.url.pathname === base;
 		return page.url.pathname.startsWith(href);
 	}
 </script>

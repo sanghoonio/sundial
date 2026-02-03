@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { SearchResult, SearchResultItem, TaskSearchResultItem } from '$lib/types';
@@ -98,7 +99,7 @@
 					<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-2">Notes</h3>
 					<div class="flex flex-col gap-3 mb-6">
 						{#each results!.results as item (item.id)}
-							<a href="/notes/{item.id}" class="block">
+							<a href="{base}/notes/{item.id}" class="block">
 								<Card hoverable compact>
 									<div class="flex items-start gap-3">
 										<div class="text-base-content/40 mt-0.5">
@@ -121,7 +122,7 @@
 					<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-2">Tasks</h3>
 					<div class="flex flex-col gap-3">
 						{#each results!.tasks as task (task.id)}
-							<a href="/tasks/{task.project_id}" class="block">
+							<a href="{base}/tasks/{task.project_id}" class="block">
 								<Card hoverable compact>
 									<div class="flex items-start gap-3">
 										<div class="text-base-content/40 mt-0.5">

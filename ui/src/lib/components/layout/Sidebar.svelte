@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { auth } from '$lib/stores/auth.svelte';
 	import {
 		LayoutDashboard,
@@ -42,20 +43,20 @@
 
 	function handleLogout() {
 		auth.logout();
-		goto('/login');
+		goto(`${base}/login`);
 	}
 
 	const links = [
-		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
-		{ href: '/notes', label: 'Notes', icon: StickyNote },
-		{ href: '/tasks', label: 'Tasks', icon: CheckSquare },
-		{ href: '/projects', label: 'Projects', icon: FolderKanban },
-		{ href: '/calendar', label: 'Calendar', icon: Calendar },
-		{ href: '/search', label: 'Search', icon: Search }
+		{ href: `${base}/`, label: 'Dashboard', icon: LayoutDashboard },
+		{ href: `${base}/notes`, label: 'Notes', icon: StickyNote },
+		{ href: `${base}/tasks`, label: 'Tasks', icon: CheckSquare },
+		{ href: `${base}/projects`, label: 'Projects', icon: FolderKanban },
+		{ href: `${base}/calendar`, label: 'Calendar', icon: Calendar },
+		{ href: `${base}/search`, label: 'Search', icon: Search }
 	];
 
 	function isActive(href: string): boolean {
-		if (href === '/') return page.url.pathname === '/';
+		if (href === `${base}/`) return page.url.pathname === `${base}/` || page.url.pathname === base;
 		return page.url.pathname.startsWith(href);
 	}
 </script>
@@ -85,9 +86,9 @@
 	<div class="py-2 px-2 border-t border-base-300 flex flex-col gap-1">
 		<!-- Settings -->
 		<a
-			href="/settings"
+			href="{base}/settings"
 			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
-				{isActive('/settings') ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}
+				{isActive(`${base}/settings`) ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}
 				{collapsed ? 'justify-center' : ''}"
 			title={collapsed ? 'Settings' : undefined}
 		>
@@ -99,7 +100,7 @@
 
 		<!-- API Docs -->
 		<a
-			href="/api/docs"
+			href="{base}/api/docs"
 			target="_blank"
 			rel="noopener noreferrer"
 			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-base-300

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 
 	$effect(() => {
-		goto('/settings/account', { replaceState: true });
+		goto(`${base}/settings/account`, { replaceState: true });
 	});
 </script>

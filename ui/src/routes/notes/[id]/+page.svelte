@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { NoteResponse, NoteUpdate, LinksResponse, NoteBlock, ProjectList, ProjectResponse, TaskList } from '$lib/types';
@@ -76,7 +77,7 @@
 		} catch (e) {
 			console.error('Failed to load note', e);
 			toast.error('Failed to load note');
-			goto('/notes');
+			goto(`${base}/notes`);
 		} finally {
 			loading = false;
 			// Snapshot the loaded state so auto-save only fires on real changes
@@ -153,7 +154,7 @@
 		try {
 			await api.delete(`/api/notes/${noteId}`);
 			notesList.refresh();
-			goto('/notes');
+			goto(`${base}/notes`);
 		} catch (e) {
 			console.error('Failed to delete note', e);
 			toast.error('Failed to delete note');
@@ -347,7 +348,7 @@
 	<div class="flex-1 flex flex-col min-w-0">
 		<!-- Top bar — matches left pane header height -->
 		<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
-			<a href="/notes" class="btn btn-ghost btn-sm btn-square md:hidden">
+			<a href="{base}/notes" class="btn btn-ghost btn-sm btn-square md:hidden">
 				<ArrowLeft size={18} />
 			</a>
 			<input
@@ -513,7 +514,7 @@
 						<span class="text-xs text-base-content/40 uppercase tracking-wide block mb-1">Tasks</span>
 						{#each links.outgoing_tasks as task}
 							<div class="flex items-center gap-1 group">
-								<a href="/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+								<a href="{base}/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
 									<span>{task.title}</span>
 									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
 								</a>
@@ -528,7 +529,7 @@
 						{/each}
 						{#each links.incoming_tasks as task}
 							<div class="flex items-center gap-1 group">
-								<a href="/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+								<a href="{base}/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
 									<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
 									<span>{task.title}</span>
 									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
@@ -550,7 +551,7 @@
 					<div class="mb-3 leading-tight">
 						<span class="text-xs text-base-content/40 uppercase tracking-wide block">Events</span>
 						{#each links.outgoing_events as ev}
-							<a href="/calendar" class="inline-flex items-center gap-1.5 text-xs">
+							<a href="{base}/calendar" class="inline-flex items-center gap-1.5 text-xs">
 								<CalendarDays size={12} class="shrink-0 text-base-content/50" />
 								<span>{ev.title}</span>
 								<span class="text-base-content/40">{new Date(ev.start_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
@@ -564,10 +565,10 @@
 					<div class="mb-3 leading-tight">
 						<span class="text-xs text-base-content/40 uppercase tracking-wide block">Notes</span>
 						{#each links.outgoing_notes as n}
-							<a href="/notes/{n.id}" class="link link-primary text-xs">{n.title}</a><br>
+							<a href="{base}/notes/{n.id}" class="link link-primary text-xs">{n.title}</a><br>
 						{/each}
 						{#each links.incoming_notes as n}
-							<a href="/notes/{n.id}" class="inline-flex items-center gap-1 text-xs link link-primary">
+							<a href="{base}/notes/{n.id}" class="inline-flex items-center gap-1 text-xs link link-primary">
 								<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
 								{n.title}
 							</a><br>

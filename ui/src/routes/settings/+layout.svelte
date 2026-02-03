@@ -1,20 +1,21 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { base } from '$app/paths';
 	import { User, KeyRound, Bot, Calendar, Palette, Database } from 'lucide-svelte';
 
 	let { children } = $props();
 
 	const categories: { path: string; label: string; icon: typeof User }[] = [
-		{ path: '/settings/account', label: 'Account', icon: User },
-		{ path: '/settings/tokens', label: 'Sessions & API Keys', icon: KeyRound },
-		{ path: '/settings/ai', label: 'AI Features', icon: Bot },
-		{ path: '/settings/calendar', label: 'Calendar', icon: Calendar },
-		{ path: '/settings/appearance', label: 'Appearance', icon: Palette },
-		{ path: '/settings/data', label: 'Data', icon: Database }
+		{ path: `${base}/settings/account`, label: 'Account', icon: User },
+		{ path: `${base}/settings/tokens`, label: 'Sessions & API Keys', icon: KeyRound },
+		{ path: `${base}/settings/ai`, label: 'AI Features', icon: Bot },
+		{ path: `${base}/settings/calendar`, label: 'Calendar', icon: Calendar },
+		{ path: `${base}/settings/appearance`, label: 'Appearance', icon: Palette },
+		{ path: `${base}/settings/data`, label: 'Data', icon: Database }
 	];
 
 	let activePath = $derived(page.url.pathname);
-	let hasSelection = $derived(activePath !== '/settings');
+	let hasSelection = $derived(activePath !== `${base}/settings` && activePath !== base + '/settings');
 </script>
 
 <div class="absolute inset-0 flex overflow-hidden">

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import type { NoteListItem, DashboardNote } from '$lib/types';
 	import Badge from '$lib/components/ui/Badge.svelte';
 	import { markdownPreview } from '$lib/utils/markdown';
@@ -26,7 +27,7 @@
 </script>
 
 <a
-	href="/notes/{note.id}"
+	href="{base}/notes/{note.id}"
 	class="card bg-base-100 border border-base-300 hover:shadow-md transition-shadow"
 >
 	<div class="card-body {compact ? 'p-3' : 'p-4'}">

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type {
@@ -137,7 +138,7 @@
 			closeSidebar();
 		} else {
 			selectedProjectId = id;
-			goto(`/projects?id=${id}`, { replaceState: true });
+			goto(`${base}/projects?id=${id}`, { replaceState: true });
 		}
 	}
 
@@ -146,7 +147,7 @@
 		selectedProject = null;
 		isCreating = false;
 		sidebarLoaded = false;
-		goto('/projects', { replaceState: true });
+		goto(`${base}/projects`, { replaceState: true });
 	}
 
 	function currentSnapshot(): string {
@@ -469,7 +470,7 @@
 				{:else}
 					<!-- Open Board link -->
 					<a
-						href="/tasks/{selectedProjectId}"
+						href="{base}/tasks/{selectedProjectId}"
 						class="btn btn-outline btn-sm w-full gap-1.5"
 					>
 						Open Board
@@ -542,7 +543,7 @@
 							<div class="flex flex-col divide-y divide-base-200">
 								{#each sidebarNotes as note}
 									<a
-										href="/notes/{note.id}"
+										href="{base}/notes/{note.id}"
 										class="flex items-center gap-2 py-1.5 text-xs hover:bg-base-200/50 transition-colors rounded px-1"
 									>
 										<span class="flex-1 min-w-0 truncate">{note.title}</span>

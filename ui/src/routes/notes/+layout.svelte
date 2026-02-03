@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
@@ -24,7 +25,7 @@
 	let offset = $state(0);
 
 	let selectedNoteId = $derived(page.params.id ?? null);
-	let isNewNote = $derived(page.url.pathname === '/notes/new');
+	let isNewNote = $derived(page.url.pathname === `${base}/notes/new`);
 
 	// Debounce search to avoid hammering the API
 	let activeSearch = $state('');
@@ -146,7 +147,7 @@
 			const data: NoteCreate = { title, content, tags };
 			const note = await api.post<NoteResponse>('/api/notes', data);
 			notesList.refresh();
-			goto(`/notes/${note.id}`);
+			goto(`${base}/notes/${note.id}`);
 		} catch (e) {
 			console.error('Failed to import note', e);
 			toast.error('Failed to import note');
@@ -214,7 +215,7 @@
 			};
 			const note = await api.post<NoteResponse>('/api/notes', noteData);
 			notesList.refresh();
-			goto(`/notes/${note.id}`);
+			goto(`${base}/notes/${note.id}`);
 		} catch (e) {
 			console.error('Failed to create journal', e);
 			toast.error('Failed to create journal');
@@ -324,7 +325,7 @@
 			await api.delete(`/api/notes/${noteId}`);
 			notesList.refresh();
 			if (selectedNoteId === noteId) {
-				goto('/notes');
+				goto(`${base}/notes`);
 			}
 		} catch (e) {
 			console.error('Failed to delete note', e);
@@ -391,7 +392,7 @@
 					</ul>
 				</div>
 				<div class="join shrink-0">
-					<a href="/notes/new" class="btn btn-primary btn-sm btn-square join-item" title="New note">
+					<a href="{base}/notes/new" class="btn btn-primary btn-sm btn-square join-item" title="New note">
 						<Plus size={16} />
 					</a>
 					<div class="dropdown dropdown-end">

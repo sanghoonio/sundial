@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import type { NoteListItem } from '$lib/types';
 	import { markdownPreview } from '$lib/utils/markdown';
 	import { Trash2 } from 'lucide-svelte';
@@ -102,7 +103,7 @@
 	>
 		<!-- Content -->
 		<a
-			href="/notes/{note.id}"
+			href="{base}/notes/{note.id}"
 			class="block flex-1 min-w-full px-4 py-2.5 border-l-2
 				{selected
 					? 'bg-primary/10 border-l-primary'

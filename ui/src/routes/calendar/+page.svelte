@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type {
@@ -145,7 +146,7 @@
 			selectedTime = '';
 			panelOpen = true;
 		} else {
-			goto(`/tasks/${item.data.project_id}`);
+			goto(`${base}/tasks/${item.data.project_id}`);
 		}
 	}
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { NoteCreate, NoteResponse, NoteBlock } from '$lib/types';
@@ -43,7 +44,7 @@
 			showSavedText = true;
 			clearTimeout(savedTextTimer);
 			// Navigate to the edit page which handles autosave going forward
-			goto(`/notes/${note.id}`);
+			goto(`${base}/notes/${note.id}`);
 		} catch (e) {
 			console.error('Failed to create note', e);
 			toast.error('Failed to create note');
@@ -94,7 +95,7 @@
 <div class="flex flex-col h-full">
 	<!-- Top bar — matches left pane header height -->
 	<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
-		<a href="/notes" class="btn btn-ghost btn-sm btn-square md:hidden">
+		<a href="{base}/notes" class="btn btn-ghost btn-sm btn-square md:hidden">
 			<ArrowLeft size={18} />
 		</a>
 		<!-- svelte-ignore a11y_autofocus -->

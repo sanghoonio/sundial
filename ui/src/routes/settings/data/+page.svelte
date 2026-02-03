@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -81,7 +82,7 @@
 <!-- Header bar -->
 <div class="px-4 py-3 border-b border-base-300 shrink-0">
 	<div class="flex items-center gap-2 h-8">
-		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
+		<a href="{base}/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
 			<ChevronLeft size={18} />
 		</a>
 		<h2 class="font-semibold">Data</h2>

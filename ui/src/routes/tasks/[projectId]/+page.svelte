@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { ProjectResponse, ProjectList, TaskResponse, TaskList, TaskMove, MilestoneCreate } from '$lib/types';
@@ -19,7 +20,7 @@
 	let loading = $state(true);
 
 	function selectProject(id: string) {
-		goto(`/tasks/${id}`);
+		goto(`${base}/tasks/${id}`);
 	}
 
 	let selectedTask = $state<TaskResponse | null>(null);

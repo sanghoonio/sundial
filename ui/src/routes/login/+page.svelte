@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { ApiError } from '$lib/services/api';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -16,11 +17,11 @@
 		error = '';
 		try {
 			await auth.login(password);
-			goto('/');
+			goto(`${base}/`);
 		} catch (err) {
 			if (err instanceof ApiError) {
 				if (err.detail.includes('No password configured')) {
-					goto('/setup');
+					goto(`${base}/setup`);
 					return;
 				}
 				error = err.detail;
@@ -54,7 +55,7 @@
 			</form>
 
 			<p class="text-center text-sm mt-4 text-base-content/60">
-				First time? <a href="/setup" class="link link-primary">Set up password</a>
+				First time? <a href="{base}/setup" class="link link-primary">Set up password</a>
 			</p>
 		</div>
 	</div>

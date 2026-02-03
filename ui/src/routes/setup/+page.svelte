@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { ApiError } from '$lib/services/api';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -25,11 +26,11 @@
 		error = '';
 		try {
 			await auth.setup(password);
-			goto('/');
+			goto(`${base}/`);
 		} catch (err) {
 			if (err instanceof ApiError) {
 				if (err.detail.includes('already configured')) {
-					goto('/login');
+					goto(`${base}/login`);
 					return;
 				}
 				error = err.detail;
@@ -73,7 +74,7 @@
 			</form>
 
 			<p class="text-center text-sm mt-4 text-base-content/60">
-				Already set up? <a href="/login" class="link link-primary">Log in</a>
+				Already set up? <a href="{base}/login" class="link link-primary">Log in</a>
 			</p>
 		</div>
 	</div>

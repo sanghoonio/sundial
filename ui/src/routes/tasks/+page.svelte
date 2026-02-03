@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { api } from '$lib/services/api';
 	import type { ProjectList } from '$lib/types';
 
@@ -7,7 +8,7 @@
 		try {
 			const res = await api.get<ProjectList>('/api/projects');
 			if (res.projects.length > 0) {
-				goto(`/tasks/${res.projects[0].id}`, { replaceState: true });
+				goto(`${base}/tasks/${res.projects[0].id}`, { replaceState: true });
 			}
 		} catch (e) {
 			console.error('Failed to load projects', e);

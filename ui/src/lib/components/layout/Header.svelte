@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { auth } from '$lib/stores/auth.svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { LogOut } from 'lucide-svelte';
 
 	interface Props {
@@ -11,7 +12,7 @@
 
 	function handleLogout() {
 		auth.logout();
-		goto('/login');
+		goto(`${base}/login`);
 	}
 </script>
 

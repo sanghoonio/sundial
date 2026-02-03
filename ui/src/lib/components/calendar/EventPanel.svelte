@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import type { EventResponse, EventCreate, EventUpdate, ProjectList, TaskResponse, ProjectResponse } from '$lib/types';
 	import { api } from '$lib/services/api';
 	import Input from '$lib/components/ui/Input.svelte';
@@ -338,13 +339,13 @@
 		<div class="border-t border-base-300 pt-2">
 			<p class="text-xs text-base-content/50 mb-1">Linked Items</p>
 			{#each currentLinkedNotes as ln}
-				<a href="/notes/{ln.id}" class="flex items-center gap-1.5 text-xs py-0.5 hover:text-primary transition-colors">
+				<a href="{base}/notes/{ln.id}" class="flex items-center gap-1.5 text-xs py-0.5 hover:text-primary transition-colors">
 					<StickyNote size={12} class="shrink-0" />
 					<span class="truncate">{ln.title}</span>
 				</a>
 			{/each}
 			{#each currentLinkedTasks as lt}
-				<a href="/tasks?task={lt.id}" class="flex items-center gap-1.5 text-xs py-0.5 hover:text-primary transition-colors">
+				<a href="{base}/tasks?task={lt.id}" class="flex items-center gap-1.5 text-xs py-0.5 hover:text-primary transition-colors">
 					<ListTodo size={12} class="shrink-0" />
 					<span class="truncate">{lt.title}</span>
 					<span class="badge badge-xs {lt.status === 'done' ? 'badge-success' : lt.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{lt.status.replace('_', ' ')}</span>

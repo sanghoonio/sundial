@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { DailySuggestionsResponse, SettingsResponse } from '$lib/types';
@@ -92,7 +93,7 @@
 			<div class="text-center py-6">
 				<Sparkles size={32} class="mx-auto text-base-content/20 mb-2" />
 				<p class="text-base-content/40 text-sm">AI features not enabled</p>
-				<a href="/settings/ai" class="btn btn-ghost btn-xs mt-2 text-primary"> Configure AI </a>
+				<a href="{base}/settings/ai" class="btn btn-ghost btn-xs mt-2 text-primary"> Configure AI </a>
 			</div>
 		{:else if error}
 			<div class="text-center py-6">

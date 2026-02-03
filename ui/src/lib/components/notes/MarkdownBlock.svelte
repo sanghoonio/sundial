@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { NoteList } from '$lib/types';
@@ -202,7 +203,7 @@
 				(n) => n.title.toLowerCase() === title.toLowerCase()
 			);
 			if (exact) {
-				goto(`/notes/${exact.id}`);
+				goto(`${base}/notes/${exact.id}`);
 			} else {
 				toast.error(`Note "${title}" not found`);
 			}

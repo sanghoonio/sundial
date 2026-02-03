@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, NoteResponse, EventResponse } from '$lib/types';
@@ -227,13 +228,13 @@
 			{#if task.source_note_id || task.calendar_event_id}
 				<div class="flex flex-col gap-1 text-xs text-base-content/60">
 					{#if task.source_note_id}
-						<a href="/notes/{task.source_note_id}" class="flex items-center gap-1 hover:text-primary transition-colors" onclick={(e) => e.stopPropagation()}>
+						<a href="{base}/notes/{task.source_note_id}" class="flex items-center gap-1 hover:text-primary transition-colors" onclick={(e) => e.stopPropagation()}>
 							<StickyNote size={12} />
 							{linkedNoteTitle ?? 'Linked note'}
 						</a>
 					{/if}
 					{#if task.calendar_event_id}
-						<a href="/calendar" class="flex items-center gap-1 hover:text-primary transition-colors" onclick={(e) => e.stopPropagation()}>
+						<a href="{base}/calendar" class="flex items-center gap-1 hover:text-primary transition-colors" onclick={(e) => e.stopPropagation()}>
 							<CalendarDays size={12} />
 							{linkedEventTitle ?? 'Calendar event'}
 						</a>

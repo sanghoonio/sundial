@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { SettingsResponse, SettingsUpdate } from '$lib/types';
@@ -131,7 +132,7 @@
 <!-- Header bar -->
 <div class="px-4 py-3 border-b border-base-300 shrink-0">
 	<div class="flex items-center gap-2 h-8">
-		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
+		<a href="{base}/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
 			<ChevronLeft size={18} />
 		</a>
 		<h2 class="font-semibold flex-1">AI Features</h2>
@@ -364,7 +365,7 @@
 				<div class="text-xs text-base-content/60">
 					<p class="mb-1"><strong>Steps:</strong></p>
 					<ol class="list-decimal list-inside space-y-1">
-						<li>Create an API token in <a href="/settings/tokens" class="link">Settings → Tokens</a></li>
+						<li>Create an API token in <a href="{base}/settings/tokens" class="link">Settings → Tokens</a></li>
 						<li>Replace <code class="bg-base-300 px-1 rounded">YOUR_API_TOKEN</code> with your token</li>
 						<li>Save the config file and restart Claude Desktop</li>
 					</ol>

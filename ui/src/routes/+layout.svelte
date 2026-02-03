@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { ws } from '$lib/stores/websocket.svelte';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
@@ -11,7 +12,7 @@
 
 	let { children } = $props();
 
-	const publicPaths = ['/login', '/setup'];
+	const publicPaths = [`${base}/login`, `${base}/setup`];
 	let isPublicPage = $derived(publicPaths.includes(page.url.pathname));
 
 	// Initialize auth once on mount
@@ -27,7 +28,7 @@
 	$effect(() => {
 		if (!auth.ready) return;
 		if (!auth.isAuthenticated && !isPublicPage) {
-			goto('/login');
+			goto(`${base}/login`);
 		}
 	});
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { api } from '$lib/services/api';
 	import type { SettingsResponse, SettingsUpdate } from '$lib/types';
 	import { ChevronLeft, Save, Check } from 'lucide-svelte';
@@ -54,7 +55,7 @@
 <!-- Header bar -->
 <div class="px-4 py-3 border-b border-base-300 shrink-0">
 	<div class="flex items-center gap-2 h-8">
-		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
+		<a href="{base}/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
 			<ChevronLeft size={18} />
 		</a>
 		<h2 class="font-semibold flex-1">Appearance</h2>
