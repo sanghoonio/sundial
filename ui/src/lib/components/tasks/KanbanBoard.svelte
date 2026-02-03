@@ -39,8 +39,24 @@
 	// Dragged task dimensions for placeholder box (shared across all columns)
 	let draggedTaskHeight = $state(0);
 
+	// Dragged column tracking for placeholder sizing and hiding original
+	let draggingColumnId = $state<string | null>(null);
+	let draggedColumnWidth = $state(0);
+	let draggedColumnHeight = $state(0);
+
 	function handleTaskDragStart(height: number) {
 		draggedTaskHeight = height;
+	}
+
+	function handleColumnDragStart(columnId: string, width: number, height: number) {
+		draggingColumnId = columnId;
+		draggedColumnWidth = width;
+		draggedColumnHeight = height;
+	}
+
+	function handleColumnDragEnd() {
+		draggingColumnId = null;
+		columnDragOverId = null;
 	}
 
 	function tasksForMilestone(msId: string): TaskResponse[] {
@@ -60,22 +76,26 @@
 		e.preventDefault();
 		e.dataTransfer.dropEffect = 'move';
 
-		// Find which column gap we're closest to
+		// Find which column gap we're closest to (skip the dragged column for visual feedback)
 		const board = e.currentTarget as HTMLElement;
 		const columns = Array.from(board.querySelectorAll('[data-column-id]')) as HTMLElement[];
 
+		let lastNonDragged: HTMLElement | null = null;
 		for (const col of columns) {
+			if (col.dataset.columnId === draggingColumnId) continue; // Skip dragged column
+			lastNonDragged = col;
 			const rect = col.getBoundingClientRect();
-			const midX = rect.left + rect.width / 2;
-			if (e.clientX < midX) {
+			// Use 80% threshold for more responsive feel when dragging left
+			const threshold = rect.left + rect.width * 0.8;
+			if (e.clientX < threshold) {
 				columnDragOverId = col.dataset.columnId!;
 				columnDragSide = 'left';
 				return;
 			}
 		}
 		// Past all columns — drop at the end
-		if (columns.length > 0) {
-			columnDragOverId = columns[columns.length - 1].dataset.columnId!;
+		if (lastNonDragged) {
+			columnDragOverId = lastNonDragged.dataset.columnId!;
 			columnDragSide = 'right';
 		}
 	}
@@ -92,10 +112,11 @@
 		e.preventDefault();
 		const draggedId = e.dataTransfer.getData('application/column-id');
 		columnDragOverId = null;
+		draggingColumnId = null;
 
 		if (!draggedId || !oncolumnreorder) return;
 
-		// Calculate new position
+		// Calculate new position (original logic)
 		const sorted = sortedMilestones;
 		const board = e.currentTarget as HTMLElement;
 		const columns = Array.from(board.querySelectorAll('[data-column-id]')) as HTMLElement[];
@@ -159,9 +180,16 @@
 
 	{#each sortedMilestones as ms (ms.id)}
 		{#if columnDragOverId === ms.id && columnDragSide === 'left'}
-			<div class="w-1 bg-primary rounded-full shrink-0 self-stretch my-2"></div>
+			<div
+				class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-xl shrink-0"
+				style="width: {draggedColumnWidth}px; height: {draggedColumnHeight}px;"
+			></div>
 		{/if}
-		<div class="snap-start" data-column-id={ms.id}>
+		<div
+			class="snap-start"
+			data-column-id={ms.id}
+			style={draggingColumnId === ms.id ? 'display: none;' : ''}
+		>
 			<KanbanColumn
 				milestone={ms}
 				tasks={tasksForMilestone(ms.id)}
@@ -174,10 +202,15 @@
 				ondelete={oncolumndelete}
 				{draggedTaskHeight}
 				ontaskdragstart={handleTaskDragStart}
+				oncolumndragstart={handleColumnDragStart}
+				oncolumndragend={handleColumnDragEnd}
 			/>
 		</div>
 		{#if columnDragOverId === ms.id && columnDragSide === 'right'}
-			<div class="w-1 bg-primary rounded-full shrink-0 self-stretch my-2"></div>
+			<div
+				class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-xl shrink-0"
+				style="width: {draggedColumnWidth}px; height: {draggedColumnHeight}px;"
+			></div>
 		{/if}
 	{/each}
 

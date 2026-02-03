@@ -2,7 +2,7 @@
 	import type { TaskResponse, MilestoneResponse } from '$lib/types';
 	import TaskCard from './TaskCard.svelte';
 	import TaskQuickAdd from './TaskQuickAdd.svelte';
-	import { Inbox, Trash2, GripVertical } from 'lucide-svelte';
+	import { Inbox, Trash2, GripVertical, Lock } from 'lucide-svelte';
 
 	interface Props {
 		milestone: MilestoneResponse;
@@ -64,9 +64,22 @@
 			e.dataTransfer.setData('application/column-id', milestone.id);
 			e.dataTransfer.effectAllowed = 'move';
 			if (columnEl) {
+				const width = columnEl.offsetWidth;
+				const height = columnEl.offsetHeight;
 				const rect = columnEl.getBoundingClientRect();
-				e.dataTransfer.setDragImage(columnEl, e.clientX - rect.left, e.clientY - rect.top);
-				oncolumndragstart?.(milestone.id, columnEl.offsetWidth, columnEl.offsetHeight);
+				// Clone column offscreen so drag image doesn't include clipped/overlapping elements
+				const clone = columnEl.cloneNode(true) as HTMLElement;
+				clone.style.position = 'absolute';
+				clone.style.top = '-9999px';
+				clone.style.left = '-9999px';
+				clone.style.width = width + 'px';
+				document.body.appendChild(clone);
+				e.dataTransfer.setDragImage(clone, e.clientX - rect.left, e.clientY - rect.top);
+				requestAnimationFrame(() => clone.remove());
+				// Delay callback to ensure drag image is captured before column is hidden
+				requestAnimationFrame(() => {
+					oncolumndragstart?.(milestone.id, width, height);
+				});
 			}
 		}
 	}
@@ -169,16 +182,22 @@
 			onkeydown={handleNameKeydown}
 		/>
 		<div class="flex items-center shrink-0 ml-1">
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<span
-				class="text-base-content/30 p-1"
-				data-grab
-				draggable="true"
-				ondragstart={handleColumnDragStart}
-				ondragend={handleColumnDragEnd}
-			>
-				<GripVertical size={14} />
-			</span>
+			{#if oncolumndragstart}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<span
+					class="text-base-content/30 p-1 cursor-grab"
+					data-grab
+					draggable="true"
+					ondragstart={handleColumnDragStart}
+					ondragend={handleColumnDragEnd}
+				>
+					<GripVertical size={14} />
+				</span>
+			{:else}
+				<span class="text-base-content/20 p-1" title="This column cannot be reordered">
+					<Lock size={14} />
+				</span>
+			{/if}
 			{#if ondelete}
 				<button
 					class="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-error"
