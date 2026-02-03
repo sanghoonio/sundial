@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class MilestoneCreate(BaseModel):
+    id: str | None = None
     name: str
     position: int = 0
 

@@ -86,3 +86,20 @@ class BacklinkTaskItem(BaseModel):
 class BacklinksResponse(BaseModel):
     notes: list[BacklinkItem]
     tasks: list[BacklinkTaskItem]
+
+
+class LinkEventItem(BaseModel):
+    id: str
+    title: str
+    start_time: datetime
+    all_day: bool
+
+
+class LinksResponse(BaseModel):
+    # Outgoing links (this note links TO these)
+    outgoing_notes: list[BacklinkItem]
+    outgoing_tasks: list[BacklinkTaskItem]
+    outgoing_events: list[LinkEventItem]
+    # Incoming links (these link TO this note)
+    incoming_notes: list[BacklinkItem]
+    incoming_tasks: list[BacklinkTaskItem]

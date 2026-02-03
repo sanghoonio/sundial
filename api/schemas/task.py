@@ -41,7 +41,7 @@ class TaskUpdate(BaseModel):
 
 
 class TaskMove(BaseModel):
-    milestone_id: str
+    milestone_id: str | None
     position: int = 0
 
 

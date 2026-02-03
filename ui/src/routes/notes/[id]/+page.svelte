@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/services/api';
-	import type { NoteResponse, NoteUpdate, BacklinksResponse, NoteBlock, EventResponse, ProjectList, ProjectResponse } from '$lib/types';
+	import type { NoteResponse, NoteUpdate, LinksResponse, NoteBlock, ProjectList, ProjectResponse } from '$lib/types';
 	import { newBlockId } from '$lib/utils/blocks';
 	import TagInput from '$lib/components/notes/TagInput.svelte';
 	import ProjectSelect from '$lib/components/notes/ProjectSelect.svelte';
@@ -10,10 +10,10 @@
 	import { notesList } from '$lib/stores/noteslist.svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 	import TaskCreatePanel from '$lib/components/tasks/TaskCreatePanel.svelte';
-	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays } from 'lucide-svelte';
+	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays, ArrowUpLeft } from 'lucide-svelte';
 
 	let note = $state<NoteResponse | null>(null);
-	let backlinks = $state<BacklinksResponse | null>(null);
+	let links = $state<LinksResponse | null>(null);
 	let loading = $state(true);
 	let saving = $state(false);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -29,7 +29,6 @@
 	let createTaskOpen = $state(false);
 	let createTaskProjectId = $state('');
 	let createTaskProjects = $state<ProjectResponse[]>([]);
-	let linkedEventDetails = $state<EventResponse[]>([]);
 
 	let noteId = $derived(page.params.id);
 	let loaded = $state(false);
@@ -38,27 +37,15 @@
 		loading = true;
 		loaded = false;
 		try {
-			const [n, bl] = await Promise.all([
+			const [n, lnks] = await Promise.all([
 				api.get<NoteResponse>(`/api/notes/${noteId}`),
-				api.get<BacklinksResponse>(`/api/notes/${noteId}/backlinks`)
+				api.get<LinksResponse>(`/api/notes/${noteId}/links`)
 			]);
 			note = n;
-			backlinks = bl;
+			links = lnks;
 			title = n.title;
 			tags = [...n.tags];
 			projectId = n.project_id;
-
-			// Fetch linked event details
-			if (n.linked_events.length > 0) {
-				const events = await Promise.all(
-					n.linked_events.map((eid) =>
-						api.get<EventResponse>(`/api/calendar/events/${eid}`).catch(() => null)
-					)
-				);
-				linkedEventDetails = events.filter((e): e is EventResponse => e !== null);
-			} else {
-				linkedEventDetails = [];
-			}
 
 			// Resolve projects for task creation
 			try {
@@ -256,8 +243,26 @@
 		}
 	}
 
-	let hasBacklinks = $derived(
-		backlinks && backlinks.notes.length > 0
+	let hasAnyLinks = $derived(
+		links && (
+			links.outgoing_notes.length > 0 ||
+			links.outgoing_tasks.length > 0 ||
+			links.outgoing_events.length > 0 ||
+			links.incoming_notes.length > 0 ||
+			links.incoming_tasks.length > 0
+		)
+	);
+
+	let hasTasks = $derived(
+		links && (links.outgoing_tasks.length > 0 || links.incoming_tasks.length > 0)
+	);
+
+	let hasEvents = $derived(
+		links && links.outgoing_events.length > 0
+	);
+
+	let hasNotes = $derived(
+		links && (links.outgoing_notes.length > 0 || links.incoming_notes.length > 0)
 	);
 </script>
 
@@ -374,10 +379,10 @@
 			onchange={(b) => (blocks = b)}
 		/>
 
-		<!-- Linked items -->
+		<!-- Links -->
 		<div class="mt-8 border-t border-base-300 pt-4">
 			<div class="flex items-center justify-between mb-2">
-				<h3 class="font-semibold text-sm text-base-content/60">Linked Items</h3>
+				<h3 class="font-semibold text-sm text-base-content/60">Links</h3>
 				{#if createTaskProjectId}
 					<button class="btn btn-ghost btn-xs gap-1" onclick={() => (createTaskOpen = true)}>
 						<Plus size={14} />
@@ -385,51 +390,61 @@
 					</button>
 				{/if}
 			</div>
-			{#if backlinks && backlinks.tasks.length > 0}
-				<div class="mb-2">
-					{#each backlinks.tasks as task}
-						<a href="/tasks?task={task.id}" class="flex items-center gap-2 text-sm py-1 hover:bg-base-200 rounded px-1 -mx-1">
-							<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
-							<span class="truncate">{task.title}</span>
-						</a>
-					{/each}
-				</div>
-			{:else if note.linked_tasks.length > 0}
-				<p class="text-sm text-base-content/60">{note.linked_tasks.length} linked task(s)</p>
-			{/if}
-			{#if linkedEventDetails.length > 0}
-				<div class="mb-2">
-					{#each linkedEventDetails as ev}
-						<a href="/calendar" class="flex items-center gap-2 text-sm py-1 hover:bg-base-200 rounded px-1 -mx-1">
-							<CalendarDays size={14} class="shrink-0 text-base-content/50" />
-							<span class="truncate">{ev.title}</span>
-							<span class="text-xs text-base-content/40 shrink-0">
-								{new Date(ev.start_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-							</span>
-						</a>
-					{/each}
-				</div>
-			{:else if note.linked_events.length > 0}
-				<p class="text-sm text-base-content/60">{note.linked_events.length} linked event(s)</p>
-			{/if}
-			{#if !backlinks?.tasks.length && !note.linked_tasks.length && !linkedEventDetails.length && !note.linked_events.length}
-				<p class="text-sm text-base-content/40">No linked items yet</p>
+
+			{#if hasAnyLinks && links}
+				<!-- Tasks -->
+				{#if hasTasks}
+					<div class="mb-3 leading-tight">
+						<span class="text-xs text-base-content/40 uppercase tracking-wide block">Tasks</span>
+						{#each links.outgoing_tasks as task}
+							<a href="/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+								<span>{task.title}</span>
+								<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
+							</a><br>
+						{/each}
+						{#each links.incoming_tasks as task}
+							<a href="/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+								<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
+								<span>{task.title}</span>
+								<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
+							</a><br>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- Events -->
+				{#if hasEvents}
+					<div class="mb-3 leading-tight">
+						<span class="text-xs text-base-content/40 uppercase tracking-wide block">Events</span>
+						{#each links.outgoing_events as ev}
+							<a href="/calendar" class="inline-flex items-center gap-1.5 text-xs">
+								<CalendarDays size={12} class="shrink-0 text-base-content/50" />
+								<span>{ev.title}</span>
+								<span class="text-base-content/40">{new Date(ev.start_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+							</a><br>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- Notes -->
+				{#if hasNotes}
+					<div class="mb-3 leading-tight">
+						<span class="text-xs text-base-content/40 uppercase tracking-wide block">Notes</span>
+						{#each links.outgoing_notes as n}
+							<a href="/notes/{n.id}" class="link link-primary text-xs">{n.title}</a><br>
+						{/each}
+						{#each links.incoming_notes as n}
+							<a href="/notes/{n.id}" class="inline-flex items-center gap-1 text-xs link link-primary">
+								<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
+								{n.title}
+							</a><br>
+						{/each}
+					</div>
+				{/if}
+			{:else}
+				<p class="text-sm text-base-content/40">No links yet</p>
 			{/if}
 		</div>
-
-		<!-- Backlinks (note-to-note only) -->
-		{#if hasBacklinks}
-			<div class="mt-6 border-t border-base-300 pt-4">
-				<h3 class="font-semibold mb-2 text-sm text-base-content/60">Backlinks</h3>
-				<div class="mb-2">
-					{#each backlinks!.notes as bl}
-						<a href="/notes/{bl.id}" class="link link-primary text-sm block py-0.5">
-							{bl.title}
-						</a>
-					{/each}
-				</div>
-			</div>
-		{/if}
 		</div>
 	</div>
 	{#if createTaskOpen && createTaskProjectId}
@@ -439,7 +454,7 @@
 			sourceNoteId={noteId}
 			onclose={() => (createTaskOpen = false)}
 			oncreated={async () => {
-				backlinks = await api.get<BacklinksResponse>(`/api/notes/${noteId}/backlinks`);
+				links = await api.get<LinksResponse>(`/api/notes/${noteId}/links`);
 			}}
 		/>
 	{/if}

@@ -1,11 +1,11 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { api } from '$lib/services/api';
 	import { notesList } from '$lib/stores/noteslist.svelte';
-	import type { NoteList, NoteListItem, TagListResponse } from '$lib/types';
+	import type { NoteCreate, NoteList, NoteListItem, NoteResponse, TagListResponse } from '$lib/types';
 	import NoteListItemComponent from '$lib/components/notes/NoteListItem.svelte';
-	import NoteImportButton from '$lib/components/notes/NoteImportButton.svelte';
-	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA } from 'lucide-svelte';
+	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA, ChevronDown, BookOpen, Upload } from 'lucide-svelte';
 
 	let { children } = $props();
 
@@ -121,6 +121,190 @@
 		activeSearch = '';
 		searchOpen = false;
 	}
+
+	// --- Import functionality ---
+	let fileInput = $state<HTMLInputElement>();
+	let importing = $state(false);
+
+	function triggerImport() {
+		fileInput?.click();
+	}
+
+	async function handleFile(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		importing = true;
+		try {
+			const text = await file.text();
+			const { title, content, tags } = parseMarkdown(text, file.name);
+
+			const data: NoteCreate = { title, content, tags };
+			const note = await api.post<NoteResponse>('/api/notes', data);
+			notesList.refresh();
+			goto(`/notes/${note.id}`);
+		} catch (e) {
+			console.error('Failed to import note', e);
+		} finally {
+			importing = false;
+			input.value = '';
+		}
+	}
+
+	function parseMarkdown(text: string, filename: string): { title: string; content: string; tags: string[] } {
+		let title = filename.replace(/\.(md|markdown|txt)$/i, '');
+		let content = text;
+		let tags: string[] = [];
+
+		const fmMatch = text.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
+		if (fmMatch) {
+			const frontmatter = fmMatch[1];
+			content = fmMatch[2];
+
+			const titleMatch = frontmatter.match(/^title:\s*["']?(.+?)["']?\s*$/m);
+			if (titleMatch) {
+				title = titleMatch[1];
+			}
+
+			const tagsMatch = frontmatter.match(/^tags:\s*\[(.+?)\]\s*$/m);
+			if (tagsMatch) {
+				tags = tagsMatch[1].split(',').map((t) => t.trim().replace(/^["']|["']$/g, ''));
+			} else {
+				const tagListMatch = frontmatter.match(/^tags:\s*\n((?:\s*-\s*.+\n?)+)/m);
+				if (tagListMatch) {
+					tags = tagListMatch[1]
+						.split('\n')
+						.map((line) => line.replace(/^\s*-\s*/, '').trim())
+						.filter(Boolean);
+				}
+			}
+		}
+
+		return { title, content: content.trim(), tags };
+	}
+
+	// --- Journal creation ---
+	interface JournalData {
+		date: string;
+		notes_created: { id: string; title: string; updated_at: string }[];
+		notes_updated: { id: string; title: string; updated_at: string }[];
+		tasks_created: { id: string; title: string; status: string; priority: string; due_date: string | null; project_id: string }[];
+		tasks_completed: { id: string; title: string; status: string; priority: string; due_date: string | null; project_id: string }[];
+		events: { id: string; title: string; start_time: string; end_time: string | null; all_day: boolean }[];
+	}
+
+	let creatingJournal = $state(false);
+
+	async function createJournal() {
+		creatingJournal = true;
+		try {
+			const data = await api.get<JournalData>('/api/dashboard/journal-data');
+			const content = generateJournalTemplate(data);
+			const formattedDate = formatJournalDate(data.date);
+
+			const noteData: NoteCreate = {
+				title: `Daily Journal - ${formattedDate}`,
+				content,
+				tags: ['journal', 'daily']
+			};
+			const note = await api.post<NoteResponse>('/api/notes', noteData);
+			notesList.refresh();
+			goto(`/notes/${note.id}`);
+		} catch (e) {
+			console.error('Failed to create journal', e);
+		} finally {
+			creatingJournal = false;
+		}
+	}
+
+	function formatJournalDate(dateStr: string): string {
+		const date = new Date(dateStr + 'T00:00:00');
+		return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+	}
+
+	function formatEventTime(startTime: string, endTime: string | null, allDay: boolean): string {
+		if (allDay) return 'All day';
+		const start = new Date(startTime);
+		const startStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+		if (!endTime) return startStr;
+		const end = new Date(endTime);
+		const endStr = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+		return `${startStr} - ${endStr}`;
+	}
+
+	function generateJournalTemplate(data: JournalData): string {
+		const lines: string[] = [];
+		const formattedDate = formatJournalDate(data.date);
+
+		lines.push(`# Daily Journal - ${formattedDate}`);
+		lines.push('');
+		lines.push('## Today\'s Activity');
+		lines.push('');
+
+		// Events
+		if (data.events.length > 0) {
+			lines.push('**Events:**');
+			for (const event of data.events) {
+				const time = formatEventTime(event.start_time, event.end_time, event.all_day);
+				lines.push(`- ${event.title} (${time})`);
+			}
+			lines.push('');
+		}
+
+		// Tasks Completed
+		if (data.tasks_completed.length > 0) {
+			lines.push('**Tasks Completed:**');
+			for (const task of data.tasks_completed) {
+				lines.push(`- [[task:${task.id}|${task.title}]]`);
+			}
+			lines.push('');
+		}
+
+		// Tasks Added
+		if (data.tasks_created.length > 0) {
+			lines.push('**Tasks Added:**');
+			for (const task of data.tasks_created) {
+				lines.push(`- [[task:${task.id}|${task.title}]]`);
+			}
+			lines.push('');
+		}
+
+		// Notes Updated
+		if (data.notes_updated.length > 0) {
+			lines.push('**Notes Updated:**');
+			for (const note of data.notes_updated) {
+				lines.push(`- [[${note.title}]]`);
+			}
+			lines.push('');
+		}
+
+		// Notes Created
+		if (data.notes_created.length > 0) {
+			lines.push('**Notes Created:**');
+			for (const note of data.notes_created) {
+				lines.push(`- [[${note.title}]]`);
+			}
+			lines.push('');
+		}
+
+		// Check if there was any activity
+		const hasActivity = data.events.length > 0 || data.tasks_completed.length > 0 ||
+			data.tasks_created.length > 0 || data.notes_updated.length > 0 || data.notes_created.length > 0;
+
+		if (!hasActivity) {
+			lines.push('*No recorded activity for today.*');
+			lines.push('');
+		}
+
+		lines.push('---');
+		lines.push('');
+		lines.push('## Reflections');
+		lines.push('');
+		lines.push('');
+
+		return lines.join('\n');
+	}
 </script>
 
 <div class="absolute inset-0 flex overflow-hidden">
@@ -131,7 +315,7 @@
 	>
 		<!-- Header: search + sort + new -->
 		<div class="px-4 py-3 border-b border-base-300 shrink-0">
-			<div class="flex items-center gap-2 h-8 overflow-hidden">
+			<div class="flex items-center gap-2 h-8">
 				<button
 					class="btn btn-ghost btn-sm flex-1 min-w-0 justify-start transition-[width] duration-200 !outline-none !shadow-none
 						{searchOpen ? 'bg-base-200' : ''}"
@@ -180,10 +364,46 @@
 						<li><button class={sortBy === 'title_desc' ? 'active' : ''} onclick={() => (sortBy = 'title_desc')}><ArrowDownZA size={14} />Title Z-A</button></li>
 					</ul>
 				</div>
-				<div class="shrink-0"><NoteImportButton /></div>
-				<a href="/notes/new" class="btn btn-primary btn-sm btn-square shrink-0" title="New note">
-					<Plus size={16} />
-				</a>
+				<div class="join shrink-0">
+					<a href="/notes/new" class="btn btn-primary btn-sm btn-square join-item" title="New note">
+						<Plus size={16} />
+					</a>
+					<div class="dropdown dropdown-end">
+						<button tabindex="0" class="btn btn-primary btn-sm join-item px-1 min-w-0 w-6">
+							<ChevronDown size={12} />
+						</button>
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-44 p-1 border border-base-300 mt-1">
+							<li>
+								<button onclick={createJournal} disabled={creatingJournal}>
+									{#if creatingJournal}
+										<span class="loading loading-spinner loading-xs"></span>
+									{:else}
+										<BookOpen size={14} />
+									{/if}
+									Daily journal
+								</button>
+							</li>
+							<li>
+								<button onclick={triggerImport} disabled={importing}>
+									{#if importing}
+										<span class="loading loading-spinner loading-xs"></span>
+									{:else}
+										<Upload size={14} />
+									{/if}
+									Import markdown
+								</button>
+							</li>
+						</ul>
+					</div>
+				</div>
+				<input
+					type="file"
+					accept=".md,.markdown,.txt"
+					class="hidden"
+					bind:this={fileInput}
+					onchange={handleFile}
+				/>
 			</div>
 		</div>
 

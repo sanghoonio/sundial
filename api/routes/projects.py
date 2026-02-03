@@ -95,17 +95,30 @@ async def update_milestones(project_id: str, body: MilestoneUpdate, db: AsyncSes
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Delete existing milestones that aren't referenced by tasks
+    # Get existing milestones
     result = await db.execute(
         select(ProjectMilestone).where(ProjectMilestone.project_id == project_id)
     )
-    old_milestones = list(result.scalars().all())
-    for ms in old_milestones:
-        await db.delete(ms)
-    await db.flush()
+    old_milestones = {ms.id: ms for ms in result.scalars().all()}
+
+    # Track which IDs are in the new list
+    new_ids = set()
 
     for i, ms in enumerate(body.milestones):
-        db.add(ProjectMilestone(project_id=project_id, name=ms.name, position=ms.position or i))
+        if ms.id and ms.id in old_milestones:
+            # Update existing milestone
+            existing = old_milestones[ms.id]
+            existing.name = ms.name
+            existing.position = ms.position if ms.position is not None else i
+            new_ids.add(ms.id)
+        else:
+            # Create new milestone
+            db.add(ProjectMilestone(project_id=project_id, name=ms.name, position=ms.position if ms.position is not None else i))
+
+    # Delete milestones that are no longer in the list
+    for ms_id, ms in old_milestones.items():
+        if ms_id not in new_ids:
+            await db.delete(ms)
 
     await db.commit()
     return await _get_project_response(db, project_id)

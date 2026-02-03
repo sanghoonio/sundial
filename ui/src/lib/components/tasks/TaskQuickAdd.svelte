@@ -5,7 +5,7 @@
 
 	interface Props {
 		projectId: string;
-		milestoneId: string;
+		milestoneId: string | null;
 		oncreated?: (task: TaskResponse) => void;
 	}
 

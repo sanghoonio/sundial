@@ -133,6 +133,23 @@ export interface BacklinksResponse {
 	tasks: BacklinkTaskItem[];
 }
 
+export interface LinkEventItem {
+	id: string;
+	title: string;
+	start_time: string;
+	all_day: boolean;
+}
+
+export interface LinksResponse {
+	// Outgoing links (this note links TO these)
+	outgoing_notes: BacklinkItem[];
+	outgoing_tasks: BacklinkTaskItem[];
+	outgoing_events: LinkEventItem[];
+	// Incoming links (these link TO this note)
+	incoming_notes: BacklinkItem[];
+	incoming_tasks: BacklinkTaskItem[];
+}
+
 // Tasks
 export interface ChecklistItemCreate {
 	text: string;
@@ -170,7 +187,7 @@ export interface TaskUpdate {
 }
 
 export interface TaskMove {
-	milestone_id: string;
+	milestone_id: string | null;
 	position?: number;
 }
 
@@ -200,6 +217,7 @@ export interface TaskList {
 
 // Projects
 export interface MilestoneCreate {
+	id?: string;
 	name: string;
 	position?: number;
 }

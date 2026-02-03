@@ -9,7 +9,7 @@
 		projectId: string;
 		selectedTaskId?: string | null;
 		ontaskclick?: (task: TaskResponse) => void;
-		ondrop?: (taskId: string, milestoneId: string, position: number) => void;
+		ondrop?: (taskId: string, milestoneId: string | null, position: number) => void;
 		ontaskcreated?: (task: TaskResponse) => void;
 		oncolumnrename?: (milestoneId: string, newName: string) => void;
 		oncolumndelete?: (milestoneId: string) => void;
@@ -46,6 +46,10 @@
 
 	function handleTaskDragStart(height: number) {
 		draggedTaskHeight = height;
+	}
+
+	function handleUnsortedDrop(taskId: string, _milestoneId: string, position: number) {
+		ondrop?.(taskId, null, position);
 	}
 
 	function handleColumnDragStart(columnId: string, width: number, height: number) {
@@ -177,6 +181,8 @@
 				{ontaskclick}
 				{draggedTaskHeight}
 				ontaskdragstart={handleTaskDragStart}
+				ondrop={handleUnsortedDrop}
+				{ontaskcreated}
 			/>
 		</div>
 	{/if}

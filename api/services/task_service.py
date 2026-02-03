@@ -182,7 +182,7 @@ async def update_task(
     return task
 
 
-async def move_task(db: AsyncSession, task_id: str, milestone_id: str, position: int = 0) -> Task | None:
+async def move_task(db: AsyncSession, task_id: str, milestone_id: str | None, position: int = 0) -> Task | None:
     task = await get_task(db, task_id)
     if task is None:
         return None

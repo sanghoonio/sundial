@@ -147,7 +147,7 @@
 		}
 	});
 
-	async function handleDrop(taskId: string, milestoneId: string, position: number) {
+	async function handleDrop(taskId: string, milestoneId: string | null, position: number) {
 		const movingTask = tasks.find((t) => t.id === taskId);
 		if (!movingTask) return;
 
@@ -206,6 +206,7 @@
 	async function handleColumnRename(milestoneId: string, newName: string) {
 		if (!selectedProject) return;
 		const milestones: MilestoneCreate[] = selectedProject.milestones.map((m) => ({
+			id: m.id,
 			name: m.id === milestoneId ? newName : m.name,
 			position: m.position
 		}));
@@ -222,7 +223,7 @@
 		const milestones: MilestoneCreate[] = selectedProject.milestones
 			.filter((m) => m.id !== milestoneId)
 			.sort((a, b) => a.position - b.position)
-			.map((m, i) => ({ name: m.name, position: i }));
+			.map((m, i) => ({ id: m.id, name: m.name, position: i }));
 		try {
 			await saveMilestones(milestones);
 			await loadTasks(selectedProjectId);
@@ -235,7 +236,7 @@
 	async function handleColumnCreate(name: string) {
 		if (!selectedProject) return;
 		const milestones: MilestoneCreate[] = [
-			...selectedProject.milestones.map((m) => ({ name: m.name, position: m.position })),
+			...selectedProject.milestones.map((m) => ({ id: m.id, name: m.name, position: m.position })),
 			{ name, position: selectedProject.milestones.length }
 		];
 		try {
@@ -254,6 +255,7 @@
 		const [moved] = sorted.splice(oldIndex, 1);
 		sorted.splice(newPosition, 0, moved);
 		const milestones: MilestoneCreate[] = sorted.map((m, i) => ({
+			id: m.id,
 			name: m.name,
 			position: i
 		}));

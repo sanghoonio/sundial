@@ -21,17 +21,22 @@ const wikiLinkExtension = {
 	},
 	renderer(token: { text: string }) {
 		const text = token.text;
+		// Support pipe syntax for display text: [[target|display]]
+		const pipeIdx = text.indexOf('|');
+		const target = pipeIdx >= 0 ? text.slice(0, pipeIdx).trim() : text;
+		const display = pipeIdx >= 0 ? text.slice(pipeIdx + 1).trim() : text;
+
 		// If it's task:id or event:id, link accordingly
-		if (text.startsWith('task:')) {
-			const id = text.slice(5);
-			return `<a href="/tasks" class="wiki-link wiki-link-task" data-type="task" data-id="${escapeAttr(id)}">${escapeHtml(text)}</a>`;
+		if (target.startsWith('task:')) {
+			const id = target.slice(5);
+			return `<a href="/tasks" class="wiki-link wiki-link-task" data-type="task" data-id="${escapeAttr(id)}">${escapeHtml(display)}</a>`;
 		}
-		if (text.startsWith('event:')) {
-			const id = text.slice(6);
-			return `<a href="/calendar" class="wiki-link wiki-link-event" data-type="event" data-id="${escapeAttr(id)}">${escapeHtml(text)}</a>`;
+		if (target.startsWith('event:')) {
+			const id = target.slice(6);
+			return `<a href="/calendar" class="wiki-link wiki-link-event" data-type="event" data-id="${escapeAttr(id)}">${escapeHtml(display)}</a>`;
 		}
 		// Default: link to note by title
-		return `<a href="/notes" class="wiki-link wiki-link-note" data-title="${escapeAttr(text)}">${escapeHtml(text)}</a>`;
+		return `<a href="/notes" class="wiki-link wiki-link-note" data-title="${escapeAttr(target)}">${escapeHtml(display)}</a>`;
 	}
 };
 

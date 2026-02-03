@@ -259,7 +259,7 @@
 
 	<TaskQuickAdd
 		{projectId}
-		milestoneId={milestone.id}
+		milestoneId={milestone.id === '__unsorted__' ? null : milestone.id}
 		oncreated={ontaskcreated}
 	/>
 </div>

@@ -50,6 +50,15 @@ class DashboardResponse(BaseModel):
     suggestions: list = []
 
 
+class JournalDataResponse(BaseModel):
+    date: str
+    notes_created: list[DashboardNote]
+    notes_updated: list[DashboardNote]
+    tasks_created: list[DashboardTask]
+    tasks_completed: list[DashboardTask]
+    events: list[DashboardEvent]
+
+
 router = APIRouter(prefix="/dashboard", tags=["dashboard"], dependencies=[Depends(get_current_user)])
 
 
@@ -115,4 +124,65 @@ async def get_today(db: AsyncSession = Depends(get_db)):
             id=n.id, title=n.title, updated_at=n.updated_at,
         ) for n in notes],
         suggestions=[],
+    )
+
+
+@router.get("/journal-data", response_model=JournalDataResponse)
+async def get_journal_data(db: AsyncSession = Depends(get_db)):
+    """Get activity data for generating a daily journal entry."""
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+
+    # Notes created today
+    notes_created_result = await db.execute(
+        select(Note)
+        .where(Note.created_at.between(today_start, today_end))
+        .order_by(Note.created_at.desc())
+    )
+    notes_created = list(notes_created_result.scalars().all())
+    notes_created_ids = {n.id for n in notes_created}
+
+    # Notes updated today (excluding those created today)
+    notes_updated_result = await db.execute(
+        select(Note)
+        .where(
+            Note.updated_at.between(today_start, today_end),
+            ~Note.id.in_(notes_created_ids) if notes_created_ids else True,
+        )
+        .order_by(Note.updated_at.desc())
+    )
+    notes_updated = list(notes_updated_result.scalars().all())
+
+    # Tasks created today
+    tasks_created_result = await db.execute(
+        select(Task)
+        .where(Task.created_at.between(today_start, today_end))
+        .order_by(Task.created_at.desc())
+    )
+    tasks_created = list(tasks_created_result.scalars().all())
+
+    # Tasks completed today
+    tasks_completed_result = await db.execute(
+        select(Task)
+        .where(Task.completed_at.between(today_start, today_end))
+        .order_by(Task.completed_at.desc())
+    )
+    tasks_completed = list(tasks_completed_result.scalars().all())
+
+    # Events that occurred today
+    events_result = await db.execute(
+        select(CalendarEvent)
+        .where(CalendarEvent.start_time.between(today_start, today_end))
+        .order_by(CalendarEvent.start_time)
+    )
+    events = list(events_result.scalars().all())
+
+    return JournalDataResponse(
+        date=today_start.strftime("%Y-%m-%d"),
+        notes_created=[DashboardNote(id=n.id, title=n.title, updated_at=n.updated_at) for n in notes_created],
+        notes_updated=[DashboardNote(id=n.id, title=n.title, updated_at=n.updated_at) for n in notes_updated],
+        tasks_created=[DashboardTask(id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=t.due_date, project_id=t.project_id) for t in tasks_created],
+        tasks_completed=[DashboardTask(id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=t.due_date, project_id=t.project_id) for t in tasks_completed],
+        events=[DashboardEvent(id=e.id, title=e.title, start_time=e.start_time, end_time=e.end_time, all_day=e.all_day) for e in events],
     )

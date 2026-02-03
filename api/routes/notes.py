@@ -5,12 +5,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.database import get_db
+from api.models.calendar import CalendarEvent
+from api.models.note import NoteLink
 from api.models.task import Task
 from api.schemas.note import (
     BacklinkItem,
     BacklinkTaskItem,
     BacklinksResponse,
     BlockSchema,
+    LinkEventItem,
+    LinksResponse,
     NoteCreate,
     NoteList,
     NoteListItem,
@@ -119,6 +123,90 @@ async def get_backlinks(note_id: str, db: AsyncSession = Depends(get_db)):
     return BacklinksResponse(
         notes=[BacklinkItem(id=n.id, title=n.title, filepath=n.filepath) for n in backlink_notes],
         tasks=[BacklinkTaskItem(id=t.id, title=t.title, status=t.status) for t in backlink_tasks],
+    )
+
+
+@router.get("/{note_id}/links", response_model=LinksResponse)
+async def get_links(note_id: str, db: AsyncSession = Depends(get_db)):
+    """Get all links for a note: both outgoing (from this note) and incoming (to this note)."""
+    note = await note_service.get_note(db, note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # --- Outgoing links (this note links TO these) ---
+
+    # Outgoing note links (from NoteLink where source is this note and link_type='note')
+    outgoing_note_links = await db.execute(
+        select(NoteLink).where(
+            NoteLink.source_note_id == note_id,
+            NoteLink.link_type == "note",
+            NoteLink.target_note_id.isnot(None),
+        )
+    )
+    outgoing_note_link_ids = [link.target_note_id for link in outgoing_note_links.scalars().all()]
+
+    from api.models.note import Note
+    outgoing_notes_result = await db.execute(
+        select(Note).where(Note.id.in_(outgoing_note_link_ids))
+    ) if outgoing_note_link_ids else None
+    outgoing_notes = list(outgoing_notes_result.scalars().all()) if outgoing_notes_result else []
+
+    # Outgoing task links (from NoteLink where link_type='task')
+    outgoing_task_links = await db.execute(
+        select(NoteLink).where(
+            NoteLink.source_note_id == note_id,
+            NoteLink.link_type == "task",
+        )
+    )
+    outgoing_task_ids = [link.target_identifier for link in outgoing_task_links.scalars().all()]
+
+    outgoing_tasks_result = await db.execute(
+        select(Task).where(Task.id.in_(outgoing_task_ids))
+    ) if outgoing_task_ids else None
+    outgoing_tasks = list(outgoing_tasks_result.scalars().all()) if outgoing_tasks_result else []
+
+    # Outgoing event links (from NoteLink where link_type='event')
+    outgoing_event_links = await db.execute(
+        select(NoteLink).where(
+            NoteLink.source_note_id == note_id,
+            NoteLink.link_type == "event",
+        )
+    )
+    outgoing_event_ids = [link.target_identifier for link in outgoing_event_links.scalars().all()]
+
+    outgoing_events_result = await db.execute(
+        select(CalendarEvent).where(CalendarEvent.id.in_(outgoing_event_ids))
+    ) if outgoing_event_ids else None
+    outgoing_events = list(outgoing_events_result.scalars().all()) if outgoing_events_result else []
+
+    # Also include events from calendar_links (NoteCalendarLink)
+    calendar_link_event_ids = [cl.event_id for cl in note.calendar_links]
+    if calendar_link_event_ids:
+        extra_events_result = await db.execute(
+            select(CalendarEvent).where(
+                CalendarEvent.id.in_(calendar_link_event_ids),
+                CalendarEvent.id.notin_(outgoing_event_ids) if outgoing_event_ids else True,
+            )
+        )
+        outgoing_events.extend(list(extra_events_result.scalars().all()))
+
+    # --- Incoming links (these link TO this note) ---
+
+    # Incoming note links (notes that link to this note)
+    incoming_notes = await note_service.get_backlinks(db, note_id)
+
+    # Incoming task links (tasks created from this note via source_note_id)
+    incoming_tasks_result = await db.execute(
+        select(Task).where(Task.source_note_id == note_id)
+    )
+    incoming_tasks = list(incoming_tasks_result.scalars().all())
+
+    return LinksResponse(
+        outgoing_notes=[BacklinkItem(id=n.id, title=n.title, filepath=n.filepath) for n in outgoing_notes],
+        outgoing_tasks=[BacklinkTaskItem(id=t.id, title=t.title, status=t.status) for t in outgoing_tasks],
+        outgoing_events=[LinkEventItem(id=e.id, title=e.title, start_time=e.start_time, all_day=e.all_day) for e in outgoing_events],
+        incoming_notes=[BacklinkItem(id=n.id, title=n.title, filepath=n.filepath) for n in incoming_notes],
+        incoming_tasks=[BacklinkTaskItem(id=t.id, title=t.title, status=t.status) for t in incoming_tasks],
     )
 
 
