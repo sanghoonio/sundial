@@ -85,8 +85,8 @@
 			if (col.dataset.columnId === draggingColumnId) continue; // Skip dragged column
 			lastNonDragged = col;
 			const rect = col.getBoundingClientRect();
-			// Use 80% threshold for more responsive feel when dragging left
-			const threshold = rect.left + rect.width * 0.8;
+			// Use 85% threshold for more responsive feel when dragging left
+			const threshold = rect.left + rect.width * 0.85;
 			if (e.clientX < threshold) {
 				columnDragOverId = col.dataset.columnId!;
 				columnDragSide = 'left';
@@ -116,24 +116,27 @@
 
 		if (!draggedId || !oncolumnreorder) return;
 
-		// Calculate new position (original logic)
-		const sorted = sortedMilestones;
+		// Calculate new position using same logic as handleBoardDragOver
 		const board = e.currentTarget as HTMLElement;
 		const columns = Array.from(board.querySelectorAll('[data-column-id]')) as HTMLElement[];
 
-		let newPos = sorted.length - 1;
-		for (let i = 0; i < columns.length; i++) {
-			const rect = columns[i].getBoundingClientRect();
-			const midX = rect.left + rect.width / 2;
-			if (e.clientX < midX) {
+		// Skip the dragged column when calculating position (matches dragover behavior)
+		const nonDraggedColumns = columns.filter((col) => col.dataset.columnId !== draggedId);
+		let newPos = nonDraggedColumns.length; // default: end position
+
+		for (let i = 0; i < nonDraggedColumns.length; i++) {
+			const col = nonDraggedColumns[i];
+			const rect = col.getBoundingClientRect();
+			// Use 85% threshold to match handleBoardDragOver
+			const threshold = rect.left + rect.width * 0.85;
+			if (e.clientX < threshold) {
 				newPos = i;
 				break;
 			}
 		}
 
-		// Adjust if dragging forward
-		const oldPos = sorted.findIndex((m) => m.id === draggedId);
-		if (oldPos < newPos) newPos--;
+		// Get old position
+		const oldPos = sortedMilestones.findIndex((m) => m.id === draggedId);
 		if (oldPos === newPos) return;
 
 		oncolumnreorder(draggedId, newPos);
