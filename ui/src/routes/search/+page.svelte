@@ -113,7 +113,7 @@
 			<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-2">Tasks</h3>
 			<div class="flex flex-col gap-3">
 				{#each results!.tasks as task (task.id)}
-					<a href="/tasks?project={task.project_id}" class="block">
+					<a href="/tasks/{task.project_id}" class="block">
 						<Card hoverable compact>
 							<div class="flex items-start gap-3">
 								<div class="text-base-content/40 mt-0.5">

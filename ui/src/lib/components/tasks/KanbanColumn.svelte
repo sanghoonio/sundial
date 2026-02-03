@@ -14,12 +14,17 @@
 		ontaskcreated?: (task: TaskResponse) => void;
 		onrename?: (milestoneId: string, newName: string) => void;
 		ondelete?: (milestoneId: string) => void;
+		oncolumndragstart?: (milestoneId: string, width: number, height: number) => void;
+		oncolumndragend?: () => void;
+		ontaskdragstart?: (height: number) => void;
+		draggedTaskHeight?: number;
 	}
 
-	let { milestone, tasks, projectId, selectedTaskId = null, ontaskclick, ondrop, ontaskcreated, onrename, ondelete }: Props = $props();
+	let { milestone, tasks, projectId, selectedTaskId = null, ontaskclick, ondrop, ontaskcreated, onrename, ondelete, oncolumndragstart, oncolumndragend, ontaskdragstart, draggedTaskHeight = 0 }: Props = $props();
 
 	let dragOver = $state(false);
 	let dropIndex = $state<number | null>(null);
+	let draggingTaskId = $state<string | null>(null);
 	let editingName = $state(milestone.name);
 
 	// Keep editingName in sync when milestone prop changes
@@ -61,8 +66,13 @@
 			if (columnEl) {
 				const rect = columnEl.getBoundingClientRect();
 				e.dataTransfer.setDragImage(columnEl, e.clientX - rect.left, e.clientY - rect.top);
+				oncolumndragstart?.(milestone.id, columnEl.offsetWidth, columnEl.offsetHeight);
 			}
 		}
+	}
+
+	function handleColumnDragEnd() {
+		oncolumndragend?.();
 	}
 
 	function handleDragOver(e: DragEvent) {
@@ -76,7 +86,7 @@
 		const target = e.currentTarget as HTMLElement;
 		const listEl = target.querySelector('[data-task-list]') as HTMLElement;
 		if (listEl) {
-			const cards = Array.from(listEl.querySelectorAll('[data-task-card]'));
+			const cards = Array.from(listEl.querySelectorAll('[data-task-card]:not([data-dragging])'));
 			let idx = cards.length;
 			for (let i = 0; i < cards.length; i++) {
 				const rect = cards[i].getBoundingClientRect();
@@ -118,6 +128,7 @@
 			e.dataTransfer.setData('text/plain', task.id);
 			e.dataTransfer.effectAllowed = 'move';
 			if (card) {
+				ontaskdragstart?.(card.offsetHeight);
 				// Clone card offscreen so the drag image has no surrounding background
 				const clone = card.cloneNode(true) as HTMLElement;
 				clone.style.position = 'absolute';
@@ -131,13 +142,12 @@
 			}
 		}
 		requestAnimationFrame(() => {
-			wrapper.style.opacity = '0.4';
+			draggingTaskId = task.id;
 		});
 	}
 
 	function handleDragEnd(e: DragEvent) {
-		const target = e.currentTarget as HTMLElement;
-		target.style.opacity = '1';
+		draggingTaskId = null;
 	}
 </script>
 
@@ -165,6 +175,7 @@
 				data-grab
 				draggable="true"
 				ondragstart={handleColumnDragStart}
+				ondragend={handleColumnDragEnd}
 			>
 				<GripVertical size={14} />
 			</span>
@@ -189,7 +200,10 @@
 		{/if}
 		{#each tasks as task, i (task.id)}
 			{#if dragOver && dropIndex === i}
-				<div class="h-0.5 bg-primary rounded-full mx-2 my-0.5"></div>
+				<div
+					class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg"
+					style="height: {draggedTaskHeight}px;"
+				></div>
 			{/if}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
@@ -198,6 +212,8 @@
 				ondragend={handleDragEnd}
 				role="listitem"
 				data-task-card
+				data-dragging={draggingTaskId === task.id ? '' : undefined}
+				style={draggingTaskId === task.id ? 'opacity: 0; pointer-events: none;' : ''}
 			>
 				<TaskCard
 					{task}
@@ -208,7 +224,10 @@
 			</div>
 		{/each}
 		{#if dragOver && dropIndex === tasks.length}
-			<div class="h-0.5 bg-primary rounded-full mx-2 my-0.5"></div>
+			<div
+				class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg"
+				style="height: {draggedTaskHeight}px;"
+			></div>
 		{/if}
 	</div>
 

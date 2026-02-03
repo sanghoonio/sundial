@@ -144,7 +144,7 @@
 			selectedTime = '';
 			panelOpen = true;
 		} else {
-			goto(`/tasks?project=${item.data.project_id}`);
+			goto(`/tasks/${item.data.project_id}`);
 		}
 	}
 

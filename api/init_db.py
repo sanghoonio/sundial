@@ -32,6 +32,14 @@ async def init_database():
             except Exception:
                 pass  # column already exists
 
+        # Migrate: add icon column to projects
+        try:
+            await conn.execute(text(
+                "ALTER TABLE projects ADD COLUMN icon VARCHAR DEFAULT 'folder-kanban'"
+            ))
+        except Exception:
+            pass  # column already exists
+
         # Migrate: add recurrence columns to calendar_events
         for col, coltype in [
             ("rrule", "TEXT"),

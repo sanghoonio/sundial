@@ -21,7 +21,7 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
     if existing:
         raise HTTPException(status_code=400, detail="Project ID already exists")
 
-    project = Project(id=body.id, name=body.name, description=body.description, color=body.color)
+    project = Project(id=body.id, name=body.name, description=body.description, color=body.color, icon=body.icon)
     db.add(project)
     await db.flush()
 
@@ -74,6 +74,8 @@ async def update_project(project_id: str, body: ProjectUpdate, db: AsyncSession 
         project.description = body.description
     if body.color is not None:
         project.color = body.color
+    if body.icon is not None:
+        project.icon = body.icon
     if body.status is not None:
         project.status = body.status
         if body.status == "completed":
@@ -142,6 +144,7 @@ async def _project_to_response(db: AsyncSession, project: Project) -> ProjectRes
         name=project.name,
         description=project.description,
         color=project.color,
+        icon=getattr(project, "icon", None) or "folder-kanban",
         status=project.status or "active",
         milestones=[
             {"id": ms.id, "name": ms.name, "position": ms.position}

@@ -15,6 +15,7 @@ class Project(Base):
     name = Column(String, nullable=False)
     description = Column(Text, default="")
     color = Column(String, default="#6366f1")
+    icon = Column(String, default="folder-kanban")  # lucide icon name
     status = Column(String, default="active")  # active, paused, completed, archived
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

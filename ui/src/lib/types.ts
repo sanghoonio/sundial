@@ -213,6 +213,7 @@ export interface ProjectCreate {
 	name: string;
 	description?: string;
 	color?: string;
+	icon?: string;
 	milestones?: MilestoneCreate[];
 }
 
@@ -220,6 +221,7 @@ export interface ProjectUpdate {
 	name?: string;
 	description?: string;
 	color?: string;
+	icon?: string;
 	status?: string;
 }
 
@@ -228,6 +230,7 @@ export interface ProjectResponse {
 	name: string;
 	description: string;
 	color: string;
+	icon: string;
 	status: string;
 	milestones: MilestoneResponse[];
 	task_count: number;

@@ -36,6 +36,13 @@
 	let addingColumn = $state(false);
 	let newColumnName = $state('');
 
+	// Dragged task dimensions for placeholder box (shared across all columns)
+	let draggedTaskHeight = $state(0);
+
+	function handleTaskDragStart(height: number) {
+		draggedTaskHeight = height;
+	}
+
 	function tasksForMilestone(msId: string): TaskResponse[] {
 		return tasks
 			.filter((t) => t.milestone_id === msId)
@@ -131,7 +138,7 @@
 </script>
 
 <div
-	class="flex gap-4 overflow-x-auto px-4 pb-4 h-full snap-x snap-mandatory md:snap-none"
+	class="flex gap-4 overflow-x-auto p-4 h-full snap-x snap-mandatory md:snap-none"
 	ondragover={handleBoardDragOver}
 	ondragleave={handleBoardDragLeave}
 	ondrop={handleBoardDrop}
@@ -144,6 +151,8 @@
 				{projectId}
 				{selectedTaskId}
 				{ontaskclick}
+				{draggedTaskHeight}
+				ontaskdragstart={handleTaskDragStart}
 			/>
 		</div>
 	{/if}
@@ -163,6 +172,8 @@
 				{ontaskcreated}
 				onrename={oncolumnrename}
 				ondelete={oncolumndelete}
+				{draggedTaskHeight}
+				ontaskdragstart={handleTaskDragStart}
 			/>
 		</div>
 		{#if columnDragOverId === ms.id && columnDragSide === 'right'}

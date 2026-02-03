@@ -21,6 +21,7 @@ class ProjectCreate(BaseModel):
     name: str
     description: str = ""
     color: str = "#6366f1"
+    icon: str = "folder-kanban"
     milestones: list[MilestoneCreate] = []
 
 
@@ -28,6 +29,7 @@ class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     color: str | None = None
+    icon: str | None = None
     status: str | None = None
 
 
@@ -40,6 +42,7 @@ class ProjectResponse(BaseModel):
     name: str
     description: str
     color: str
+    icon: str = "folder-kanban"
     status: str = "active"
     milestones: list[MilestoneResponse]
     task_count: int = 0
