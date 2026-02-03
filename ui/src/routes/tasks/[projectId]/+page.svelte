@@ -10,6 +10,7 @@
 	import TaskFilterBar from '$lib/components/tasks/TaskFilterBar.svelte';
 	import ProjectIcon from '$lib/components/ui/ProjectIcon.svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	let projects = $state<ProjectResponse[]>([]);
 	let sidebarExpanded = $state(false);
@@ -193,6 +194,25 @@
 		selectedTask = null;
 	}
 
+	async function handleTaskDeleteFromSwipe(taskId: string) {
+		const task = tasks.find((t) => t.id === taskId);
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Task',
+			message: `Delete "${task?.title}"?`,
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (!confirmed) return;
+
+		try {
+			await api.delete(`/api/tasks/${taskId}`);
+			handleTaskDeleted(taskId);
+		} catch (e) {
+			console.error('Failed to delete task', e);
+			toast.error('Failed to delete task');
+		}
+	}
+
 	// Column operations
 
 	async function saveMilestones(milestones: MilestoneCreate[]) {
@@ -372,6 +392,7 @@
 						oncolumndelete={handleColumnDelete}
 						oncolumncreate={handleColumnCreate}
 						oncolumnreorder={handleColumnReorder}
+						ontaskdelete={handleTaskDeleteFromSwipe}
 					/>
 				</div>
 			{:else}

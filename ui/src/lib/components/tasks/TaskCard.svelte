@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { TaskResponse, DashboardTask } from '$lib/types';
-	import { AlertCircle, GripVertical, StickyNote, CalendarDays, Check, X } from 'lucide-svelte';
+	import { AlertCircle, GripVertical, StickyNote, CalendarDays, Check, X, Trash2 } from 'lucide-svelte';
 
 	interface Props {
 		task: TaskResponse | DashboardTask;
@@ -10,9 +10,69 @@
 		onclick?: () => void;
 		onaccept?: () => void;
 		ondismiss?: () => void;
+		ondelete?: () => void;
 	}
 
-	let { task, compact = false, draggable = false, selected = false, onclick, onaccept, ondismiss }: Props = $props();
+	let { task, compact = false, draggable = false, selected = false, onclick, onaccept, ondismiss, ondelete }: Props = $props();
+
+	// Swipe-to-delete state
+	let swipeRevealed = $state(false);
+	let swipeOffset = $state(0);
+	let isSettling = $state(false);
+	let hideTimeout: ReturnType<typeof setTimeout>;
+	let settleTimeout: ReturnType<typeof setTimeout>;
+	let containerEl: HTMLDivElement;
+
+	const MAX_OFFSET = 48;
+
+	$effect(() => {
+		if (!containerEl) return;
+		containerEl.addEventListener('wheel', handleWheel, { passive: false });
+		return () => containerEl.removeEventListener('wheel', handleWheel);
+	});
+
+	function handleWheel(e: WheelEvent) {
+		if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) {
+			return;
+		}
+
+		e.preventDefault();
+		isSettling = false;
+
+		swipeOffset = Math.max(-MAX_OFFSET, Math.min(0, swipeOffset - e.deltaX));
+
+		clearTimeout(settleTimeout);
+		settleTimeout = setTimeout(() => {
+			isSettling = true;
+			if (swipeOffset < -MAX_OFFSET / 2) {
+				swipeRevealed = true;
+				swipeOffset = -MAX_OFFSET;
+				resetHideTimer();
+			} else {
+				swipeRevealed = false;
+				swipeOffset = 0;
+				clearTimeout(hideTimeout);
+			}
+		}, 100);
+	}
+
+	function resetHideTimer() {
+		clearTimeout(hideTimeout);
+		hideTimeout = setTimeout(() => {
+			isSettling = true;
+			swipeRevealed = false;
+			swipeOffset = 0;
+		}, 10000);
+	}
+
+	function handleDelete(e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		swipeRevealed = false;
+		swipeOffset = 0;
+		clearTimeout(hideTimeout);
+		ondelete?.();
+	}
 
 	const priorityColors: Record<string, string> = {
 		urgent: 'text-error',
@@ -49,85 +109,97 @@
 	let hasPriorityIcon = $derived(task.priority === 'urgent' || task.priority === 'high');
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div
-	class="card border border-base-300 {selected ? 'bg-primary/5' : 'bg-base-100'} {onclick ? 'cursor-pointer hover:border-base-content/30' : ''} {isAiSuggested ? 'border-dashed border-primary/40' : ''} transition-colors"
-	onclick={onclick}
-	onkeydown={(e) => { if (e.key === 'Enter' && onclick) onclick(); }}
-	role={onclick ? 'button' : undefined}
-	tabindex={onclick ? 0 : undefined}
->
-	<div class="card-body {compact ? 'p-3' : 'p-3 gap-1.5'}">
-		<div class="flex items-center gap-2">
-			{#if draggable}
-				<span class="text-base-content/30 shrink-0" data-grab><GripVertical size={14} /></span>
+<div class="relative overflow-hidden" bind:this={containerEl} style="overscroll-behavior-x: contain; touch-action: pan-y;">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<div
+		class="card border border-base-300 {selected ? 'bg-primary/5' : 'bg-base-100'} {onclick ? 'cursor-pointer hover:border-base-content/30' : ''} {isAiSuggested ? 'border-dashed border-primary/40' : ''} transition-colors"
+		onclick={onclick}
+		onkeydown={(e) => { if (e.key === 'Enter' && onclick) onclick(); }}
+		role={onclick ? 'button' : undefined}
+		tabindex={onclick ? 0 : undefined}
+	>
+		<div class="card-body {compact ? 'p-3' : 'p-3 gap-1.5'}">
+			<div class="flex items-center gap-2">
+				{#if draggable}
+					<span class="text-base-content/30 shrink-0" data-grab><GripVertical size={14} /></span>
+				{/if}
+				<span class="font-medium truncate text-sm flex-1 min-w-0">{task.title}</span>
+				{#if hasLinkedNote}
+					<span class="text-base-content/40 shrink-0" title="Linked note"><StickyNote size={12} /></span>
+				{/if}
+				{#if hasPriorityIcon}
+					<span class="{priorityColors[task.priority]} shrink-0">
+						<AlertCircle size={14} />
+					</span>
+				{/if}
+			</div>
+
+			{#if !compact && fullTask?.description}
+				<p class="text-xs text-base-content/50 line-clamp-2">{fullTask.description}</p>
 			{/if}
-			<span class="font-medium truncate text-sm flex-1 min-w-0">{task.title}</span>
-			{#if hasLinkedNote}
-				<span class="text-base-content/40 shrink-0" title="Linked note"><StickyNote size={12} /></span>
+
+			{#if !compact}
+				{@const hasMetadata = task.due_date || hasLinkedEvent}
+				{#if hasMetadata}
+					<div class="flex items-center gap-2 flex-wrap">
+						{#if task.due_date}
+							<span class="badge badge-xs {overdue ? 'badge-error' : 'badge-ghost'}">
+								{overdue ? 'Overdue' : 'Due'} {formatDate(task.due_date)}
+							</span>
+						{/if}
+						{#if hasLinkedEvent}
+							<span class="text-base-content/40" title="Calendar event"><CalendarDays size={12} /></span>
+						{/if}
+					</div>
+				{/if}
 			{/if}
-			{#if hasPriorityIcon}
-				<span class="{priorityColors[task.priority]} shrink-0">
-					<AlertCircle size={14} />
-				</span>
+
+			{#if hasChecklist && !compact}
+				<div class="flex items-center gap-2">
+					<div class="flex-1 h-1.5 bg-base-300 rounded-full overflow-hidden">
+						<div
+							class="h-full rounded-full transition-all {checklistPct === 100 ? 'bg-success' : 'bg-primary'}"
+							style:width="{checklistPct}%"
+						></div>
+					</div>
+					<span class="text-xs text-base-content/50 tabular-nums">{checklistDone}/{checklistTotal}</span>
+				</div>
+			{/if}
+
+			{#if isAiSuggested && (onaccept || ondismiss)}
+				<div class="flex items-center gap-1.5 pt-1.5 border-t border-base-200">
+					<span class="text-xs text-primary/70 flex-1">AI suggested</span>
+					{#if onaccept}
+						<button
+							class="btn btn-ghost btn-xs text-success"
+							onclick={(e) => { e.stopPropagation(); onaccept!(); }}
+							title="Accept"
+						>
+							<Check size={14} />
+						</button>
+					{/if}
+					{#if ondismiss}
+						<button
+							class="btn btn-ghost btn-xs text-error"
+							onclick={(e) => { e.stopPropagation(); ondismiss!(); }}
+							title="Dismiss"
+						>
+							<X size={14} />
+						</button>
+					{/if}
+				</div>
 			{/if}
 		</div>
-
-		{#if !compact && fullTask?.description}
-			<p class="text-xs text-base-content/50 line-clamp-2">{fullTask.description}</p>
-		{/if}
-
-		{#if !compact}
-			{@const hasMetadata = task.due_date || hasLinkedEvent}
-			{#if hasMetadata}
-				<div class="flex items-center gap-2 flex-wrap">
-					{#if task.due_date}
-						<span class="badge badge-xs {overdue ? 'badge-error' : 'badge-ghost'}">
-							{overdue ? 'Overdue' : 'Due'} {formatDate(task.due_date)}
-						</span>
-					{/if}
-					{#if hasLinkedEvent}
-						<span class="text-base-content/40" title="Calendar event"><CalendarDays size={12} /></span>
-					{/if}
-				</div>
-			{/if}
-		{/if}
-
-		{#if hasChecklist && !compact}
-			<div class="flex items-center gap-2">
-				<div class="flex-1 h-1.5 bg-base-300 rounded-full overflow-hidden">
-					<div
-						class="h-full rounded-full transition-all {checklistPct === 100 ? 'bg-success' : 'bg-primary'}"
-						style:width="{checklistPct}%"
-					></div>
-				</div>
-				<span class="text-xs text-base-content/50 tabular-nums">{checklistDone}/{checklistTotal}</span>
-			</div>
-		{/if}
-
-		{#if isAiSuggested && (onaccept || ondismiss)}
-			<div class="flex items-center gap-1.5 pt-1.5 border-t border-base-200">
-				<span class="text-xs text-primary/70 flex-1">AI suggested</span>
-				{#if onaccept}
-					<button
-						class="btn btn-ghost btn-xs text-success"
-						onclick={(e) => { e.stopPropagation(); onaccept!(); }}
-						title="Accept"
-					>
-						<Check size={14} />
-					</button>
-				{/if}
-				{#if ondismiss}
-					<button
-						class="btn btn-ghost btn-xs text-error"
-						onclick={(e) => { e.stopPropagation(); ondismiss!(); }}
-						title="Dismiss"
-					>
-						<X size={14} />
-					</button>
-				{/if}
-			</div>
-		{/if}
 	</div>
+
+	<!-- Trash button - slides in from the right -->
+	<button
+		class="absolute top-0 bottom-0 right-0 w-12 bg-error flex items-center justify-center rounded-r-lg {isSettling ? 'transition-transform duration-150' : ''}"
+		style:transform="translateX({MAX_OFFSET + swipeOffset}px)"
+		onclick={handleDelete}
+		title="Delete task"
+	>
+		<Trash2 size={18} class="text-white" />
+	</button>
 </div>

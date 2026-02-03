@@ -18,10 +18,11 @@
 		oncolumndragstart?: (milestoneId: string, width: number, height: number) => void;
 		oncolumndragend?: () => void;
 		ontaskdragstart?: (height: number) => void;
+		ontaskdelete?: (taskId: string) => void;
 		draggedTaskHeight?: number;
 	}
 
-	let { milestone, tasks, projectId, selectedTaskId = null, ontaskclick, ondrop, ontaskcreated, onrename, ondelete, oncolumndragstart, oncolumndragend, ontaskdragstart, draggedTaskHeight = 0 }: Props = $props();
+	let { milestone, tasks, projectId, selectedTaskId = null, ontaskclick, ondrop, ontaskcreated, onrename, ondelete, oncolumndragstart, oncolumndragend, ontaskdragstart, ontaskdelete, draggedTaskHeight = 0 }: Props = $props();
 
 	let dragOver = $state(false);
 	let dropIndex = $state<number | null>(null);
@@ -246,6 +247,7 @@
 					draggable
 					selected={task.id === selectedTaskId}
 					onclick={() => ontaskclick?.(task)}
+					ondelete={() => ontaskdelete?.(task.id)}
 				/>
 			</div>
 		{/each}

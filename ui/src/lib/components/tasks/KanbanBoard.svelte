@@ -15,6 +15,7 @@
 		oncolumndelete?: (milestoneId: string) => void;
 		oncolumncreate?: (name: string) => void;
 		oncolumnreorder?: (milestoneId: string, newPosition: number) => void;
+		ontaskdelete?: (taskId: string) => void;
 	}
 
 	let {
@@ -28,7 +29,8 @@
 		oncolumnrename,
 		oncolumndelete,
 		oncolumncreate,
-		oncolumnreorder
+		oncolumnreorder,
+		ontaskdelete
 	}: Props = $props();
 
 	let columnDragOverId = $state<string | null>(null);
@@ -183,6 +185,7 @@
 				ontaskdragstart={handleTaskDragStart}
 				ondrop={handleUnsortedDrop}
 				{ontaskcreated}
+				{ontaskdelete}
 			/>
 		</div>
 	{/if}
@@ -213,6 +216,7 @@
 				ontaskdragstart={handleTaskDragStart}
 				oncolumndragstart={handleColumnDragStart}
 				oncolumndragend={handleColumnDragEnd}
+				{ontaskdelete}
 			/>
 		</div>
 		{#if columnDragOverId === ms.id && columnDragSide === 'right'}
