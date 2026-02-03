@@ -375,6 +375,8 @@ export interface SettingsResponse {
 	ai_enabled: boolean;
 	ai_auto_tag: boolean;
 	ai_auto_extract_tasks: boolean;
+	openrouter_api_key: string;
+	openrouter_model: string;
 	calendar_source: string;
 	calendar_sync_enabled: boolean;
 	theme: string;
@@ -384,6 +386,8 @@ export interface SettingsUpdate {
 	ai_enabled?: boolean;
 	ai_auto_tag?: boolean;
 	ai_auto_extract_tasks?: boolean;
+	openrouter_api_key?: string;
+	openrouter_model?: string;
 	calendar_source?: string;
 	calendar_sync_enabled?: boolean;
 	theme?: string;

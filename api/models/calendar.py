@@ -35,8 +35,8 @@ class CalendarEvent(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     note_links = relationship("NoteCalendarLink", back_populates="event", cascade="all, delete-orphan")
-    recurring_event = relationship("CalendarEvent", remote_side="CalendarEvent.id", foreign_keys=[recurring_event_id])
-    exceptions = relationship("CalendarEvent", foreign_keys=[recurring_event_id], cascade="all, delete-orphan")
+    recurring_event = relationship("CalendarEvent", remote_side="CalendarEvent.id", foreign_keys=[recurring_event_id], back_populates="exceptions")
+    exceptions = relationship("CalendarEvent", foreign_keys=[recurring_event_id], back_populates="recurring_event", cascade="all, delete-orphan")
 
 
 class NoteCalendarLink(Base):

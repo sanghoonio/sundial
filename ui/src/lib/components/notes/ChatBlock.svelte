@@ -46,12 +46,12 @@
 		loading = true;
 
 		try {
-			const res = await api.post<{ result: { response?: string } }>('/api/ai/chat', {
+			const res = await api.post<{ response?: string; error?: string }>('/api/ai/chat', {
 				message: text,
 				note_id: noteId,
 				context: precedingContext || undefined
 			});
-			const reply = res.result?.response || 'No response received.';
+			const reply = res.error || res.response || 'No response received.';
 			onmessageschange([...newMessages, { role: 'assistant', content: reply }]);
 		} catch {
 			onmessageschange([

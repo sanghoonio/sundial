@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/notes", tags=["notes"], dependencies=[Depends(get_cu
 
 
 @router.post("", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
-async def create_note(body: NoteCreate, db: AsyncSession = Depends(get_db)):
+async def create_note(body: NoteCreate, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
     content = body.content
     if body.blocks is not None:
         content = serialize_blocks(body.blocks)
@@ -35,6 +35,10 @@ async def create_note(body: NoteCreate, db: AsyncSession = Depends(get_db)):
     )
     resp = await _note_to_response(note, db)
     await manager.broadcast("note_created", {"id": note.id, "title": note.title})
+
+    from api.services.ai_background import process_note_ai
+    background_tasks.add_task(process_note_ai, note.id)
+
     return resp
 
 
@@ -72,7 +76,7 @@ async def get_note(note_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{note_id}", response_model=NoteResponse)
-async def update_note(note_id: str, body: NoteUpdate, db: AsyncSession = Depends(get_db)):
+async def update_note(note_id: str, body: NoteUpdate, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
     content = body.content
     if body.blocks is not None:
         content = serialize_blocks(body.blocks)
@@ -83,6 +87,10 @@ async def update_note(note_id: str, body: NoteUpdate, db: AsyncSession = Depends
         raise HTTPException(status_code=404, detail="Note not found")
     resp = await _note_to_response(note, db)
     await manager.broadcast("note_updated", {"id": note.id, "title": note.title})
+
+    from api.services.ai_background import process_note_ai
+    background_tasks.add_task(process_note_ai, note.id)
+
     return resp
 
 

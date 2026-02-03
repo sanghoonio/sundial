@@ -190,10 +190,18 @@
 			''
 		].join('\n');
 
-		// Gather markdown content from blocks
+		// Gather content from all blocks
 		const content = blocks
-			.filter((b) => b.type === 'md')
-			.map((b) => b.content)
+			.map((b) => {
+				if (b.type === 'md') return b.content;
+				if (b.type === 'chat' && b.messages?.length) {
+					return b.messages
+						.map((m) => `**${m.role === 'user' ? 'You' : 'Assistant'}:**\n${m.content}`)
+						.join('\n\n');
+				}
+				return '';
+			})
+			.filter(Boolean)
 			.join('\n\n');
 
 		const markdown = fm + content;

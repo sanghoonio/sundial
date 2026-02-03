@@ -57,6 +57,10 @@ app.include_router(tags_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(workspace_router, prefix="/api")
 
+# Mount MCP server (Starlette sub-app for SSE transport)
+from api.mcp.routes import mcp_app
+app.mount("/mcp", mcp_app)
+
 
 # WebSocket endpoint
 from api.utils.websocket import manager

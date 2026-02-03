@@ -16,10 +16,15 @@ _SETTINGS_KEYS = {
     "ai_enabled": ("bool", False),
     "ai_auto_tag": ("bool", False),
     "ai_auto_extract_tasks": ("bool", False),
+    "openrouter_api_key": ("str", ""),
+    "openrouter_model": ("str", "anthropic/claude-sonnet-4"),
     "calendar_source": ("str", ""),
     "calendar_sync_enabled": ("bool", False),
     "theme": ("str", "light"),
 }
+
+# Keys that should be masked in GET responses
+_MASKED_KEYS = {"openrouter_api_key"}
 
 
 def _parse_value(raw: str, vtype: str):
@@ -42,6 +47,14 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
         else:
             data[key] = default
 
+    # Mask sensitive keys
+    for key in _MASKED_KEYS:
+        val = data.get(key, "")
+        if val and len(val) > 4:
+            data[key] = "****" + val[-4:]
+        elif val:
+            data[key] = "****"
+
     return SettingsResponse(**data)
 
 
@@ -49,6 +62,11 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
 async def update_settings(body: SettingsUpdate, db: AsyncSession = Depends(get_db)):
     now = datetime.now(timezone.utc)
     updates = body.model_dump(exclude_unset=True)
+
+    # Skip masked key values sent back unchanged (e.g. "****abcd")
+    for key in list(updates.keys()):
+        if key in _MASKED_KEYS and isinstance(updates[key], str) and updates[key].startswith("****"):
+            del updates[key]
 
     for key, value in updates.items():
         if isinstance(value, bool):

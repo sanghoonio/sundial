@@ -2,13 +2,17 @@
 	import { api } from '$lib/services/api';
 	import type { SettingsResponse, SettingsUpdate } from '$lib/types';
 	import Button from '$lib/components/ui/Button.svelte';
-	import { ChevronLeft, Save } from 'lucide-svelte';
+	import { ChevronLeft, Save, CheckCircle, XCircle } from 'lucide-svelte';
 
 	let loading = $state(true);
 	let saving = $state(false);
 	let aiEnabled = $state(false);
 	let aiAutoTag = $state(true);
 	let aiAutoExtractTasks = $state(true);
+	let openrouterApiKey = $state('');
+	let openrouterApiKeyOriginal = $state('');
+	let openrouterModel = $state('anthropic/claude-sonnet-4');
+	let hasApiKey = $state(false);
 
 	async function loadSettings() {
 		loading = true;
@@ -17,6 +21,10 @@
 			aiEnabled = res.ai_enabled;
 			aiAutoTag = res.ai_auto_tag;
 			aiAutoExtractTasks = res.ai_auto_extract_tasks;
+			openrouterApiKey = res.openrouter_api_key;
+			openrouterApiKeyOriginal = res.openrouter_api_key;
+			openrouterModel = res.openrouter_model;
+			hasApiKey = res.openrouter_api_key.length > 0 && res.openrouter_api_key !== '';
 		} catch (e) {
 			console.error('Failed to load settings', e);
 		} finally {
@@ -34,12 +42,21 @@
 			const update: SettingsUpdate = {
 				ai_enabled: aiEnabled,
 				ai_auto_tag: aiAutoTag,
-				ai_auto_extract_tasks: aiAutoExtractTasks
+				ai_auto_extract_tasks: aiAutoExtractTasks,
+				openrouter_model: openrouterModel
 			};
+			// Only send API key if it was changed (not the masked value)
+			if (openrouterApiKey !== openrouterApiKeyOriginal) {
+				update.openrouter_api_key = openrouterApiKey;
+			}
 			const res = await api.put<SettingsResponse>('/api/settings', update);
 			aiEnabled = res.ai_enabled;
 			aiAutoTag = res.ai_auto_tag;
 			aiAutoExtractTasks = res.ai_auto_extract_tasks;
+			openrouterApiKey = res.openrouter_api_key;
+			openrouterApiKeyOriginal = res.openrouter_api_key;
+			openrouterModel = res.openrouter_model;
+			hasApiKey = res.openrouter_api_key.length > 0 && res.openrouter_api_key !== '';
 		} catch (e) {
 			console.error('Failed to save AI settings', e);
 		} finally {
@@ -64,12 +81,57 @@
 		<label class="flex items-center justify-between cursor-pointer">
 			<div>
 				<p class="font-medium text-sm">Enable AI</p>
-				<p class="text-xs text-base-content/60">Use Claude for auto-tagging and task extraction</p>
+				<p class="text-xs text-base-content/60">Use AI for auto-tagging, task extraction, and chat</p>
 			</div>
 			<input type="checkbox" class="toggle toggle-primary" bind:checked={aiEnabled} />
 		</label>
 
 		{#if aiEnabled}
+			<div class="divider my-1"></div>
+
+			<div class="flex flex-col gap-1">
+				<label class="font-medium text-sm" for="api-key">OpenRouter API Key</label>
+				<div class="flex items-center gap-2">
+					<input
+						id="api-key"
+						type="password"
+						class="input input-bordered input-sm flex-1"
+						placeholder="sk-or-..."
+						bind:value={openrouterApiKey}
+					/>
+					{#if hasApiKey}
+						<span class="text-success flex items-center gap-1 text-xs">
+							<CheckCircle size={14} />
+							Configured
+						</span>
+					{:else}
+						<span class="text-warning flex items-center gap-1 text-xs">
+							<XCircle size={14} />
+							Not set
+						</span>
+					{/if}
+				</div>
+				<p class="text-xs text-base-content/50">
+					Get an API key from <a href="https://openrouter.ai/keys" target="_blank" class="link">openrouter.ai/keys</a>
+				</p>
+			</div>
+
+			<div class="flex flex-col gap-1">
+				<label class="font-medium text-sm" for="model">Model</label>
+				<input
+					id="model"
+					type="text"
+					class="input input-bordered input-sm"
+					placeholder="anthropic/claude-sonnet-4"
+					bind:value={openrouterModel}
+				/>
+				<p class="text-xs text-base-content/50">
+					OpenRouter model ID. Browse models at <a href="https://openrouter.ai/models" target="_blank" class="link">openrouter.ai/models</a>
+				</p>
+			</div>
+
+			<div class="divider my-1"></div>
+
 			<label class="flex items-center justify-between cursor-pointer pl-4">
 				<div>
 					<p class="font-medium text-sm">Auto-tag notes</p>
