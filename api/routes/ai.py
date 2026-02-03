@@ -50,22 +50,67 @@ async def ai_chat(body: ChatRequest, db: AsyncSession = Depends(get_db)):
     return ChatResponse(response=result.get("response", ""))
 
 
-@router.post("/analyze-note/{note_id}")
+class AnalyzeNoteResponse(BaseModel):
+    suggested_tags: list[str] = []
+    extracted_tasks: list[dict] = []
+    linked_events: list[str] = []
+
+
+@router.post("/analyze-note/{note_id}", response_model=AnalyzeNoteResponse)
 async def analyze_note(
     note_id: str,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """Manually trigger AI analysis (auto-tag, extract tasks, link events) for a note."""
+    """Manually trigger AI analysis (auto-tag, extract tasks, link events) for a note.
+
+    Returns synchronous results for immediate UI feedback.
+    """
     result = await db.execute(select(Note).where(Note.id == note_id))
     note = result.scalar_one_or_none()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    from api.services.ai_background import process_note_ai
-    background_tasks.add_task(process_note_ai, note_id)
+    if not note.content:
+        return AnalyzeNoteResponse()
 
-    return {"status": "queued", "note_id": note_id}
+    from api.models.note import Tag
+    from api.services.block_parser import extract_markdown_text
+
+    content = extract_markdown_text(note.content)
+    if not content.strip():
+        return AnalyzeNoteResponse()
+
+    # Get existing tags in system
+    tag_result = await db.execute(select(Tag.name))
+    existing_tags = [row[0] for row in tag_result.fetchall()]
+
+    # Run auto-tag
+    suggested_tags = await ai_service.auto_tag(content, existing_tags, db)
+
+    # Run task extraction
+    extracted_tasks = await ai_service.extract_tasks(content, note.title, db)
+
+    # Run event linking
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=7)
+    end = now + timedelta(days=30)
+    event_result = await db.execute(
+        select(CalendarEvent)
+        .where(CalendarEvent.start_time.between(start, end))
+        .limit(50)
+    )
+    events_raw = event_result.scalars().all()
+    events = [
+        {"id": e.id, "title": e.title, "description": e.description or "", "start_time": str(e.start_time)}
+        for e in events_raw
+    ]
+    linked_events = await ai_service.link_events(content, events, db) if events else []
+
+    return AnalyzeNoteResponse(
+        suggested_tags=suggested_tags,
+        extracted_tasks=extracted_tasks,
+        linked_events=linked_events,
+    )
 
 
 @router.get("/suggestions/daily", response_model=DailySuggestionsResponse)

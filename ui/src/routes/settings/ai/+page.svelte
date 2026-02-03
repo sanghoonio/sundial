@@ -9,6 +9,8 @@
 	let aiEnabled = $state(false);
 	let aiAutoTag = $state(true);
 	let aiAutoExtractTasks = $state(true);
+	let aiAutoLinkEvents = $state(true);
+	let aiDailySuggestions = $state(true);
 	let openrouterApiKey = $state('');
 	let openrouterApiKeyOriginal = $state('');
 	let openrouterModel = $state('anthropic/claude-sonnet-4');
@@ -21,6 +23,8 @@
 			aiEnabled = res.ai_enabled;
 			aiAutoTag = res.ai_auto_tag;
 			aiAutoExtractTasks = res.ai_auto_extract_tasks;
+			aiAutoLinkEvents = res.ai_auto_link_events;
+			aiDailySuggestions = res.ai_daily_suggestions;
 			openrouterApiKey = res.openrouter_api_key;
 			openrouterApiKeyOriginal = res.openrouter_api_key;
 			openrouterModel = res.openrouter_model;
@@ -43,6 +47,8 @@
 				ai_enabled: aiEnabled,
 				ai_auto_tag: aiAutoTag,
 				ai_auto_extract_tasks: aiAutoExtractTasks,
+				ai_auto_link_events: aiAutoLinkEvents,
+				ai_daily_suggestions: aiDailySuggestions,
 				openrouter_model: openrouterModel
 			};
 			// Only send API key if it was changed (not the masked value)
@@ -53,6 +59,8 @@
 			aiEnabled = res.ai_enabled;
 			aiAutoTag = res.ai_auto_tag;
 			aiAutoExtractTasks = res.ai_auto_extract_tasks;
+			aiAutoLinkEvents = res.ai_auto_link_events;
+			aiDailySuggestions = res.ai_daily_suggestions;
 			openrouterApiKey = res.openrouter_api_key;
 			openrouterApiKeyOriginal = res.openrouter_api_key;
 			openrouterModel = res.openrouter_model;
@@ -136,24 +144,44 @@
 				</p>
 			</div>
 
-			<div class="border-t border-base-300 pt-4 mt-4"></div>
+			<div class="border-t border-base-300 pt-4 mt-2">
+				<p class="text-xs font-medium text-base-content/50 mb-3">Background Processing</p>
+			</div>
 
-			<label class="flex items-center justify-between cursor-pointer pl-4">
+			<label class="flex items-center justify-between cursor-pointer">
 				<div>
 					<p class="font-medium text-sm">Auto-tag notes</p>
-					<p class="text-xs text-base-content/60">Automatically suggest tags for new notes</p>
+					<p class="text-xs text-base-content/60">Automatically suggest tags when saving notes</p>
 				</div>
 				<input type="checkbox" class="toggle toggle-sm" bind:checked={aiAutoTag} />
 			</label>
 
-			<label class="flex items-center justify-between cursor-pointer pl-4">
+			<label class="flex items-center justify-between cursor-pointer">
 				<div>
 					<p class="font-medium text-sm">Extract tasks</p>
-					<p class="text-xs text-base-content/60">
-						Automatically detect actionable items in notes
-					</p>
+					<p class="text-xs text-base-content/60">Automatically detect actionable items in notes</p>
 				</div>
 				<input type="checkbox" class="toggle toggle-sm" bind:checked={aiAutoExtractTasks} />
+			</label>
+
+			<label class="flex items-center justify-between cursor-pointer">
+				<div>
+					<p class="font-medium text-sm">Link calendar events</p>
+					<p class="text-xs text-base-content/60">Automatically link notes to related calendar events</p>
+				</div>
+				<input type="checkbox" class="toggle toggle-sm" bind:checked={aiAutoLinkEvents} />
+			</label>
+
+			<div class="border-t border-base-300 pt-4 mt-2">
+				<p class="text-xs font-medium text-base-content/50 mb-3">Dashboard</p>
+			</div>
+
+			<label class="flex items-center justify-between cursor-pointer">
+				<div>
+					<p class="font-medium text-sm">Daily suggestions</p>
+					<p class="text-xs text-base-content/60">Show AI insights on the dashboard</p>
+				</div>
+				<input type="checkbox" class="toggle toggle-sm" bind:checked={aiDailySuggestions} />
 			</label>
 		{/if}
 

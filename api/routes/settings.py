@@ -16,6 +16,8 @@ _SETTINGS_KEYS = {
     "ai_enabled": ("bool", False),
     "ai_auto_tag": ("bool", False),
     "ai_auto_extract_tasks": ("bool", False),
+    "ai_auto_link_events": ("bool", False),
+    "ai_daily_suggestions": ("bool", True),
     "openrouter_api_key": ("str", ""),
     "openrouter_model": ("str", "anthropic/claude-sonnet-4"),
     "calendar_source": ("str", ""),

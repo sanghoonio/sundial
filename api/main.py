@@ -1,11 +1,46 @@
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from api.config import settings
+
+
+class UTCJSONResponse(JSONResponse):
+    """Custom JSON response that adds 'Z' suffix to naive datetime ISO strings."""
+
+    def render(self, content: Any) -> bytes:
+        return super().render(self._process_datetimes(content))
+
+    def _process_datetimes(self, obj: Any) -> Any:
+        """Recursively process to add 'Z' suffix to datetime strings."""
+        if isinstance(obj, dict):
+            return {k: self._process_datetimes(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._process_datetimes(item) for item in obj]
+        elif isinstance(obj, datetime):
+            iso = obj.isoformat()
+            if obj.tzinfo is None:
+                return iso + "Z"
+            return iso
+        elif isinstance(obj, str):
+            # Handle ISO datetime strings that Pydantic already serialized
+            # Pattern: YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDTHH:MM:SS.ffffff
+            if (
+                len(obj) >= 19
+                and obj[4:5] == "-"
+                and obj[7:8] == "-"
+                and obj[10:11] == "T"
+                and not obj.endswith("Z")
+                and "+" not in obj[19:]
+                and "-" not in obj[19:]
+            ):
+                return obj + "Z"
+        return obj
 
 
 @asynccontextmanager
@@ -22,6 +57,7 @@ app = FastAPI(
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
     redoc_url="/api/redoc",
+    default_response_class=UTCJSONResponse,
 )
 
 app.add_middleware(

@@ -380,6 +380,8 @@ export interface SettingsResponse {
 	ai_enabled: boolean;
 	ai_auto_tag: boolean;
 	ai_auto_extract_tasks: boolean;
+	ai_auto_link_events: boolean;
+	ai_daily_suggestions: boolean;
 	openrouter_api_key: string;
 	openrouter_model: string;
 	calendar_source: string;
@@ -391,6 +393,8 @@ export interface SettingsUpdate {
 	ai_enabled?: boolean;
 	ai_auto_tag?: boolean;
 	ai_auto_extract_tasks?: boolean;
+	ai_auto_link_events?: boolean;
+	ai_daily_suggestions?: boolean;
 	openrouter_api_key?: string;
 	openrouter_model?: string;
 	calendar_source?: string;
@@ -440,6 +444,13 @@ export interface CalDAVCalendarInfo {
 	id: string;
 	name: string;
 	color: string;
+}
+
+// AI
+export interface DailySuggestionsResponse {
+	summary: string;
+	priorities: string[];
+	connections: string[];
 }
 
 // WebSocket

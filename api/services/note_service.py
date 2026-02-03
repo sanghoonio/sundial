@@ -75,7 +75,18 @@ async def _sync_note_tags(db: AsyncSession, note_id: str, tag_names: list[str]) 
 
 async def create_note(db: AsyncSession, title: str, content: str = "", tags: list[str] | None = None, project_id: str | None = None) -> Note:
     now = datetime.now(timezone.utc)
-    filepath = build_filepath(title, now)
+    base_filepath = build_filepath(title, now)
+
+    # Check for duplicate filepath and append suffix if needed
+    filepath = base_filepath
+    suffix = 1
+    while True:
+        result = await db.execute(select(Note).where(Note.filepath == filepath))
+        if result.scalar_one_or_none() is None:
+            break
+        # Insert suffix before .md extension
+        filepath = base_filepath[:-3] + f"-{suffix}.md"
+        suffix += 1
 
     note = Note(title=title, filepath=filepath, content=content, project_id=project_id, created_at=now, updated_at=now)
     db.add(note)

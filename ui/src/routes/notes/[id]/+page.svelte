@@ -162,16 +162,20 @@
 		}
 	}
 
+	interface AnalyzeNoteResponse {
+		suggested_tags: string[];
+		extracted_tasks: { title: string; description: string; priority: string }[];
+		linked_events: string[];
+	}
+
 	async function handleAnalyze() {
 		analyzing = true;
 		try {
-			const res = await api.post<{ result: Record<string, unknown> }>(
-				`/api/ai/analyze-note/${noteId}`
-			);
-			const result = res.result;
+			const res = await api.post<AnalyzeNoteResponse>(`/api/ai/analyze-note/${noteId}`);
 
-			if (Array.isArray(result.suggested_tags) && result.suggested_tags.length > 0) {
-				const newTags = result.suggested_tags.filter((t: string) => !tags.includes(t));
+			// Add any new suggested tags
+			if (res.suggested_tags && res.suggested_tags.length > 0) {
+				const newTags = res.suggested_tags.filter((t) => !tags.includes(t));
 				if (newTags.length > 0) {
 					tags = [...tags, ...newTags];
 				}

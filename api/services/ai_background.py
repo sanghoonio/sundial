@@ -28,7 +28,7 @@ async def process_note_ai(note_id: str) -> None:
             # Check AI enabled + API key configured
             config_result = await db.execute(
                 select(UserSettings).where(
-                    UserSettings.key.in_(["ai_enabled", "openrouter_api_key", "ai_auto_tag", "ai_auto_extract_tasks"])
+                    UserSettings.key.in_(["ai_enabled", "openrouter_api_key", "ai_auto_tag", "ai_auto_extract_tasks", "ai_auto_link_events"])
                 )
             )
             config = {row.key: row.value for row in config_result.scalars().all()}
@@ -69,8 +69,8 @@ async def process_note_ai(note_id: str) -> None:
             if config.get("ai_auto_extract_tasks", "false").lower() == "true":
                 await _run_extract_tasks(db, note, content)
 
-            # Always try to link events if AI is enabled
-            await _run_link_events(db, note, content)
+            if config.get("ai_auto_link_events", "false").lower() == "true":
+                await _run_link_events(db, note, content)
 
         except Exception:
             logger.exception("Background AI processing failed for note %s", note_id)
