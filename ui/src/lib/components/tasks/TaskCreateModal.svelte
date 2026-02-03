@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TaskCreate, TaskResponse, MilestoneResponse, ChecklistItemCreate, ProjectResponse } from '$lib/types';
 	import Modal from '$lib/components/ui/Modal.svelte';
@@ -69,6 +70,7 @@
 			open = false;
 		} catch (e) {
 			console.error('Failed to create task', e);
+			toast.error('Failed to create task');
 		} finally {
 			creating = false;
 		}

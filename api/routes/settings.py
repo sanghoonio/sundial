@@ -27,6 +27,7 @@ _SETTINGS_KEYS = {
     "calendar_source": ("str", ""),
     "calendar_sync_enabled": ("bool", False),
     "theme": ("str", "light"),
+    "mcp_enabled": ("bool", True),
 }
 
 # Keys that should be masked in GET responses

@@ -41,7 +41,15 @@
 			setTimeout(() => { if (saveStatus === 'error') saveStatus = 'idle'; }, 2500);
 		}
 	}
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+			e.preventDefault();
+			handleSave();
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <!-- Header bar -->
 <div class="px-4 py-3 border-b border-base-300 shrink-0">

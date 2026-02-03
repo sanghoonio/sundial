@@ -119,6 +119,7 @@
 			projects = res.projects;
 		} catch (e) {
 			console.error('Failed to load projects', e);
+			toast.error('Failed to load projects');
 			loading = false;
 		}
 	}
@@ -132,6 +133,7 @@
 			tasks = res.tasks;
 		} catch (e) {
 			console.error('Failed to load tasks', e);
+			toast.error('Failed to load tasks');
 		} finally {
 			loading = false;
 		}

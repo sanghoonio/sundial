@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { ChevronLeft, Download, Upload } from 'lucide-svelte';
@@ -27,6 +28,7 @@
 			URL.revokeObjectURL(url);
 		} catch (e) {
 			console.error('Failed to export workspace', e);
+			toast.error('Failed to export workspace');
 		} finally {
 			exporting = false;
 		}
@@ -67,6 +69,7 @@
 			}
 		} catch (e) {
 			console.error('Failed to import workspace', e);
+			toast.error('Failed to import workspace');
 			importResult = 'Import failed';
 		} finally {
 			importing = false;

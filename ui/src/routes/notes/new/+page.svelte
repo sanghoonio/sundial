@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { NoteCreate, NoteResponse, NoteBlock } from '$lib/types';
 	import { newBlockId } from '$lib/utils/blocks';
@@ -45,6 +46,7 @@
 			goto(`/notes/${note.id}`);
 		} catch (e) {
 			console.error('Failed to create note', e);
+			toast.error('Failed to create note');
 			saveStatus = 'error';
 			creating = false;
 		}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type {
 		SettingsResponse,
@@ -54,6 +55,7 @@
 			lastSyncError = cal.last_sync_error;
 		} catch (e) {
 			console.error('Failed to load calendar settings', e);
+			toast.error('Failed to load calendar settings');
 		} finally {
 			loading = false;
 		}
@@ -97,6 +99,7 @@
 			setTimeout(() => { if (saveStatus === 'saved') saveStatus = 'idle'; }, 2500);
 		} catch (e) {
 			console.error('Failed to save calendar settings', e);
+			toast.error('Failed to save calendar settings');
 			saveStatus = 'error';
 			setTimeout(() => { if (saveStatus === 'error') saveStatus = 'idle'; }, 2500);
 		}
@@ -119,6 +122,7 @@
 			availableCalendars = calendars;
 		} catch (e: unknown) {
 			console.error('Calendar connection failed', e);
+			toast.error('Calendar connection failed');
 			availableCalendars = [];
 		} finally {
 			testingConnection = false;
@@ -137,6 +141,7 @@
 			}
 		} catch (e) {
 			console.error('Calendar sync failed', e);
+			toast.error('Calendar sync failed');
 		} finally {
 			syncing = false;
 		}
@@ -158,7 +163,15 @@
 			return iso;
 		}
 	}
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+			e.preventDefault();
+			handleSave();
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <!-- Header bar -->
 <div class="px-4 py-3 border-b border-base-300 shrink-0">

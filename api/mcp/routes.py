@@ -19,6 +19,18 @@ logger = logging.getLogger(__name__)
 sse_transport = SseServerTransport("/mcp/messages")
 
 
+async def _check_mcp_enabled(db) -> bool:
+    """Check if MCP is enabled in settings."""
+    from api.models.settings import UserSettings
+    result = await db.execute(
+        select(UserSettings).where(UserSettings.key == "mcp_enabled")
+    )
+    setting = result.scalar_one_or_none()
+    if setting is None:
+        return True  # Default to enabled
+    return setting.value.lower() == "true"
+
+
 async def handle_sse(request: Request):
     """SSE endpoint: opens persistent event stream for MCP protocol."""
     # Auth check: validate Bearer token
@@ -31,10 +43,15 @@ async def handle_sse(request: Request):
     # Validate the token
     from api.utils.auth import hash_token
     from api.database import async_session
-    from api.models.settings import AuthToken
+    from api.models.settings import AuthToken, UserSettings
     from sqlalchemy import select
 
     async with async_session() as db:
+        # Check if MCP is enabled
+        if not await _check_mcp_enabled(db):
+            from starlette.responses import JSONResponse
+            return JSONResponse({"detail": "MCP is disabled"}, status_code=403)
+
         token_hash = hash_token(token)
         result = await db.execute(
             select(AuthToken).where(AuthToken.token_hash == token_hash)
@@ -63,10 +80,15 @@ async def handle_messages(request: Request):
     token = auth_header[7:]
     from api.utils.auth import hash_token
     from api.database import async_session
-    from api.models.settings import AuthToken
+    from api.models.settings import AuthToken, UserSettings
     from sqlalchemy import select
 
     async with async_session() as db:
+        # Check if MCP is enabled
+        if not await _check_mcp_enabled(db):
+            from starlette.responses import JSONResponse
+            return JSONResponse({"detail": "MCP is disabled"}, status_code=403)
+
         token_hash = hash_token(token)
         result = await db.execute(
             select(AuthToken).where(AuthToken.token_hash == token_hash)

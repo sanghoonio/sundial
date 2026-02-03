@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import { notesList } from '$lib/stores/noteslist.svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
@@ -60,6 +61,7 @@
 			offset = notes.length;
 		} catch (e) {
 			console.error('Failed to load notes', e);
+			toast.error('Failed to load notes');
 		} finally {
 			loading = false;
 			loadingMore = false;
@@ -147,6 +149,7 @@
 			goto(`/notes/${note.id}`);
 		} catch (e) {
 			console.error('Failed to import note', e);
+			toast.error('Failed to import note');
 		} finally {
 			importing = false;
 			input.value = '';
@@ -214,6 +217,7 @@
 			goto(`/notes/${note.id}`);
 		} catch (e) {
 			console.error('Failed to create journal', e);
+			toast.error('Failed to create journal');
 		} finally {
 			creatingJournal = false;
 		}
@@ -324,6 +328,7 @@
 			}
 		} catch (e) {
 			console.error('Failed to delete note', e);
+			toast.error('Failed to delete note');
 		}
 	}
 </script>

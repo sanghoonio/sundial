@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { NoteResponse, NoteUpdate, LinksResponse, NoteBlock, ProjectList, ProjectResponse, TaskList } from '$lib/types';
 	import { newBlockId } from '$lib/utils/blocks';
@@ -74,6 +75,7 @@
 			}
 		} catch (e) {
 			console.error('Failed to load note', e);
+			toast.error('Failed to load note');
 			goto('/notes');
 		} finally {
 			loading = false;
@@ -93,6 +95,7 @@
 
 	async function handleSave() {
 		if (!title.trim()) return;
+		clearTimeout(autoSaveTimer);
 		saving = true;
 		saveStatus = 'saving';
 		try {
@@ -153,6 +156,7 @@
 			goto('/notes');
 		} catch (e) {
 			console.error('Failed to delete note', e);
+			toast.error('Failed to delete note');
 		}
 	}
 
@@ -176,6 +180,7 @@
 			}
 		} catch (e) {
 			console.error('AI analysis failed', e);
+			toast.error('AI analysis failed');
 		} finally {
 			analyzing = false;
 		}
@@ -284,6 +289,7 @@
 			links = await api.get<LinksResponse>(`/api/notes/${noteId}/links`);
 		} catch (e) {
 			console.error('Failed to unlink task', e);
+			toast.error('Failed to unlink task');
 		}
 	}
 
@@ -320,6 +326,7 @@
 			showTaskSelector = false;
 		} catch (e) {
 			console.error('Failed to link task', e);
+			toast.error('Failed to link task');
 		}
 	}
 

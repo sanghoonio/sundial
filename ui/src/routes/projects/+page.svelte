@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type {
 		ProjectResponse,
@@ -75,6 +76,7 @@
 			projects = res.projects;
 		} catch (e) {
 			console.error('Failed to load projects', e);
+			toast.error('Failed to load projects');
 		} finally {
 			loading = false;
 		}
@@ -123,6 +125,7 @@
 			}
 		} catch (e) {
 			console.error('Failed to load project', e);
+			toast.error('Failed to load project');
 			selectedProjectId = null;
 		} finally {
 			sidebarLoading = false;
@@ -175,6 +178,7 @@
 		} catch (e) {
 			saveStatus = 'error';
 			console.error('Failed to update project', e);
+			toast.error('Failed to update project');
 		} finally {
 			saving = false;
 		}
@@ -208,6 +212,7 @@
 			closeSidebar();
 		} catch (e) {
 			console.error('Failed to delete project', e);
+			toast.error('Failed to delete project');
 		}
 	}
 
@@ -241,6 +246,7 @@
 			selectProject(created.id);
 		} catch (e) {
 			console.error('Failed to create project', e);
+			toast.error('Failed to create project');
 		} finally {
 			creating = false;
 		}

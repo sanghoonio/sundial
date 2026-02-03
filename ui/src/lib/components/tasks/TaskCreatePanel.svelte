@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TaskCreate, TaskResponse, ChecklistItemCreate, ProjectResponse } from '$lib/types';
 	import { Plus, Trash2, Square, CheckSquare, StickyNote, X } from 'lucide-svelte';
@@ -51,6 +52,7 @@
 			onclose();
 		} catch (e) {
 			console.error('Failed to create task', e);
+			toast.error('Failed to create task');
 		} finally {
 			creating = false;
 		}

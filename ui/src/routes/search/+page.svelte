@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { SearchResult, SearchResultItem, TaskSearchResultItem } from '$lib/types';
 	import Card from '$lib/components/ui/Card.svelte';
@@ -43,6 +44,7 @@
 			results = await api.get<SearchResult>(`/api/search?${params}`);
 		} catch (e) {
 			console.error('Search failed', e);
+			toast.error('Search failed');
 		} finally {
 			loading = false;
 		}

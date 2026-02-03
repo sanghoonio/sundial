@@ -88,6 +88,7 @@
 			tasks = taskRes.tasks;
 		} catch (e) {
 			console.error('Failed to load calendar data', e);
+			toast.error('Failed to load calendar');
 		} finally {
 			loading = false;
 		}

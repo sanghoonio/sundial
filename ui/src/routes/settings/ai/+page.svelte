@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { SettingsResponse, SettingsUpdate } from '$lib/types';
-	import { ChevronLeft, Save, Check, CheckCircle, XCircle } from 'lucide-svelte';
+	import { ChevronLeft, Save, Check, CheckCircle, XCircle, Copy } from 'lucide-svelte';
 
 	let loading = $state(true);
 	let saveStatus: 'idle' | 'saving' | 'saved' | 'error' = $state('idle');
@@ -18,9 +19,29 @@
 	let nvidiaApiKey = $state('');
 	let nvidiaApiKeyOriginal = $state('');
 	let nvidiaModel = $state('nvidia/llama-3.1-nemotron-70b-instruct');
+	let mcpEnabled = $state(true);
+	let copiedConfig = $state(false);
 
 	let hasOpenrouterKey = $derived(openrouterApiKey.length > 0 && openrouterApiKey !== '');
 	let hasNvidiaKey = $derived(nvidiaApiKey.length > 0 && nvidiaApiKey !== '');
+
+	let mcpUrl = $derived(typeof window !== 'undefined' ? `${window.location.origin}/mcp/sse` : '');
+	let mcpConfig = $derived(JSON.stringify({
+		mcpServers: {
+			sundial: {
+				url: mcpUrl,
+				headers: {
+					Authorization: 'Bearer YOUR_API_TOKEN'
+				}
+			}
+		}
+	}, null, 2));
+
+	async function copyMcpConfig() {
+		await navigator.clipboard.writeText(mcpConfig);
+		copiedConfig = true;
+		setTimeout(() => { copiedConfig = false; }, 2000);
+	}
 
 	async function loadSettings() {
 		loading = true;
@@ -38,8 +59,10 @@
 			nvidiaApiKey = res.nvidia_api_key;
 			nvidiaApiKeyOriginal = res.nvidia_api_key;
 			nvidiaModel = res.nvidia_model;
+			mcpEnabled = res.mcp_enabled;
 		} catch (e) {
 			console.error('Failed to load settings', e);
+			toast.error('Failed to load AI settings');
 		} finally {
 			loading = false;
 		}
@@ -60,7 +83,8 @@
 				ai_daily_suggestions: aiDailySuggestions,
 				ai_provider: aiProvider,
 				openrouter_model: openrouterModel,
-				nvidia_model: nvidiaModel
+				nvidia_model: nvidiaModel,
+				mcp_enabled: mcpEnabled
 			};
 			// Only send API keys if changed (not the masked value)
 			if (openrouterApiKey !== openrouterApiKeyOriginal) {
@@ -82,17 +106,27 @@
 			nvidiaApiKey = res.nvidia_api_key;
 			nvidiaApiKeyOriginal = res.nvidia_api_key;
 			nvidiaModel = res.nvidia_model;
+			mcpEnabled = res.mcp_enabled;
 			saveStatus = 'saved';
 			showSavedText = true;
 			setTimeout(() => { showSavedText = false; }, 2000);
 			setTimeout(() => { if (saveStatus === 'saved') saveStatus = 'idle'; }, 2500);
 		} catch (e) {
 			console.error('Failed to save AI settings', e);
+			toast.error('Failed to save AI settings');
 			saveStatus = 'error';
 			setTimeout(() => { if (saveStatus === 'error') saveStatus = 'idle'; }, 2500);
 		}
 	}
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+			e.preventDefault();
+			handleSave();
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <!-- Header bar -->
 <div class="px-4 py-3 border-b border-base-300 shrink-0">
@@ -280,6 +314,66 @@
 				</div>
 				<input type="checkbox" class="toggle toggle-sm" bind:checked={aiDailySuggestions} />
 			</label>
+		{/if}
+
+		<!-- MCP Section -->
+		<div class="border-t border-base-300 pt-4 mt-4">
+			<p class="text-xs font-medium text-base-content/50 mb-3">MCP (Model Context Protocol)</p>
+		</div>
+
+		<label class="flex items-center justify-between cursor-pointer">
+			<div>
+				<p class="font-medium text-sm">Enable MCP Server</p>
+				<p class="text-xs text-base-content/60">Allow external AI clients like Claude Desktop to access your data</p>
+			</div>
+			<input type="checkbox" class="toggle toggle-sm" bind:checked={mcpEnabled} />
+		</label>
+
+		{#if mcpEnabled}
+			<div class="flex flex-col gap-3 mt-2 p-4 bg-base-200/50 rounded-lg">
+				<div>
+					<p class="font-medium text-sm mb-1">Setup Instructions</p>
+					<p class="text-xs text-base-content/60 mb-2">
+						To use Sundial with Claude Desktop, add this to your config file:
+					</p>
+					<ul class="text-xs text-base-content/60 list-disc list-inside mb-2">
+						<li><strong>macOS:</strong> ~/Library/Application Support/Claude/claude_desktop_config.json</li>
+						<li><strong>Windows:</strong> %APPDATA%\Claude\claude_desktop_config.json</li>
+					</ul>
+				</div>
+
+				<div class="flex flex-col gap-1">
+					<div class="flex items-center justify-between">
+						<p class="text-xs text-base-content/60">Configuration:</p>
+						<button
+							class="btn btn-ghost btn-xs gap-1"
+							onclick={copyMcpConfig}
+						>
+							{#if copiedConfig}
+								<Check size={12} class="text-success" />
+								<span class="text-success">Copied!</span>
+							{:else}
+								<Copy size={12} />
+								Copy
+							{/if}
+						</button>
+					</div>
+					<pre class="text-xs bg-base-300 p-3 rounded overflow-x-auto font-mono">{mcpConfig}</pre>
+				</div>
+
+				<div class="text-xs text-base-content/60">
+					<p class="mb-1"><strong>Steps:</strong></p>
+					<ol class="list-decimal list-inside space-y-1">
+						<li>Create an API token in <a href="/settings/tokens" class="link">Settings → Tokens</a></li>
+						<li>Replace <code class="bg-base-300 px-1 rounded">YOUR_API_TOKEN</code> with your token</li>
+						<li>Save the config file and restart Claude Desktop</li>
+					</ol>
+				</div>
+
+				<p class="text-xs text-base-content/50 mt-1">
+					The MCP server exposes 12 tools: search/list/create/update notes, list/create/update tasks, list projects, list tags, calendar events, and dashboard.
+				</p>
+			</div>
 		{/if}
 	</div>
 {/if}

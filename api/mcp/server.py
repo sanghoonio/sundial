@@ -15,8 +15,10 @@ from sqlalchemy.orm import selectinload
 from api.database import async_session
 from api.models.calendar import CalendarEvent
 from api.models.note import Note, NoteTag, Tag
+from api.models.project import Project
 from api.models.task import Task
 from api.services.block_parser import extract_markdown_text
+from api.services.note_service import create_note as service_create_note, update_note as service_update_note
 
 mcp_server = Server("sundial")
 
@@ -64,7 +66,7 @@ def _tool_list() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "status": {"type": "string", "description": "Filter by status (todo/in_progress/done)"},
+                    "status": {"type": "string", "description": "Filter by status (open/in_progress/done)", "enum": ["open", "in_progress", "done"]},
                     "project_id": {"type": "string", "description": "Filter by project ID"},
                     "limit": {"type": "integer", "description": "Max results (default 20)", "default": 20},
                 },
@@ -93,7 +95,7 @@ def _tool_list() -> list[Tool]:
                 "properties": {
                     "task_id": {"type": "string", "description": "Task ID"},
                     "title": {"type": "string", "description": "New title"},
-                    "status": {"type": "string", "description": "New status (todo/in_progress/done)"},
+                    "status": {"type": "string", "description": "New status (open/in_progress/done)", "enum": ["open", "in_progress", "done"]},
                     "priority": {"type": "string", "description": "New priority (low/medium/high)"},
                 },
                 "required": ["task_id"],
@@ -117,6 +119,50 @@ def _tool_list() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {},
+            },
+        ),
+        Tool(
+            name="list_projects",
+            description="List all projects. Returns project IDs, names, status, and task counts.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        Tool(
+            name="list_tags",
+            description="List all tags with usage counts.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        Tool(
+            name="create_note",
+            description="Create a new note. Returns the created note ID.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Note title"},
+                    "content": {"type": "string", "description": "Note content in markdown"},
+                    "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags to apply"},
+                    "project_id": {"type": "string", "description": "Project ID (default: none)"},
+                },
+                "required": ["title"],
+            },
+        ),
+        Tool(
+            name="update_note",
+            description="Update an existing note's title, content, or tags.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "note_id": {"type": "string", "description": "Note ID to update"},
+                    "title": {"type": "string", "description": "New title"},
+                    "content": {"type": "string", "description": "New content in markdown"},
+                    "tags": {"type": "array", "items": {"type": "string"}, "description": "Replace all tags with these"},
+                },
+                "required": ["note_id"],
             },
         ),
     ]
@@ -146,6 +192,14 @@ async def handle_call_tool(name: str, arguments: dict) -> list[TextContent]:
             return await _get_calendar_events(db, arguments)
         elif name == "get_dashboard":
             return await _get_dashboard(db, arguments)
+        elif name == "list_projects":
+            return await _list_projects(db, arguments)
+        elif name == "list_tags":
+            return await _list_tags(db, arguments)
+        elif name == "create_note":
+            return await _create_note(db, arguments)
+        elif name == "update_note":
+            return await _update_note(db, arguments)
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
@@ -399,3 +453,83 @@ async def _get_dashboard(db, args: dict) -> list[TextContent]:
             parts.append(f"- {n.title} (updated: {n.updated_at.strftime('%Y-%m-%d')})")
 
     return [TextContent(type="text", text="\n".join(parts))]
+
+
+async def _list_projects(db, args: dict) -> list[TextContent]:
+    result = await db.execute(
+        select(Project).order_by(Project.name)
+    )
+    projects = result.scalars().all()
+
+    if not projects:
+        return [TextContent(type="text", text="No projects found.")]
+
+    lines = []
+    for p in projects:
+        # Count tasks for this project
+        task_count_result = await db.execute(
+            select(func.count()).select_from(Task).where(Task.project_id == p.id)
+        )
+        task_count = task_count_result.scalar()
+
+        desc = f" - {p.description[:50]}..." if p.description and len(p.description) > 50 else (f" - {p.description}" if p.description else "")
+        lines.append(f"- **{p.name}** (id: {p.id}, status: {p.status}, tasks: {task_count}){desc}")
+
+    return [TextContent(type="text", text=f"Found {len(projects)} projects:\n\n" + "\n".join(lines))]
+
+
+async def _list_tags(db, args: dict) -> list[TextContent]:
+    # Get all tags with note counts
+    result = await db.execute(
+        select(Tag, func.count(NoteTag.note_id).label("note_count"))
+        .outerjoin(NoteTag, Tag.id == NoteTag.tag_id)
+        .group_by(Tag.id)
+        .order_by(Tag.name)
+    )
+    rows = result.all()
+
+    if not rows:
+        return [TextContent(type="text", text="No tags found.")]
+
+    lines = []
+    for tag, count in rows:
+        lines.append(f"- **{tag.name}** ({count} notes)")
+
+    return [TextContent(type="text", text=f"Found {len(rows)} tags:\n\n" + "\n".join(lines))]
+
+
+async def _create_note(db, args: dict) -> list[TextContent]:
+    title = args.get("title", "").strip()
+    if not title:
+        return [TextContent(type="text", text="Title is required.")]
+
+    content = args.get("content", "")
+    tags = args.get("tags", [])
+    project_id = args.get("project_id")
+
+    note = await service_create_note(db, title=title, content=content, tags=tags, project_id=project_id)
+
+    return [TextContent(type="text", text=f"Note created: **{note.title}** (id: {note.id})")]
+
+
+async def _update_note(db, args: dict) -> list[TextContent]:
+    note_id = args.get("note_id", "")
+    if not note_id:
+        return [TextContent(type="text", text="note_id is required.")]
+
+    # Check if note exists
+    result = await db.execute(select(Note).where(Note.id == note_id))
+    existing = result.scalar_one_or_none()
+    if not existing:
+        return [TextContent(type="text", text=f"Note '{note_id}' not found.")]
+
+    title = args.get("title")
+    content = args.get("content")
+    tags = args.get("tags")
+
+    note = await service_update_note(db, note_id=note_id, title=title, content=content, tags=tags)
+    if note is None:
+        return [TextContent(type="text", text=f"Failed to update note '{note_id}'.")]
+
+    tag_str = ", ".join(t.name for t in note.tags) if note.tags else "none"
+    return [TextContent(type="text", text=f"Note updated: **{note.title}** (id: {note.id})\nTags: {tag_str}")]

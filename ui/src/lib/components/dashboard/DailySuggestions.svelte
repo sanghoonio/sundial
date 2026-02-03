@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { DailySuggestionsResponse, SettingsResponse } from '$lib/types';
 	import Card from '$lib/components/ui/Card.svelte';
@@ -36,6 +37,7 @@
 			error = null;
 		} catch (e) {
 			console.error('Failed to load daily suggestions', e);
+			toast.error('Failed to load suggestions');
 			error = 'Failed to load suggestions';
 		} finally {
 			loading = false;

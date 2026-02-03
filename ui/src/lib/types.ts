@@ -412,6 +412,7 @@ export interface SettingsResponse {
 	calendar_source: string;
 	calendar_sync_enabled: boolean;
 	theme: string;
+	mcp_enabled: boolean;
 }
 
 export interface SettingsUpdate {
@@ -428,6 +429,7 @@ export interface SettingsUpdate {
 	calendar_source?: string;
 	calendar_sync_enabled?: boolean;
 	theme?: string;
+	mcp_enabled?: boolean;
 }
 
 // Calendar Settings (CalDAV)

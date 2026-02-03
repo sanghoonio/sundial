@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, NoteResponse, EventResponse } from '$lib/types';
 	import Modal from '$lib/components/ui/Modal.svelte';
@@ -87,6 +88,7 @@
 			open = false;
 		} catch (e) {
 			console.error('Failed to update task', e);
+			toast.error('Failed to update task');
 		} finally {
 			saving = false;
 		}
@@ -107,6 +109,7 @@
 			open = false;
 		} catch (e) {
 			console.error('Failed to delete task', e);
+			toast.error('Failed to delete task');
 		}
 	}
 

@@ -37,6 +37,13 @@
 		}
 	}
 
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+			e.preventDefault();
+			handleSaveUsername();
+		}
+	}
+
 	async function handleChangePassword() {
 		passwordMsg = null;
 		if (newPassword !== confirmPassword) {
@@ -64,6 +71,8 @@
 		}
 	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <!-- Header bar -->
 <div class="px-4 py-3 border-b border-base-300 shrink-0">

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, ProjectResponse, NoteResponse, NoteList, EventResponse } from '$lib/types';
 	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X, Save, Check, Link } from 'lucide-svelte';
@@ -56,7 +57,7 @@
 		}
 	});
 
-	// Fetch titles for linked notes
+	// Fetch titles for linked notes (batch fetch to avoid N+1)
 	$effect(() => {
 		const ids = noteIds;
 		if (ids.length === 0) {
@@ -64,14 +65,23 @@
 			fetchedNoteIds.clear();
 			return;
 		}
-		for (const id of ids) {
-			if (!fetchedNoteIds.has(id)) {
-				fetchedNoteIds.add(id);
+		const idsToFetch = ids.filter(id => !fetchedNoteIds.has(id));
+		if (idsToFetch.length === 0) return;
+
+		idsToFetch.forEach(id => fetchedNoteIds.add(id));
+
+		Promise.all(
+			idsToFetch.map(id =>
 				api.get<NoteResponse>(`/api/notes/${id}`)
-					.then((n) => { linkedNoteTitles[id] = n.title; linkedNoteTitles = linkedNoteTitles; })
-					.catch(() => { linkedNoteTitles[id] = 'Unknown note'; linkedNoteTitles = linkedNoteTitles; });
-			}
-		}
+					.then(n => ({ id, title: n.title }))
+					.catch(() => ({ id, title: 'Unknown note' }))
+			)
+		).then(results => {
+			results.forEach(({ id, title }) => {
+				linkedNoteTitles[id] = title;
+			});
+			linkedNoteTitles = linkedNoteTitles;
+		});
 	});
 
 	async function loadAvailableNotes() {
@@ -177,6 +187,7 @@
 		} catch (e) {
 			saveStatus = 'error';
 			console.error('Failed to update task', e);
+			toast.error('Failed to update task');
 		} finally {
 			saving = false;
 		}
@@ -210,6 +221,7 @@
 			ondeleted?.(task.id);
 		} catch (e) {
 			console.error('Failed to delete task', e);
+			toast.error('Failed to delete task');
 		}
 	}
 

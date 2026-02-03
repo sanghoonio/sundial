@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TokenListItem, ApiKeyCreatedResponse, CreateApiKeyRequest } from '$lib/types';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -21,6 +22,7 @@
 			tokens = await api.get<TokenListItem[]>('/api/auth/tokens');
 		} catch (e) {
 			console.error('Failed to load tokens', e);
+			toast.error('Failed to load tokens');
 		} finally {
 			loadingTokens = false;
 		}
@@ -36,6 +38,7 @@
 			tokens = tokens.filter((t) => t.id !== tokenId);
 		} catch (e: any) {
 			console.error('Failed to revoke token', e);
+			toast.error('Failed to revoke token');
 		}
 	}
 
@@ -50,6 +53,7 @@
 			loadTokens();
 		} catch (e: any) {
 			console.error('Failed to create API key', e);
+			toast.error('Failed to create API key');
 		} finally {
 			creatingKey = false;
 		}
