@@ -27,6 +27,7 @@ class TaskCreate(BaseModel):
     source_note_id: str | None = None
     calendar_event_id: str | None = None
     checklist: list[ChecklistItemCreate] = []
+    note_ids: list[str] = []
 
 
 class TaskUpdate(BaseModel):
@@ -38,6 +39,7 @@ class TaskUpdate(BaseModel):
     project_id: str | None = None
     milestone_id: str | None = None
     checklist: list[ChecklistItemCreate] | None = None
+    note_ids: list[str] | None = None
 
 
 class TaskMove(BaseModel):
@@ -60,6 +62,7 @@ class TaskResponse(BaseModel):
     position: int
     completed_at: datetime | None
     checklist: list[ChecklistItemResponse]
+    note_ids: list[str] = []
     created_at: datetime
     updated_at: datetime
 

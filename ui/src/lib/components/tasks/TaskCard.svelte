@@ -135,9 +135,6 @@
 				{/if}
 			</div>
 
-			{#if !compact && fullTask?.description}
-				<p class="text-xs text-base-content/50 line-clamp-2">{fullTask.description}</p>
-			{/if}
 
 			{#if !compact}
 				{@const hasMetadata = task.due_date || hasLinkedEvent}

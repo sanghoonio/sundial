@@ -61,6 +61,7 @@ export interface ChatBlockData {
 	type: 'chat';
 	content?: string;
 	messages: ChatMessage[];
+	initialPrompt?: string;
 }
 
 export type NoteBlock = MarkdownBlockData | ChatBlockData;
@@ -173,6 +174,7 @@ export interface TaskCreate {
 	source_note_id?: string | null;
 	calendar_event_id?: string | null;
 	checklist?: ChecklistItemCreate[];
+	note_ids?: string[];
 }
 
 export interface TaskUpdate {
@@ -184,6 +186,7 @@ export interface TaskUpdate {
 	project_id?: string;
 	milestone_id?: string | null;
 	checklist?: ChecklistItemCreate[];
+	note_ids?: string[];
 }
 
 export interface TaskMove {
@@ -206,6 +209,7 @@ export interface TaskResponse {
 	position: number;
 	completed_at: string | null;
 	checklist: ChecklistItemResponse[];
+	note_ids: string[];
 	created_at: string;
 	updated_at: string;
 }
@@ -400,8 +404,11 @@ export interface SettingsResponse {
 	ai_auto_extract_tasks: boolean;
 	ai_auto_link_events: boolean;
 	ai_daily_suggestions: boolean;
+	ai_provider: string;
 	openrouter_api_key: string;
 	openrouter_model: string;
+	nvidia_api_key: string;
+	nvidia_model: string;
 	calendar_source: string;
 	calendar_sync_enabled: boolean;
 	theme: string;
@@ -413,8 +420,11 @@ export interface SettingsUpdate {
 	ai_auto_extract_tasks?: boolean;
 	ai_auto_link_events?: boolean;
 	ai_daily_suggestions?: boolean;
+	ai_provider?: string;
 	openrouter_api_key?: string;
 	openrouter_model?: string;
+	nvidia_api_key?: string;
+	nvidia_model?: string;
 	calendar_source?: string;
 	calendar_sync_enabled?: boolean;
 	theme?: string;

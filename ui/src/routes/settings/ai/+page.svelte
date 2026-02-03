@@ -1,20 +1,26 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
 	import type { SettingsResponse, SettingsUpdate } from '$lib/types';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { ChevronLeft, Save, CheckCircle, XCircle } from 'lucide-svelte';
+	import { ChevronLeft, Save, Check, CheckCircle, XCircle } from 'lucide-svelte';
 
 	let loading = $state(true);
-	let saving = $state(false);
+	let saveStatus: 'idle' | 'saving' | 'saved' | 'error' = $state('idle');
+	let showSavedText = $state(false);
 	let aiEnabled = $state(false);
 	let aiAutoTag = $state(true);
 	let aiAutoExtractTasks = $state(true);
 	let aiAutoLinkEvents = $state(true);
 	let aiDailySuggestions = $state(true);
+	let aiProvider = $state('openrouter');
 	let openrouterApiKey = $state('');
 	let openrouterApiKeyOriginal = $state('');
 	let openrouterModel = $state('anthropic/claude-sonnet-4');
-	let hasApiKey = $state(false);
+	let nvidiaApiKey = $state('');
+	let nvidiaApiKeyOriginal = $state('');
+	let nvidiaModel = $state('nvidia/llama-3.1-nemotron-70b-instruct');
+
+	let hasOpenrouterKey = $derived(openrouterApiKey.length > 0 && openrouterApiKey !== '');
+	let hasNvidiaKey = $derived(nvidiaApiKey.length > 0 && nvidiaApiKey !== '');
 
 	async function loadSettings() {
 		loading = true;
@@ -25,10 +31,13 @@
 			aiAutoExtractTasks = res.ai_auto_extract_tasks;
 			aiAutoLinkEvents = res.ai_auto_link_events;
 			aiDailySuggestions = res.ai_daily_suggestions;
+			aiProvider = res.ai_provider;
 			openrouterApiKey = res.openrouter_api_key;
 			openrouterApiKeyOriginal = res.openrouter_api_key;
 			openrouterModel = res.openrouter_model;
-			hasApiKey = res.openrouter_api_key.length > 0 && res.openrouter_api_key !== '';
+			nvidiaApiKey = res.nvidia_api_key;
+			nvidiaApiKeyOriginal = res.nvidia_api_key;
+			nvidiaModel = res.nvidia_model;
 		} catch (e) {
 			console.error('Failed to load settings', e);
 		} finally {
@@ -41,7 +50,7 @@
 	});
 
 	async function handleSave() {
-		saving = true;
+		saveStatus = 'saving';
 		try {
 			const update: SettingsUpdate = {
 				ai_enabled: aiEnabled,
@@ -49,11 +58,16 @@
 				ai_auto_extract_tasks: aiAutoExtractTasks,
 				ai_auto_link_events: aiAutoLinkEvents,
 				ai_daily_suggestions: aiDailySuggestions,
-				openrouter_model: openrouterModel
+				ai_provider: aiProvider,
+				openrouter_model: openrouterModel,
+				nvidia_model: nvidiaModel
 			};
-			// Only send API key if it was changed (not the masked value)
+			// Only send API keys if changed (not the masked value)
 			if (openrouterApiKey !== openrouterApiKeyOriginal) {
 				update.openrouter_api_key = openrouterApiKey;
+			}
+			if (nvidiaApiKey !== nvidiaApiKeyOriginal) {
+				update.nvidia_api_key = nvidiaApiKey;
 			}
 			const res = await api.put<SettingsResponse>('/api/settings', update);
 			aiEnabled = res.ai_enabled;
@@ -61,14 +75,21 @@
 			aiAutoExtractTasks = res.ai_auto_extract_tasks;
 			aiAutoLinkEvents = res.ai_auto_link_events;
 			aiDailySuggestions = res.ai_daily_suggestions;
+			aiProvider = res.ai_provider;
 			openrouterApiKey = res.openrouter_api_key;
 			openrouterApiKeyOriginal = res.openrouter_api_key;
 			openrouterModel = res.openrouter_model;
-			hasApiKey = res.openrouter_api_key.length > 0 && res.openrouter_api_key !== '';
+			nvidiaApiKey = res.nvidia_api_key;
+			nvidiaApiKeyOriginal = res.nvidia_api_key;
+			nvidiaModel = res.nvidia_model;
+			saveStatus = 'saved';
+			showSavedText = true;
+			setTimeout(() => { showSavedText = false; }, 2000);
+			setTimeout(() => { if (saveStatus === 'saved') saveStatus = 'idle'; }, 2500);
 		} catch (e) {
 			console.error('Failed to save AI settings', e);
-		} finally {
-			saving = false;
+			saveStatus = 'error';
+			setTimeout(() => { if (saveStatus === 'error') saveStatus = 'idle'; }, 2500);
 		}
 	}
 </script>
@@ -79,7 +100,26 @@
 		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
 			<ChevronLeft size={18} />
 		</a>
-		<h2 class="font-semibold">AI Features</h2>
+		<h2 class="font-semibold flex-1">AI Features</h2>
+		<button
+			class="btn btn-ghost btn-sm"
+			onclick={handleSave}
+			disabled={saveStatus === 'saving'}
+			title="Save"
+		>
+			{#if saveStatus === 'saving'}
+				<span class="loading loading-spinner loading-xs"></span>
+			{:else if saveStatus === 'saved'}
+				<Check size={16} class="text-success" />
+				{#if showSavedText}
+					<span class="text-xs text-success">Saved!</span>
+				{/if}
+			{:else if saveStatus === 'error'}
+				<Save size={16} class="text-error" />
+			{:else}
+				<Save size={16} />
+			{/if}
+		</button>
 	</div>
 </div>
 
@@ -104,45 +144,102 @@
 			<div class="border-t border-base-300 pt-4 mt-4"></div>
 
 			<div class="flex flex-col gap-1">
-				<label class="font-medium text-sm" for="api-key">OpenRouter API Key</label>
-				<div class="flex items-center gap-2">
-					<input
-						id="api-key"
-						type="password"
-						class="input input-bordered input-sm flex-1"
-						placeholder="sk-or-..."
-						bind:value={openrouterApiKey}
-					/>
-					{#if hasApiKey}
-						<span class="text-success flex items-center gap-1 text-xs">
-							<CheckCircle size={14} />
-							Configured
-						</span>
-					{:else}
-						<span class="text-warning flex items-center gap-1 text-xs">
-							<XCircle size={14} />
-							Not set
-						</span>
-					{/if}
+				<p class="font-medium text-sm">AI Provider</p>
+				<div class="flex gap-4">
+					<label class="flex items-center gap-2 cursor-pointer">
+						<input type="radio" value="openrouter" bind:group={aiProvider} class="radio radio-sm" />
+						<span class="text-sm">OpenRouter</span>
+					</label>
+					<label class="flex items-center gap-2 cursor-pointer">
+						<input type="radio" value="nvidia" bind:group={aiProvider} class="radio radio-sm" />
+						<span class="text-sm">NVIDIA</span>
+					</label>
 				</div>
-				<p class="text-xs text-base-content/50">
-					Get an API key from <a href="https://openrouter.ai/keys" target="_blank" class="link">openrouter.ai/keys</a>
-				</p>
 			</div>
 
-			<div class="flex flex-col gap-1">
-				<label class="font-medium text-sm" for="model">Model</label>
-				<input
-					id="model"
-					type="text"
-					class="input input-bordered input-sm"
-					placeholder="anthropic/claude-sonnet-4"
-					bind:value={openrouterModel}
-				/>
-				<p class="text-xs text-base-content/50">
-					OpenRouter model ID. Browse models at <a href="https://openrouter.ai/models" target="_blank" class="link">openrouter.ai/models</a>
-				</p>
-			</div>
+			{#if aiProvider === 'openrouter'}
+				<div class="flex flex-col gap-1">
+					<label class="font-medium text-sm" for="openrouter-api-key">OpenRouter API Key</label>
+					<div class="flex items-center gap-2">
+						<input
+							id="openrouter-api-key"
+							type="password"
+							class="input input-bordered input-sm flex-1"
+							placeholder="sk-or-..."
+							bind:value={openrouterApiKey}
+						/>
+						{#if hasOpenrouterKey}
+							<span class="text-success flex items-center gap-1 text-xs">
+								<CheckCircle size={14} />
+								Configured
+							</span>
+						{:else}
+							<span class="text-warning flex items-center gap-1 text-xs">
+								<XCircle size={14} />
+								Not set
+							</span>
+						{/if}
+					</div>
+					<p class="text-xs text-base-content/50">
+						Get an API key from <a href="https://openrouter.ai/keys" target="_blank" class="link">openrouter.ai/keys</a>
+					</p>
+				</div>
+
+				<div class="flex flex-col gap-1">
+					<label class="font-medium text-sm" for="openrouter-model">Model</label>
+					<input
+						id="openrouter-model"
+						type="text"
+						class="input input-bordered input-sm"
+						placeholder="anthropic/claude-sonnet-4"
+						bind:value={openrouterModel}
+					/>
+					<p class="text-xs text-base-content/50">
+						OpenRouter model ID. Browse models at <a href="https://openrouter.ai/models" target="_blank" class="link">openrouter.ai/models</a>
+					</p>
+				</div>
+			{:else}
+				<div class="flex flex-col gap-1">
+					<label class="font-medium text-sm" for="nvidia-api-key">NVIDIA API Key</label>
+					<div class="flex items-center gap-2">
+						<input
+							id="nvidia-api-key"
+							type="password"
+							class="input input-bordered input-sm flex-1"
+							placeholder="nvapi-..."
+							bind:value={nvidiaApiKey}
+						/>
+						{#if hasNvidiaKey}
+							<span class="text-success flex items-center gap-1 text-xs">
+								<CheckCircle size={14} />
+								Configured
+							</span>
+						{:else}
+							<span class="text-warning flex items-center gap-1 text-xs">
+								<XCircle size={14} />
+								Not set
+							</span>
+						{/if}
+					</div>
+					<p class="text-xs text-base-content/50">
+						Get an API key from <a href="https://build.nvidia.com" target="_blank" class="link">build.nvidia.com</a>
+					</p>
+				</div>
+
+				<div class="flex flex-col gap-1">
+					<label class="font-medium text-sm" for="nvidia-model">Model</label>
+					<input
+						id="nvidia-model"
+						type="text"
+						class="input input-bordered input-sm"
+						placeholder="nvidia/llama-3.1-nemotron-70b-instruct"
+						bind:value={nvidiaModel}
+					/>
+					<p class="text-xs text-base-content/50">
+						NVIDIA model ID. Browse models at <a href="https://build.nvidia.com/models" target="_blank" class="link">build.nvidia.com/models</a>
+					</p>
+				</div>
+			{/if}
 
 			<div class="border-t border-base-300 pt-4 mt-2">
 				<p class="text-xs font-medium text-base-content/50 mb-3">Background Processing</p>
@@ -184,13 +281,6 @@
 				<input type="checkbox" class="toggle toggle-sm" bind:checked={aiDailySuggestions} />
 			</label>
 		{/if}
-
-		<div class="pt-2">
-			<Button variant="primary" size="sm" loading={saving} onclick={handleSave}>
-				<Save size={14} />
-				Save
-			</Button>
-		</div>
 	</div>
 {/if}
 </div>

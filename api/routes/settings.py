@@ -8,6 +8,7 @@ from api.database import get_db
 from api.models.settings import UserSettings
 from api.schemas.settings import SettingsResponse, SettingsUpdate
 from api.utils.auth import get_current_user
+from api.utils.encryption import decrypt_value, encrypt_value
 
 router = APIRouter(prefix="/settings", tags=["settings"], dependencies=[Depends(get_current_user)])
 
@@ -18,15 +19,18 @@ _SETTINGS_KEYS = {
     "ai_auto_extract_tasks": ("bool", False),
     "ai_auto_link_events": ("bool", False),
     "ai_daily_suggestions": ("bool", True),
+    "ai_provider": ("str", "openrouter"),
     "openrouter_api_key": ("str", ""),
     "openrouter_model": ("str", "anthropic/claude-sonnet-4"),
+    "nvidia_api_key": ("str", ""),
+    "nvidia_model": ("str", "nvidia/llama-3.1-nemotron-70b-instruct"),
     "calendar_source": ("str", ""),
     "calendar_sync_enabled": ("bool", False),
     "theme": ("str", "light"),
 }
 
 # Keys that should be masked in GET responses
-_MASKED_KEYS = {"openrouter_api_key"}
+_MASKED_KEYS = {"openrouter_api_key", "nvidia_api_key"}
 
 
 def _parse_value(raw: str, vtype: str):
@@ -49,9 +53,11 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
         else:
             data[key] = default
 
-    # Mask sensitive keys
+    # Decrypt and mask sensitive keys
     for key in _MASKED_KEYS:
         val = data.get(key, "")
+        if val:
+            val = decrypt_value(val)
         if val and len(val) > 4:
             data[key] = "****" + val[-4:]
         elif val:
@@ -75,6 +81,10 @@ async def update_settings(body: SettingsUpdate, db: AsyncSession = Depends(get_d
             str_value = "true" if value else "false"
         else:
             str_value = str(value)
+
+        # Encrypt sensitive keys
+        if key in _MASKED_KEYS and str_value:
+            str_value = encrypt_value(str_value)
 
         result = await db.execute(select(UserSettings).where(UserSettings.key == key))
         existing = result.scalar_one_or_none()

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models.settings import UserSettings
+from api.utils.encryption import decrypt_value
 from api.services.ai_prompts import (
     SYSTEM_AUTO_TAG,
     SYSTEM_CHAT,
@@ -18,19 +19,38 @@ from api.services.ai_prompts import (
 logger = logging.getLogger(__name__)
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 MAX_CONTENT_CHARS = 8000
 
 
 async def _get_config(db: AsyncSession) -> dict:
     """Read AI config from user_settings table."""
-    keys = ["openrouter_api_key", "openrouter_model", "ai_enabled"]
+    keys = [
+        "ai_enabled", "ai_provider",
+        "openrouter_api_key", "openrouter_model",
+        "nvidia_api_key", "nvidia_model",
+    ]
     result = await db.execute(
         select(UserSettings).where(UserSettings.key.in_(keys))
     )
     rows = {row.key: row.value for row in result.scalars().all()}
+
+    provider = rows.get("ai_provider", "openrouter")
+
+    if provider == "nvidia":
+        api_key = rows.get("nvidia_api_key", "")
+        model = rows.get("nvidia_model", "nvidia/llama-3.1-nemotron-70b-instruct")
+    else:
+        api_key = rows.get("openrouter_api_key", "")
+        model = rows.get("openrouter_model", "anthropic/claude-sonnet-4")
+
+    if api_key:
+        api_key = decrypt_value(api_key)
+
     return {
-        "api_key": rows.get("openrouter_api_key", ""),
-        "model": rows.get("openrouter_model", "anthropic/claude-sonnet-4"),
+        "provider": provider,
+        "api_key": api_key,
+        "model": model,
         "enabled": rows.get("ai_enabled", "false").lower() == "true",
     }
 
@@ -74,6 +94,57 @@ async def _call_openrouter(
     return choices[0]["message"]["content"]
 
 
+async def _call_nvidia(
+    api_key: str,
+    model: str,
+    messages: list[dict],
+    temperature: float = 0.3,
+    max_tokens: int = 1024,
+) -> str:
+    """Call NVIDIA chat completions API. Returns the assistant message content."""
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(NVIDIA_URL, json=payload, headers=headers)
+
+        if resp.status_code == 429:
+            raise RuntimeError("Rate limited by NVIDIA. Please try again later.")
+        if resp.status_code == 401:
+            raise RuntimeError("Invalid NVIDIA API key. Check your settings.")
+
+        resp.raise_for_status()
+        data = resp.json()
+
+    choices = data.get("choices", [])
+    if not choices:
+        raise RuntimeError("No response from AI model.")
+
+    return choices[0]["message"]["content"]
+
+
+async def _call_provider(
+    provider: str,
+    api_key: str,
+    model: str,
+    messages: list[dict],
+    temperature: float = 0.3,
+    max_tokens: int = 1024,
+) -> str:
+    """Route to the appropriate provider API."""
+    if provider == "nvidia":
+        return await _call_nvidia(api_key, model, messages, temperature, max_tokens)
+    return await _call_openrouter(api_key, model, messages, temperature, max_tokens)
+
+
 def _parse_json_response(text: str) -> any:
     """Parse JSON from LLM response, stripping markdown code block wrappers."""
     text = text.strip()
@@ -101,7 +172,7 @@ async def chat(
     if not config["enabled"]:
         return {"error": "AI is disabled. Enable it in Settings."}
     if not config["api_key"]:
-        return {"error": "OpenRouter API key not configured. Add it in Settings > AI."}
+        return {"error": "API key not configured. Add it in Settings > AI."}
 
     messages = [{"role": "system", "content": SYSTEM_CHAT}]
 
@@ -111,8 +182,9 @@ async def chat(
     messages.append({"role": "user", "content": message})
 
     try:
-        response = await _call_openrouter(
-            config["api_key"], config["model"], messages, temperature=0.5, max_tokens=2048,
+        response = await _call_provider(
+            config["provider"], config["api_key"], config["model"], messages,
+            temperature=0.5, max_tokens=2048,
         )
         return {"response": response}
     except Exception as e:
@@ -137,8 +209,9 @@ async def auto_tag(
     ]
 
     try:
-        response = await _call_openrouter(
-            config["api_key"], config["model"], messages, temperature=0.2, max_tokens=256,
+        response = await _call_provider(
+            config["provider"], config["api_key"], config["model"], messages,
+            temperature=0.2, max_tokens=256,
         )
         tags = _parse_json_response(response)
         if isinstance(tags, list):
@@ -166,8 +239,9 @@ async def extract_tasks(
     ]
 
     try:
-        response = await _call_openrouter(
-            config["api_key"], config["model"], messages, temperature=0.2, max_tokens=512,
+        response = await _call_provider(
+            config["provider"], config["api_key"], config["model"], messages,
+            temperature=0.2, max_tokens=512,
         )
         tasks = _parse_json_response(response)
         if isinstance(tasks, list):
@@ -199,8 +273,9 @@ async def link_events(
     ]
 
     try:
-        response = await _call_openrouter(
-            config["api_key"], config["model"], messages, temperature=0.1, max_tokens=256,
+        response = await _call_provider(
+            config["provider"], config["api_key"], config["model"], messages,
+            temperature=0.1, max_tokens=256,
         )
         ids = _parse_json_response(response)
         if isinstance(ids, list):
@@ -239,8 +314,9 @@ async def daily_suggestions(
     ]
 
     try:
-        response = await _call_openrouter(
-            config["api_key"], config["model"], messages, temperature=0.4, max_tokens=512,
+        response = await _call_provider(
+            config["provider"], config["api_key"], config["model"], messages,
+            temperature=0.4, max_tokens=512,
         )
         result = _parse_json_response(response)
         if isinstance(result, dict):

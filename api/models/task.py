@@ -33,6 +33,7 @@ class Task(Base):
     project = relationship("Project", back_populates="tasks")
     milestone = relationship("ProjectMilestone", back_populates="tasks")
     checklist = relationship("TaskChecklist", back_populates="task", cascade="all, delete-orphan", order_by="TaskChecklist.position")
+    notes = relationship("TaskNote", back_populates="task", cascade="all, delete-orphan")
 
 
 class TaskChecklist(Base):
@@ -45,3 +46,14 @@ class TaskChecklist(Base):
     position = Column(Integer, default=0)
 
     task = relationship("Task", back_populates="checklist")
+
+
+class TaskNote(Base):
+    __tablename__ = "task_notes"
+
+    id = Column(String, primary_key=True, default=lambda: f"tn_{uuid.uuid4().hex[:8]}")
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    note_id = Column(String, ForeignKey("notes.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    task = relationship("Task", back_populates="notes")

@@ -26,6 +26,7 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)):
         source_note_id=body.source_note_id,
         calendar_event_id=body.calendar_event_id,
         checklist=checklist,
+        note_ids=body.note_ids if body.note_ids else None,
     )
     resp = _task_to_response(task)
     await manager.broadcast("task_created", {"id": task.id, "title": task.title})
@@ -79,6 +80,7 @@ async def update_task(task_id: str, body: TaskUpdate, db: AsyncSession = Depends
         project_id=body.project_id,
         milestone_id=body.milestone_id,
         checklist=checklist,
+        note_ids=body.note_ids,
     )
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -148,6 +150,7 @@ def _task_to_response(task) -> TaskResponse:
             {"id": c.id, "text": c.text, "is_checked": c.is_checked, "position": c.position}
             for c in task.checklist
         ],
+        note_ids=[n.note_id for n in task.notes],
         created_at=task.created_at,
         updated_at=task.updated_at,
     )

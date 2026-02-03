@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/services/api';
-	import type { NoteResponse, NoteUpdate, LinksResponse, NoteBlock, ProjectList, ProjectResponse } from '$lib/types';
+	import type { NoteResponse, NoteUpdate, LinksResponse, NoteBlock, ProjectList, ProjectResponse, TaskList } from '$lib/types';
 	import { newBlockId } from '$lib/utils/blocks';
 	import TagInput from '$lib/components/notes/TagInput.svelte';
 	import ProjectSelect from '$lib/components/notes/ProjectSelect.svelte';
@@ -10,7 +10,8 @@
 	import { notesList } from '$lib/stores/noteslist.svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 	import TaskCreatePanel from '$lib/components/tasks/TaskCreatePanel.svelte';
-	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays, ArrowUpLeft } from 'lucide-svelte';
+	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays, ArrowUpLeft, X, Link } from 'lucide-svelte';
+	import type { TaskResponse } from '$lib/types';
 
 	let note = $state<NoteResponse | null>(null);
 	let links = $state<LinksResponse | null>(null);
@@ -29,6 +30,12 @@
 	let createTaskOpen = $state(false);
 	let createTaskProjectId = $state('');
 	let createTaskProjects = $state<ProjectResponse[]>([]);
+
+	// Link existing task
+	let showTaskSelector = $state(false);
+	let availableTasks = $state<{ id: string; title: string }[]>([]);
+	let taskSearchQuery = $state('');
+	let loadingTasks = $state(false);
 
 	let noteId = $derived(page.params.id);
 	let loaded = $state(false);
@@ -264,6 +271,62 @@
 	let hasNotes = $derived(
 		links && (links.outgoing_notes.length > 0 || links.incoming_notes.length > 0)
 	);
+
+	async function unlinkTask(taskId: string) {
+		if (!noteId) return;
+		try {
+			// Get the task to find its current note_ids
+			const task = await api.get<TaskResponse>(`/api/tasks/${taskId}`);
+			// Remove this note from the task's note_ids
+			const updatedNoteIds = (task.note_ids || []).filter((id) => id !== noteId);
+			await api.put(`/api/tasks/${taskId}`, { note_ids: updatedNoteIds });
+			// Refresh links
+			links = await api.get<LinksResponse>(`/api/notes/${noteId}/links`);
+		} catch (e) {
+			console.error('Failed to unlink task', e);
+		}
+	}
+
+	async function loadAvailableTasks() {
+		loadingTasks = true;
+		try {
+			const res = await api.get<TaskList>(`/api/tasks?limit=50`);
+			availableTasks = res.tasks.map((t) => ({ id: t.id, title: t.title }));
+		} catch {
+			availableTasks = [];
+		} finally {
+			loadingTasks = false;
+		}
+	}
+
+	function openTaskSelector() {
+		showTaskSelector = true;
+		taskSearchQuery = '';
+		loadAvailableTasks();
+	}
+
+	async function linkTask(taskId: string) {
+		if (!noteId) return;
+		try {
+			// Get the task to find its current note_ids
+			const task = await api.get<TaskResponse>(`/api/tasks/${taskId}`);
+			// Add this note to the task's note_ids if not already there
+			const currentNoteIds = task.note_ids || [];
+			if (!currentNoteIds.includes(noteId)) {
+				await api.put(`/api/tasks/${taskId}`, { note_ids: [...currentNoteIds, noteId] });
+			}
+			// Refresh links
+			links = await api.get<LinksResponse>(`/api/notes/${noteId}/links`);
+			showTaskSelector = false;
+		} catch (e) {
+			console.error('Failed to link task', e);
+		}
+	}
+
+	// Get IDs of already linked tasks
+	let linkedTaskIds = $derived(
+		links ? [...links.outgoing_tasks.map(t => t.id), ...links.incoming_tasks.map(t => t.id)] : []
+	);
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -383,31 +446,94 @@
 		<div class="mt-8 border-t border-base-300 pt-4">
 			<div class="flex items-center justify-between mb-2">
 				<h3 class="font-semibold text-sm text-base-content/60">Links</h3>
-				{#if createTaskProjectId}
-					<button class="btn btn-ghost btn-xs gap-1" onclick={() => (createTaskOpen = true)}>
-						<Plus size={14} />
-						Create task
+				<div class="flex items-center gap-1">
+					{#if createTaskProjectId}
+						<button class="btn btn-ghost btn-xs gap-1" onclick={() => (createTaskOpen = true)}>
+							<Plus size={14} />
+							Create task
+						</button>
+					{/if}
+					<button class="btn btn-ghost btn-xs gap-1" onclick={openTaskSelector}>
+						<Link size={14} />
+						Link task
 					</button>
-				{/if}
+				</div>
 			</div>
+
+			<!-- Task selector dropdown -->
+			{#if showTaskSelector}
+				<div class="mb-3 p-2 border border-base-300 rounded-lg bg-base-200">
+					<input
+						type="text"
+						class="input input-bordered input-xs w-full mb-2"
+						placeholder="Search tasks..."
+						bind:value={taskSearchQuery}
+					/>
+					{#if loadingTasks}
+						<div class="flex justify-center py-2">
+							<span class="loading loading-spinner loading-xs"></span>
+						</div>
+					{:else}
+						{@const filteredTasks = availableTasks.filter((t) =>
+							!linkedTaskIds.includes(t.id) &&
+							(!taskSearchQuery || t.title.toLowerCase().includes(taskSearchQuery.toLowerCase()))
+						)}
+						{#if filteredTasks.length > 0}
+							<div class="max-h-32 overflow-y-auto flex flex-col gap-0.5">
+								{#each filteredTasks as task}
+									<button
+										class="text-left text-xs px-2 py-1 rounded hover:bg-base-300 truncate"
+										onclick={() => linkTask(task.id)}
+									>
+										{task.title}
+									</button>
+								{/each}
+							</div>
+						{:else}
+							<p class="text-xs text-base-content/50 text-center py-2">No tasks found</p>
+						{/if}
+					{/if}
+					<button class="btn btn-ghost btn-xs w-full mt-1" onclick={() => (showTaskSelector = false)}>
+						Cancel
+					</button>
+				</div>
+			{/if}
 
 			{#if hasAnyLinks && links}
 				<!-- Tasks -->
 				{#if hasTasks}
-					<div class="mb-3 leading-tight">
-						<span class="text-xs text-base-content/40 uppercase tracking-wide block">Tasks</span>
+					<div class="mb-3">
+						<span class="text-xs text-base-content/40 uppercase tracking-wide block mb-1">Tasks</span>
 						{#each links.outgoing_tasks as task}
-							<a href="/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
-								<span>{task.title}</span>
-								<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
-							</a><br>
+							<div class="flex items-center gap-1 group">
+								<a href="/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+									<span>{task.title}</span>
+									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
+								</a>
+								<button
+									class="opacity-0 group-hover:opacity-100 hover:text-error transition-all cursor-pointer shrink-0"
+									onclick={() => unlinkTask(task.id)}
+									title="Unlink task"
+								>
+									<X size={12} />
+								</button>
+							</div>
 						{/each}
 						{#each links.incoming_tasks as task}
-							<a href="/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
-								<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
-								<span>{task.title}</span>
-								<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
-							</a><br>
+							<div class="flex items-center gap-1 group">
+								<a href="/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+									<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
+									<span>{task.title}</span>
+									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
+								</a>
+								<button
+									class="opacity-0 group-hover:opacity-100 hover:text-error transition-all cursor-pointer shrink-0"
+									onclick={() => unlinkTask(task.id)}
+									title="Unlink task"
+								>
+									<X size={12} />
+								</button>
+							</div>
 						{/each}
 					</div>
 				{/if}

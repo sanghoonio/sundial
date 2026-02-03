@@ -63,6 +63,27 @@ async def init_database():
             except Exception:
                 pass  # column already exists
 
+        # Migrate: create task_notes junction table for multiple linked notes
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS task_notes (
+                id VARCHAR PRIMARY KEY,
+                task_id VARCHAR NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                note_id VARCHAR NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+                created_at DATETIME
+            )
+        """))
+
+        # Migrate: copy existing source_note_id values to task_notes
+        try:
+            await conn.execute(text("""
+                INSERT OR IGNORE INTO task_notes (id, task_id, note_id, created_at)
+                SELECT 'tn_' || substr(hex(randomblob(4)), 1, 8), id, source_note_id, created_at
+                FROM tasks
+                WHERE source_note_id IS NOT NULL
+            """))
+        except Exception:
+            pass  # already migrated
+
     # Seed default data
     from api.database import async_session
     from api.models.project import Project, ProjectMilestone

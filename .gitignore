@@ -12,6 +12,7 @@ env/
 
 # Environment
 .env
+.encryption_key
 
 # Database
 *.db

@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.models.task import Task, TaskChecklist
+from api.models.task import Task, TaskChecklist, TaskNote
 
 # Sentinel to distinguish "not provided" from explicit None
 _UNSET: Any = object()
@@ -22,6 +22,7 @@ async def create_task(
     source_note_id: str | None = None,
     calendar_event_id: str | None = None,
     checklist: list[dict] | None = None,
+    note_ids: list[str] | None = None,
 ) -> Task:
     # Get next position in milestone
     pos_result = await db.execute(
@@ -53,14 +54,21 @@ async def create_task(
                 position=i,
             ))
 
+    if note_ids:
+        for note_id in note_ids:
+            db.add(TaskNote(task_id=task.id, note_id=note_id))
+
     await db.commit()
-    await db.refresh(task, attribute_names=["checklist"])
+    await db.refresh(task, attribute_names=["checklist", "notes"])
     return task
 
 
 async def get_task(db: AsyncSession, task_id: str) -> Task | None:
     result = await db.execute(
-        select(Task).where(Task.id == task_id).options(selectinload(Task.checklist))
+        select(Task).where(Task.id == task_id).options(
+            selectinload(Task.checklist),
+            selectinload(Task.notes)
+        )
     )
     return result.scalar_one_or_none()
 
@@ -76,7 +84,7 @@ async def list_tasks(
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[Task], int]:
-    query = select(Task).options(selectinload(Task.checklist)).order_by(Task.position)
+    query = select(Task).options(selectinload(Task.checklist), selectinload(Task.notes)).order_by(Task.position)
 
     if project_id:
         query = query.where(Task.project_id == project_id)
@@ -122,6 +130,7 @@ async def update_task(
     project_id: str | None = None,
     milestone_id: str | None = _UNSET,
     checklist: list[dict] | None = None,
+    note_ids: list[str] | None = None,
 ) -> Task | None:
     task = await get_task(db, task_id)
     if task is None:
@@ -176,9 +185,19 @@ async def update_task(
                 position=i,
             ))
 
+    if note_ids is not None:
+        # Replace note links
+        for note_link in task.notes:
+            await db.delete(note_link)
+        await db.flush()
+        for note_id in note_ids:
+            db.add(TaskNote(task_id=task.id, note_id=note_id))
+        # Clear legacy source_note_id since notes are now managed via task_notes
+        task.source_note_id = None
+
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(task, attribute_names=["checklist"])
+    await db.refresh(task, attribute_names=["checklist", "notes"])
     return task
 
 
@@ -192,7 +211,7 @@ async def move_task(db: AsyncSession, task_id: str, milestone_id: str | None, po
     task.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
-    await db.refresh(task, attribute_names=["checklist"])
+    await db.refresh(task, attribute_names=["checklist", "notes"])
     return task
 
 

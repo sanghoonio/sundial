@@ -3,10 +3,11 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import type { UserResponse } from '$lib/types';
 	import Button from '$lib/components/ui/Button.svelte';
-	import { ChevronLeft } from 'lucide-svelte';
+	import { ChevronLeft, Save, Check } from 'lucide-svelte';
 
 	let username = $state('');
-	let savingUsername = $state(false);
+	let usernameStatus: 'idle' | 'saving' | 'saved' | 'error' = $state('idle');
+	let showSavedText = $state(false);
 	let usernameMsg = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 	let currentPassword = $state('');
 	let newPassword = $state('');
@@ -19,16 +20,20 @@
 	});
 
 	async function handleSaveUsername() {
-		savingUsername = true;
+		usernameStatus = 'saving';
 		usernameMsg = null;
 		try {
 			const updated = await api.put<UserResponse>('/api/auth/username', { username });
 			auth.setUser(updated);
 			usernameMsg = { type: 'success', text: 'Username updated' };
+			usernameStatus = 'saved';
+			showSavedText = true;
+			setTimeout(() => { showSavedText = false; }, 2000);
+			setTimeout(() => { if (usernameStatus === 'saved') usernameStatus = 'idle'; }, 2500);
 		} catch (e: any) {
 			usernameMsg = { type: 'error', text: e.detail || 'Failed to update username' };
-		} finally {
-			savingUsername = false;
+			usernameStatus = 'error';
+			setTimeout(() => { if (usernameStatus === 'error') usernameStatus = 'idle'; }, 2500);
 		}
 	}
 
@@ -66,7 +71,26 @@
 		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
 			<ChevronLeft size={18} />
 		</a>
-		<h2 class="font-semibold">Account</h2>
+		<h2 class="font-semibold flex-1">Account</h2>
+		<button
+			class="btn btn-ghost btn-sm"
+			onclick={handleSaveUsername}
+			disabled={usernameStatus === 'saving'}
+			title="Save username"
+		>
+			{#if usernameStatus === 'saving'}
+				<span class="loading loading-spinner loading-xs"></span>
+			{:else if usernameStatus === 'saved'}
+				<Check size={16} class="text-success" />
+				{#if showSavedText}
+					<span class="text-xs text-success">Saved!</span>
+				{/if}
+			{:else if usernameStatus === 'error'}
+				<Save size={16} class="text-error" />
+			{:else}
+				<Save size={16} />
+			{/if}
+		</button>
 	</div>
 </div>
 
@@ -76,16 +100,11 @@
 	<!-- Username -->
 	<div>
 		<p class="text-sm font-medium mb-1">Username</p>
-		<div class="flex gap-2">
-			<input
-				type="text"
-				class="input input-bordered input-sm flex-1"
-				bind:value={username}
-			/>
-			<Button variant="ghost" size="sm" loading={savingUsername} onclick={handleSaveUsername}>
-				Save
-			</Button>
-		</div>
+		<input
+			type="text"
+			class="input input-bordered input-sm w-full max-w-xs"
+			bind:value={username}
+		/>
 		{#if usernameMsg}
 			<p class="text-xs mt-1 {usernameMsg.type === 'success' ? 'text-success' : 'text-error'}">
 				{usernameMsg.text}

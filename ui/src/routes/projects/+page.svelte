@@ -11,7 +11,6 @@
 		NoteListItem,
 		NoteList
 	} from '$lib/types';
-	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import IconPicker from '$lib/components/ui/IconPicker.svelte';
@@ -27,8 +26,8 @@
 
 	let statusFilter = $state('all');
 
-	// Create modal
-	let createOpen = $state(false);
+	// Create state (sidebar)
+	let isCreating = $state(false);
 	let newId = $state('');
 	let newName = $state('');
 	let newDescription = $state('');
@@ -142,6 +141,7 @@
 	function closeSidebar() {
 		selectedProjectId = null;
 		selectedProject = null;
+		isCreating = false;
 		sidebarLoaded = false;
 		goto('/projects', { replaceState: true });
 	}
@@ -211,13 +211,16 @@
 		}
 	}
 
-	function openCreateModal() {
+	function openCreateSidebar() {
 		newId = '';
 		newName = '';
 		newDescription = '';
 		newColor = '#3b82f6';
 		newIcon = 'folder-kanban';
-		createOpen = true;
+		selectedProjectId = null;
+		selectedProject = null;
+		sidebarLoaded = false;
+		isCreating = true;
 	}
 
 	async function handleCreate() {
@@ -234,7 +237,7 @@
 			};
 			const created = await api.post<ProjectResponse>('/api/projects', data);
 			projects = [...projects, created];
-			createOpen = false;
+			isCreating = false;
 			selectProject(created.id);
 		} catch (e) {
 			console.error('Failed to create project', e);
@@ -308,7 +311,7 @@
 					</button>
 				{/each}
 			</div>
-			<button class="btn btn-primary btn-sm" onclick={openCreateModal}>
+			<button class="btn btn-primary btn-sm" onclick={openCreateSidebar}>
 				<Plus size={16} />
 				New Project
 			</button>
@@ -367,7 +370,7 @@
 				<div class="text-center py-20">
 					<FolderKanban size={40} class="mx-auto text-base-content/20 mb-3" />
 					<p class="text-base-content/40 mb-4">No projects yet</p>
-					<button class="btn btn-primary btn-sm" onclick={openCreateModal}>
+					<button class="btn btn-primary btn-sm" onclick={openCreateSidebar}>
 						<Plus size={16} />
 						Create your first project
 					</button>
@@ -376,40 +379,44 @@
 		</div>
 	</div>
 
-	<!-- Right sidebar: project settings -->
-	{#if selectedProject}
+	<!-- Right sidebar: project settings / new project -->
+	{#if selectedProject || isCreating}
 		<aside class="w-80 lg:w-96 shrink-0 border-l border-base-300 bg-base-100 flex flex-col overflow-hidden">
 			<!-- Sidebar header -->
 			<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
-				<input
-					type="text"
-					bind:value={editName}
-					placeholder="Project name"
-					class="flex-1 min-w-0 font-semibold bg-transparent border-none outline-none focus:bg-base-200 rounded px-2 py-0.5 text-sm truncate"
-				/>
-				<button
-					class="btn btn-ghost btn-sm btn-square"
-					onclick={() => handleSave()}
-					disabled={saving}
-					title="Save"
-				>
-					{#if saveStatus === 'saving'}
-						<span class="loading loading-spinner loading-xs"></span>
-					{:else if saveStatus === 'saved'}
-						<Check size={16} class="text-success" />
-					{:else if saveStatus === 'error'}
-						<Save size={16} class="text-error" />
-					{:else}
-						<Save size={16} />
-					{/if}
-				</button>
-				<button
-					class="btn btn-ghost btn-sm btn-square text-error"
-					onclick={handleDeleteProject}
-					title="Delete project"
-				>
-					<Trash2 size={16} />
-				</button>
+				{#if isCreating}
+					<h2 class="flex-1 font-semibold text-sm">New Project</h2>
+				{:else}
+					<input
+						type="text"
+						bind:value={editName}
+						placeholder="Project name"
+						class="flex-1 min-w-0 font-semibold bg-transparent border-none outline-none focus:bg-base-200 rounded px-2 py-0.5 text-sm truncate"
+					/>
+					<button
+						class="btn btn-ghost btn-sm btn-square"
+						onclick={() => handleSave()}
+						disabled={saving}
+						title="Save"
+					>
+						{#if saveStatus === 'saving'}
+							<span class="loading loading-spinner loading-xs"></span>
+						{:else if saveStatus === 'saved'}
+							<Check size={16} class="text-success" />
+						{:else if saveStatus === 'error'}
+							<Save size={16} class="text-error" />
+						{:else}
+							<Save size={16} />
+						{/if}
+					</button>
+					<button
+						class="btn btn-ghost btn-sm btn-square text-error"
+						onclick={handleDeleteProject}
+						title="Delete project"
+					>
+						<Trash2 size={16} />
+					</button>
+				{/if}
 				<button class="btn btn-ghost btn-sm btn-square" onclick={closeSidebar} title="Close">
 					<X size={16} />
 				</button>
@@ -417,7 +424,39 @@
 
 			<!-- Sidebar body -->
 			<div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-				{#if sidebarLoading}
+				{#if isCreating}
+					<!-- New project form -->
+					<Input placeholder="Project name" bind:value={newName} />
+					<Input placeholder="Project ID (auto-generated from name)" bind:value={newId} />
+					<textarea
+						class="textarea textarea-bordered w-full text-sm"
+						rows="3"
+						placeholder="Description (optional)"
+						bind:value={newDescription}
+					></textarea>
+					<div class="grid grid-cols-2 gap-3">
+						<div>
+							<p class="text-xs text-base-content/60 mb-1">Color</p>
+							<div class="flex items-center gap-1.5 flex-wrap">
+								<input type="color" class="w-7 h-7 rounded cursor-pointer border-0" bind:value={newColor} />
+								{#each colorPresets as color}
+									<button
+										class="w-4 h-4 rounded-full border-2 transition-transform {newColor === color ? 'border-base-content scale-110' : 'border-transparent'}"
+										style:background-color={color}
+										onclick={() => (newColor = color)}
+									></button>
+								{/each}
+							</div>
+						</div>
+						<div>
+							<p class="text-xs text-base-content/60 mb-1">Icon</p>
+							<IconPicker bind:value={newIcon} />
+						</div>
+					</div>
+					<Button variant="primary" loading={creating} onclick={handleCreate}>
+						Create Project
+					</Button>
+				{:else if sidebarLoading}
 					<div class="flex items-center justify-center py-10">
 						<span class="loading loading-spinner loading-md"></span>
 					</div>
@@ -526,41 +565,3 @@
 		</aside>
 	{/if}
 </div>
-
-<Modal bind:open={createOpen} title="New Project" onclose={() => (createOpen = false)}>
-	<div class="flex flex-col gap-3">
-		<Input placeholder="Project name" bind:value={newName} />
-		<Input placeholder="Project ID (auto-generated from name)" bind:value={newId} />
-		<div>
-			<textarea
-				class="textarea textarea-bordered w-full text-sm"
-				rows="3"
-				placeholder="Description (optional)"
-				bind:value={newDescription}
-			></textarea>
-		</div>
-		<div class="flex gap-4">
-			<div class="flex-1">
-				<p class="text-xs text-base-content/60 mb-1">Color</p>
-				<div class="flex items-center gap-3">
-					<input type="color" class="w-8 h-8 rounded cursor-pointer border-0" bind:value={newColor} />
-					{#each colorPresets as color}
-						<button
-							class="w-6 h-6 rounded-full border-2 transition-transform {newColor === color ? 'border-base-content scale-110' : 'border-transparent'}"
-							style:background-color={color}
-							onclick={() => (newColor = color)}
-							title={color}
-						></button>
-					{/each}
-				</div>
-			</div>
-			<div>
-				<p class="text-xs text-base-content/60 mb-1">Icon</p>
-				<IconPicker bind:value={newIcon} />
-			</div>
-		</div>
-		<Button variant="primary" loading={creating} onclick={handleCreate}>
-			Create Project
-		</Button>
-	</div>
-</Modal>

@@ -57,6 +57,35 @@
 	function handleChatMessagesChange(index: number, messages: ChatMessage[]) {
 		updateBlock(index, { messages });
 	}
+
+	function handleChatPromptChange(index: number, prompt: string) {
+		updateBlock(index, { initialPrompt: prompt });
+	}
+
+	function convertBlock(index: number) {
+		const block = blocks[index];
+		const newBlocks = [...blocks];
+
+		if (block.type === 'md') {
+			// md → chat: preserve content as editable prompt
+			newBlocks[index] = {
+				id: block.id,
+				type: 'chat',
+				messages: [],
+				initialPrompt: block.content?.trim() ?? ''
+			};
+		} else {
+			// chat → md: keep user's message content or initial prompt
+			const userMessage = block.messages?.find((m) => m.role === 'user');
+			newBlocks[index] = {
+				id: block.id,
+				type: 'md',
+				content: userMessage?.content ?? block.initialPrompt ?? ''
+			};
+		}
+
+		onchange(newBlocks);
+	}
 </script>
 
 <div class="space-y-0">
@@ -77,9 +106,12 @@
 					<BlockControls
 						index={i}
 						total={blocks.length}
+						blockType={block.type}
+						compact={block.type === 'chat' && (block.messages?.length ?? 0) > 0}
 						onmoveup={() => moveBlock(i, -1)}
 						onmovedown={() => moveBlock(i, 1)}
 						ondelete={() => deleteBlock(i)}
+						onconvert={() => convertBlock(i)}
 					/>
 				</div>
 			{/if}
@@ -99,7 +131,9 @@
 						noteId={noteId}
 						messages={block.messages ?? []}
 						precedingContext={gatherContext(blocks, i)}
+						initialPrompt={block.initialPrompt ?? ''}
 						onmessageschange={(msgs) => handleChatMessagesChange(i, msgs)}
+						onpromptchange={(prompt) => handleChatPromptChange(i, prompt)}
 						onremove={() => deleteBlock(i)}
 					/>
 				{/if}

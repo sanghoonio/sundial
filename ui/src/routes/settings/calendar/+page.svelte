@@ -12,7 +12,8 @@
 	import { ChevronLeft, Save, RefreshCw, Check, AlertTriangle } from 'lucide-svelte';
 
 	let loading = $state(true);
-	let saving = $state(false);
+	let saveStatus: 'idle' | 'saving' | 'saved' | 'error' = $state('idle');
+	let showSavedText = $state(false);
 	let syncing = $state(false);
 	let testingConnection = $state(false);
 
@@ -63,7 +64,7 @@
 	});
 
 	async function handleSave() {
-		saving = true;
+		saveStatus = 'saving';
 		try {
 			// Save general settings (calendar_source, calendar_sync_enabled)
 			const generalUpdate: SettingsUpdate = {
@@ -90,10 +91,14 @@
 			const calRes = await api.put<CalendarSettingsResponse>('/api/calendar/settings', calUpdate);
 			caldavHasPassword = calRes.caldav_has_password;
 			caldavPassword = '';
+			saveStatus = 'saved';
+			showSavedText = true;
+			setTimeout(() => { showSavedText = false; }, 2000);
+			setTimeout(() => { if (saveStatus === 'saved') saveStatus = 'idle'; }, 2500);
 		} catch (e) {
 			console.error('Failed to save calendar settings', e);
-		} finally {
-			saving = false;
+			saveStatus = 'error';
+			setTimeout(() => { if (saveStatus === 'error') saveStatus = 'idle'; }, 2500);
 		}
 	}
 
@@ -161,7 +166,26 @@
 		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
 			<ChevronLeft size={18} />
 		</a>
-		<h2 class="font-semibold">Calendar</h2>
+		<h2 class="font-semibold flex-1">Calendar</h2>
+		<button
+			class="btn btn-ghost btn-sm"
+			onclick={handleSave}
+			disabled={saveStatus === 'saving'}
+			title="Save"
+		>
+			{#if saveStatus === 'saving'}
+				<span class="loading loading-spinner loading-xs"></span>
+			{:else if saveStatus === 'saved'}
+				<Check size={16} class="text-success" />
+				{#if showSavedText}
+					<span class="text-xs text-success">Saved!</span>
+				{/if}
+			{:else if saveStatus === 'error'}
+				<Save size={16} class="text-error" />
+			{:else}
+				<Save size={16} />
+			{/if}
+		</button>
 	</div>
 </div>
 
@@ -347,13 +371,6 @@
 				{/if}
 			</div>
 		{/if}
-
-		<div class="pt-2">
-			<Button variant="primary" size="sm" loading={saving} onclick={handleSave}>
-				<Save size={14} />
-				Save
-			</Button>
-		</div>
 	</div>
 {/if}
 </div>

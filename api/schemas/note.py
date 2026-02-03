@@ -13,6 +13,7 @@ class BlockSchema(BaseModel):
     type: str  # "md" or "chat"
     content: str = ""
     messages: list[ChatMessageSchema] = []
+    initialPrompt: str = ""
 
 
 class NoteCreate(BaseModel):

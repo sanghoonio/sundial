@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
-	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, ProjectResponse, NoteResponse, EventResponse } from '$lib/types';
-	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X, Save, Check } from 'lucide-svelte';
+	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, ProjectResponse, NoteResponse, NoteList, EventResponse } from '$lib/types';
+	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X, Save, Check, Link } from 'lucide-svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	interface Props {
@@ -23,6 +23,7 @@
 	let projectId = $state('');
 	let milestoneId = $state<string | null>(null);
 	let checklist = $state<ChecklistItemCreate[]>([]);
+	let noteIds = $state<string[]>([]);
 
 	let currentProject = $derived(projects.find((p) => p.id === projectId));
 	let availableMilestones = $derived(currentProject?.milestones ?? milestones);
@@ -35,19 +36,17 @@
 	let loaded = $state(false);
 	let lastSavedSnapshot = $state('');
 
-	let linkedNoteTitle = $state<string | null>(null);
 	let linkedEventTitle = $state<string | null>(null);
 
-	// Fetch linked note/event titles
-	$effect(() => {
-		const noteId = task.source_note_id;
-		if (noteId) {
-			api.get<NoteResponse>(`/api/notes/${noteId}`).then((n) => (linkedNoteTitle = n.title)).catch(() => (linkedNoteTitle = null));
-		} else {
-			linkedNoteTitle = null;
-		}
-	});
+	// Note linking
+	let linkedNoteTitles = $state<Record<string, string>>({});
+	let showNoteSelector = $state(false);
+	let availableNotes = $state<{ id: string; title: string }[]>([]);
+	let noteSearchQuery = $state('');
+	let loadingNotes = $state(false);
+	let fetchedNoteIds = new Set<string>();
 
+	// Fetch linked event title
 	$effect(() => {
 		const eventId = task.calendar_event_id;
 		if (eventId) {
@@ -56,6 +55,53 @@
 			linkedEventTitle = null;
 		}
 	});
+
+	// Fetch titles for linked notes
+	$effect(() => {
+		const ids = noteIds;
+		if (ids.length === 0) {
+			linkedNoteTitles = {};
+			fetchedNoteIds.clear();
+			return;
+		}
+		for (const id of ids) {
+			if (!fetchedNoteIds.has(id)) {
+				fetchedNoteIds.add(id);
+				api.get<NoteResponse>(`/api/notes/${id}`)
+					.then((n) => { linkedNoteTitles[id] = n.title; linkedNoteTitles = linkedNoteTitles; })
+					.catch(() => { linkedNoteTitles[id] = 'Unknown note'; linkedNoteTitles = linkedNoteTitles; });
+			}
+		}
+	});
+
+	async function loadAvailableNotes() {
+		loadingNotes = true;
+		try {
+			const res = await api.get<NoteList>(`/api/notes?limit=50${noteSearchQuery ? `&q=${encodeURIComponent(noteSearchQuery)}` : ''}`);
+			availableNotes = res.notes.map((n) => ({ id: n.id, title: n.title }));
+		} catch {
+			availableNotes = [];
+		} finally {
+			loadingNotes = false;
+		}
+	}
+
+	function openNoteSelector() {
+		showNoteSelector = true;
+		noteSearchQuery = '';
+		loadAvailableNotes();
+	}
+
+	function linkNote(noteId: string) {
+		if (!noteIds.includes(noteId)) {
+			noteIds = [...noteIds, noteId];
+		}
+		showNoteSelector = false;
+	}
+
+	function unlinkNote(noteId: string) {
+		noteIds = noteIds.filter((id) => id !== noteId);
+	}
 
 	let checklistDone = $derived(checklist.filter((c) => c.is_checked).length);
 	let checklistTotal = $derived(checklist.length);
@@ -71,8 +117,17 @@
 		projectId = t.project_id;
 		milestoneId = t.milestone_id;
 		checklist = t.checklist.map((c) => ({ text: c.text, is_checked: c.is_checked }));
+		// Merge source_note_id into noteIds for uniform handling
+		const ids = t.note_ids ?? [];
+		if (t.source_note_id && !ids.includes(t.source_note_id)) {
+			ids.push(t.source_note_id);
+		}
+		noteIds = ids;
+		linkedNoteTitles = {};
+		fetchedNoteIds.clear();
 		editingCheckIndex = null;
 		newCheckItem = '';
+		showNoteSelector = false;
 		saveStatus = 'idle';
 		showSavedText = false;
 		lastSavedSnapshot = currentSnapshot();
@@ -90,7 +145,7 @@
 	});
 
 	function currentSnapshot(): string {
-		return JSON.stringify({ title, description, status, priority, dueDate, projectId, milestoneId, checklist });
+		return JSON.stringify({ title, description, status, priority, dueDate, projectId, milestoneId, checklist, noteIds });
 	}
 
 	async function handleSave() {
@@ -106,7 +161,8 @@
 				due_date: dueDate ? new Date(dueDate).toISOString() : null,
 				project_id: projectId,
 				milestone_id: milestoneId,
-				checklist
+				checklist,
+				note_ids: noteIds
 			};
 			const updated = await api.put<TaskResponse>(`/api/tasks/${task.id}`, update);
 			lastSavedSnapshot = currentSnapshot();
@@ -307,22 +363,78 @@
 		</div>
 
 		<!-- Linked items -->
-		{#if task.source_note_id || task.calendar_event_id}
+		<div>
+			<div class="flex items-center justify-between mb-1">
+				<p class="text-xs text-base-content/60">Linked items</p>
+				<button class="btn btn-ghost btn-xs gap-1" onclick={openNoteSelector}>
+					<Link size={12} />
+					Link note
+				</button>
+			</div>
+
+			<!-- Note selector dropdown -->
+			{#if showNoteSelector}
+				<div class="mb-2 p-2 border border-base-300 rounded-lg bg-base-200">
+					<input
+						type="text"
+						class="input input-bordered input-xs w-full mb-2"
+						placeholder="Search notes..."
+						bind:value={noteSearchQuery}
+						oninput={() => loadAvailableNotes()}
+					/>
+					{#if loadingNotes}
+						<div class="flex justify-center py-2">
+							<span class="loading loading-spinner loading-xs"></span>
+						</div>
+					{:else if availableNotes.length > 0}
+						<div class="max-h-32 overflow-y-auto flex flex-col gap-0.5">
+							{#each availableNotes.filter((n) => !noteIds.includes(n.id)) as note}
+								<button
+									class="text-left text-xs px-2 py-1 rounded hover:bg-base-300 truncate"
+									onclick={() => linkNote(note.id)}
+								>
+									{note.title}
+								</button>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-xs text-base-content/50 text-center py-2">No notes found</p>
+					{/if}
+					<button class="btn btn-ghost btn-xs w-full mt-1" onclick={() => (showNoteSelector = false)}>
+						Cancel
+					</button>
+				</div>
+			{/if}
+
 			<div class="flex flex-col gap-1 text-xs text-base-content/60">
-				{#if task.source_note_id}
-					<a href="/notes/{task.source_note_id}" class="flex items-center gap-1 hover:text-primary transition-colors">
-						<StickyNote size={12} />
-						{linkedNoteTitle ?? 'Linked note'}
-					</a>
-				{/if}
+				{#each noteIds as noteId}
+					<div class="flex items-center gap-1 group">
+						<a href="/notes/{noteId}" class="inline-flex items-center gap-1 hover:text-primary transition-colors truncate">
+							<StickyNote size={12} class="shrink-0" />
+							<span class="truncate">{linkedNoteTitles[noteId] ?? 'Loading...'}</span>
+						</a>
+						<button
+							class="opacity-0 group-hover:opacity-100 hover:text-error transition-all cursor-pointer shrink-0"
+							onclick={() => unlinkNote(noteId)}
+							title="Unlink note"
+						>
+							<X size={12} />
+						</button>
+					</div>
+				{/each}
+
 				{#if task.calendar_event_id}
-					<a href="/calendar" class="flex items-center gap-1 hover:text-primary transition-colors">
+					<a href="/calendar" class="inline-flex items-center gap-1 hover:text-primary transition-colors">
 						<CalendarDays size={12} />
 						{linkedEventTitle ?? 'Calendar event'}
 					</a>
 				{/if}
+
+				{#if noteIds.length === 0 && !task.calendar_event_id}
+					<p class="text-base-content/40 text-xs">No linked items</p>
+				{/if}
 			</div>
-		{/if}
+		</div>
 
 		<!-- Checklist -->
 		<div>

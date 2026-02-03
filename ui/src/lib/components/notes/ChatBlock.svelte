@@ -8,14 +8,21 @@
 		noteId: string;
 		messages: ChatMessage[];
 		precedingContext?: string;
+		initialPrompt?: string;
 		onmessageschange: (messages: ChatMessage[]) => void;
+		onpromptchange?: (prompt: string) => void;
 		onremove?: () => void;
 	}
 
-	let { noteId, messages, precedingContext = '', onmessageschange, onremove }: Props = $props();
+	let { noteId, messages, precedingContext = '', initialPrompt = '', onmessageschange, onpromptchange, onremove }: Props = $props();
 
-	let promptText = $state('');
+	let promptText = $state(initialPrompt);
 	let loading = $state(false);
+
+	function handlePromptInput() {
+		autoResize();
+		onpromptchange?.(promptText);
+	}
 	let textareaEl = $state<HTMLTextAreaElement>();
 
 	let userMessage = $derived(messages.find((m) => m.role === 'user'));
@@ -73,7 +80,7 @@
 
 <div>
 	<!-- Prompt box -->
-	<div class="rounded-lg border border-primary/30 bg-primary/5 p-3">
+	<div class="rounded-lg border border-primary/30 bg-primary/5 px-3 pt-3 {hasSent ? 'pb-3' : 'pb-2'}">
 		{#if hasSent}
 			<p class="text-sm whitespace-pre-wrap">{userMessage?.content}</p>
 		{:else}
@@ -85,10 +92,10 @@
 					placeholder="Ask about this note..."
 					bind:value={promptText}
 					onkeydown={handleKeydown}
-					oninput={autoResize}
+					oninput={handlePromptInput}
 					disabled={loading}
 				></textarea>
-				<div class="flex justify-end mt-1">
+				<div class="flex justify-end pt-2">
 					{#if loading}
 						<span class="loading loading-spinner loading-sm text-primary"></span>
 					{:else}

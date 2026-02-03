@@ -38,7 +38,7 @@
 		}
 	}
 
-	const MIN_H = 120; // ~5 lines at text-sm
+	const MIN_H = 144; // ~6 lines at text-sm
 
 	function autoResize() {
 		if (!textareaEl) return;

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { api } from '$lib/services/api';
 	import type { SettingsResponse, SettingsUpdate } from '$lib/types';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { ChevronLeft, Save } from 'lucide-svelte';
+	import { ChevronLeft, Save, Check } from 'lucide-svelte';
 
 	let loading = $state(true);
-	let saving = $state(false);
+	let saveStatus: 'idle' | 'saving' | 'saved' | 'error' = $state('idle');
+	let showSavedText = $state(false);
 	let theme = $state('light');
 
 	async function loadSettings() {
@@ -25,16 +25,20 @@
 	});
 
 	async function handleSave() {
-		saving = true;
+		saveStatus = 'saving';
 		try {
 			const update: SettingsUpdate = { theme };
 			const res = await api.put<SettingsResponse>('/api/settings', update);
 			theme = res.theme;
 			document.documentElement.setAttribute('data-theme', theme);
+			saveStatus = 'saved';
+			showSavedText = true;
+			setTimeout(() => { showSavedText = false; }, 2000);
+			setTimeout(() => { if (saveStatus === 'saved') saveStatus = 'idle'; }, 2500);
 		} catch (e) {
 			console.error('Failed to save appearance settings', e);
-		} finally {
-			saving = false;
+			saveStatus = 'error';
+			setTimeout(() => { if (saveStatus === 'error') saveStatus = 'idle'; }, 2500);
 		}
 	}
 </script>
@@ -45,7 +49,26 @@
 		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
 			<ChevronLeft size={18} />
 		</a>
-		<h2 class="font-semibold">Appearance</h2>
+		<h2 class="font-semibold flex-1">Appearance</h2>
+		<button
+			class="btn btn-ghost btn-sm"
+			onclick={handleSave}
+			disabled={saveStatus === 'saving'}
+			title="Save"
+		>
+			{#if saveStatus === 'saving'}
+				<span class="loading loading-spinner loading-xs"></span>
+			{:else if saveStatus === 'saved'}
+				<Check size={16} class="text-success" />
+				{#if showSavedText}
+					<span class="text-xs text-success">Saved!</span>
+				{/if}
+			{:else if saveStatus === 'error'}
+				<Save size={16} class="text-error" />
+			{:else}
+				<Save size={16} />
+			{/if}
+		</button>
 	</div>
 </div>
 
@@ -64,13 +87,6 @@
 				<option value="light">Light</option>
 				<option value="dark">Dark</option>
 			</select>
-		</div>
-
-		<div class="pt-2">
-			<Button variant="primary" size="sm" loading={saving} onclick={handleSave}>
-				<Save size={14} />
-				Save
-			</Button>
 		</div>
 	</div>
 {/if}

@@ -25,6 +25,7 @@ BLOCK_OPEN = re.compile(r"^<!-- block:(md|chat) -->$", re.MULTILINE)
 BLOCK_CLOSE_MD = "<!-- /block:md -->"
 BLOCK_CLOSE_CHAT = "<!-- /block:chat -->"
 CHAT_ROLE = re.compile(r"^<!-- chat:(user|assistant) -->$", re.MULTILINE)
+CHAT_PROMPT = re.compile(r"^<!-- chat:prompt -->$", re.MULTILINE)
 
 
 def _new_id() -> str:
@@ -41,7 +42,7 @@ def parse_blocks(content: str) -> list[dict]:
     If content has no delimiters, returns a single md block wrapping the entire content.
     """
     if not content or "<!-- block:" not in content:
-        return [{"id": _new_id(), "type": "md", "content": content or "", "messages": []}]
+        return [{"id": _new_id(), "type": "md", "content": content or "", "messages": [], "initialPrompt": ""}]
 
     blocks: list[dict] = []
     pos = 0
@@ -70,14 +71,16 @@ def parse_blocks(content: str) -> list[dict]:
                 "type": "md",
                 "content": inner,
                 "messages": [],
+                "initialPrompt": "",
             })
         else:
-            messages = _parse_chat_messages(inner)
+            messages, initial_prompt = _parse_chat_messages(inner)
             blocks.append({
                 "id": _new_id(),
                 "type": "chat",
                 "content": "",
                 "messages": messages,
+                "initialPrompt": initial_prompt,
             })
 
         if end != -1:
@@ -85,15 +88,37 @@ def parse_blocks(content: str) -> list[dict]:
 
     # If no blocks were found (regex matched nothing), fallback to single md block
     if not blocks:
-        return [{"id": _new_id(), "type": "md", "content": content, "messages": []}]
+        return [{"id": _new_id(), "type": "md", "content": content, "messages": [], "initialPrompt": ""}]
 
     return blocks
 
 
-def _parse_chat_messages(inner: str) -> list[dict]:
-    """Parse chat block content into a list of {role, content} dicts."""
+def _parse_chat_messages(inner: str) -> tuple[list[dict], str]:
+    """Parse chat block content into a list of {role, content} dicts and initial prompt.
+
+    Returns (messages, initialPrompt).
+    """
     messages: list[dict] = []
-    parts = CHAT_ROLE.split(inner)
+    initial_prompt = ""
+
+    # Check for prompt section first
+    prompt_match = CHAT_PROMPT.search(inner)
+    if prompt_match:
+        # Find where the prompt content ends (at first chat:user/assistant tag or end)
+        prompt_start = prompt_match.end()
+        role_match = CHAT_ROLE.search(inner, prompt_start)
+        if role_match:
+            initial_prompt = inner[prompt_start:role_match.start()].strip()
+            # Continue parsing messages from after prompt
+            inner_for_messages = inner[role_match.start():]
+        else:
+            # No messages, just prompt
+            initial_prompt = inner[prompt_start:].strip()
+            return messages, initial_prompt
+    else:
+        inner_for_messages = inner
+
+    parts = CHAT_ROLE.split(inner_for_messages)
 
     # parts alternates: [text_before, role, text, role, text, ...]
     # The first element is text before any role tag (usually empty)
@@ -105,7 +130,7 @@ def _parse_chat_messages(inner: str) -> list[dict]:
             messages.append({"role": role, "content": text})
         i += 2
 
-    return messages
+    return messages, initial_prompt
 
 
 def serialize_blocks(blocks: list[dict]) -> str:
@@ -124,6 +149,11 @@ def serialize_blocks(blocks: list[dict]) -> str:
             parts.append(f"<!-- block:md -->\n{block.get('content', '')}\n<!-- /block:md -->")
         elif btype == "chat":
             chat_lines: list[str] = []
+            # Include initial prompt if present
+            initial_prompt = block.get("initialPrompt", "")
+            if initial_prompt:
+                chat_lines.append("<!-- chat:prompt -->")
+                chat_lines.append(initial_prompt)
             for msg in block.get("messages", []):
                 chat_lines.append(f"<!-- chat:{msg['role']} -->")
                 chat_lines.append(msg["content"])

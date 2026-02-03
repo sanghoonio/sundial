@@ -11,6 +11,7 @@ from api.models.settings import AIProcessingQueue, UserSettings
 from api.models.task import Task
 from api.services import ai_service
 from api.services.block_parser import extract_markdown_text
+from api.utils.encryption import decrypt_value
 from api.utils.websocket import manager
 
 logger = logging.getLogger(__name__)
@@ -28,14 +29,27 @@ async def process_note_ai(note_id: str) -> None:
             # Check AI enabled + API key configured
             config_result = await db.execute(
                 select(UserSettings).where(
-                    UserSettings.key.in_(["ai_enabled", "openrouter_api_key", "ai_auto_tag", "ai_auto_extract_tasks", "ai_auto_link_events"])
+                    UserSettings.key.in_([
+                        "ai_enabled", "ai_provider",
+                        "openrouter_api_key", "nvidia_api_key",
+                        "ai_auto_tag", "ai_auto_extract_tasks", "ai_auto_link_events"
+                    ])
                 )
             )
             config = {row.key: row.value for row in config_result.scalars().all()}
 
             if config.get("ai_enabled", "false").lower() != "true":
                 return
-            if not config.get("openrouter_api_key", ""):
+
+            provider = config.get("ai_provider", "openrouter")
+            if provider == "nvidia":
+                api_key = config.get("nvidia_api_key", "")
+            else:
+                api_key = config.get("openrouter_api_key", "")
+
+            if api_key:
+                api_key = decrypt_value(api_key)
+            if not api_key:
                 return
 
             # Debounce: check if this note was processed recently
