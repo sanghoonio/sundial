@@ -324,10 +324,10 @@
 				<div class="grid gap-3 grid-cols-[repeat(auto-fill,220px)]">
 					{#each filteredProjects as project (project.id)}
 						<button
-							class="card bg-base-100 border text-left transition-all aspect-square
+							class="card bg-base-100 border border-base-300 text-left transition-all aspect-square
 								{selectedProjectId === project.id
-									? 'border-primary bg-base-200/50'
-									: 'border-base-300 hover:border-base-content/30'}"
+									? 'bg-primary/5'
+									: 'hover:border-base-content/30'}"
 							onclick={() => selectProject(project.id)}
 						>
 							<div class="card-body p-4 flex flex-col justify-between h-full">

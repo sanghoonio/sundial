@@ -52,7 +52,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-	class="card border {selected ? 'bg-base-200/50 border-primary' : 'bg-base-100 border-base-300'} {onclick ? 'cursor-pointer hover:border-base-content/30' : ''} {isAiSuggested ? 'border-dashed border-primary/40' : ''} transition-colors"
+	class="card border border-base-300 {selected ? 'bg-primary/5' : 'bg-base-100'} {onclick ? 'cursor-pointer hover:border-base-content/30' : ''} {isAiSuggested ? 'border-dashed border-primary/40' : ''} transition-colors"
 	onclick={onclick}
 	onkeydown={(e) => { if (e.key === 'Enter' && onclick) onclick(); }}
 	role={onclick ? 'button' : undefined}

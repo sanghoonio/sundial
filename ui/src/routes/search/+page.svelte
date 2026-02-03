@@ -62,11 +62,11 @@
 </script>
 
 <div class="absolute inset-0 flex flex-col overflow-hidden">
-	<!-- Toolbar -->
-	<div class="flex items-center justify-center px-4 py-3 border-b border-base-300 shrink-0">
+	<!-- Search bar -->
+	<div class="flex items-center justify-center px-4 py-6 shrink-0">
 		<form onsubmit={handleSubmit} class="w-full max-w-2xl">
 			<div class="relative">
-				<Search size={18} class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40" />
+				<Search size={18} class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 z-10 pointer-events-none" />
 				<!-- svelte-ignore a11y_autofocus -->
 				<input
 					type="text"

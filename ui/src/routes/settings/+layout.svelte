@@ -23,10 +23,12 @@
 		class="w-56 border-r border-base-300 flex-col bg-base-100
 			{hasSelection ? 'hidden md:flex' : 'flex'}"
 	>
-		<div class="px-4 py-3 border-b border-base-300">
-			<h1 class="font-semibold text-lg">Settings</h1>
+		<div class="px-4 py-3 border-b border-base-300 shrink-0">
+			<div class="flex items-center gap-2 h-8">
+				<h1 class="font-semibold">Settings</h1>
+			</div>
 		</div>
-		<nav class="flex-1 overflow-y-auto py-2">
+		<nav class="flex-1 overflow-y-auto pb-2">
 			{#each categories as cat}
 				<a
 					href={cat.path}
@@ -47,10 +49,6 @@
 		class="flex-1 overflow-hidden flex flex-col
 			{!hasSelection ? 'hidden md:flex' : 'flex'}"
 	>
-		<div class="flex-1 overflow-y-auto p-4 md:p-6">
-			<div class="max-w-2xl">
-				{@render children()}
-			</div>
-		</div>
+		{@render children()}
 	</div>
 </div>

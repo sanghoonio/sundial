@@ -65,19 +65,25 @@
 	}
 </script>
 
-<a href="/settings" class="btn btn-ghost btn-sm gap-1 mb-4 md:hidden">
-	<ChevronLeft size={16} />
-	Settings
-</a>
+<!-- Header bar -->
+<div class="px-4 py-3 border-b border-base-300 shrink-0">
+	<div class="flex items-center gap-2 h-8">
+		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
+			<ChevronLeft size={18} />
+		</a>
+		<h2 class="font-semibold">AI Features</h2>
+	</div>
+</div>
 
-<h2 class="font-semibold text-lg mb-4">AI Features</h2>
-
+<!-- Scrollable content -->
+<div class="flex-1 overflow-y-auto p-4 md:p-6">
+<div class="max-w-3xl">
 {#if loading}
 	<div class="flex items-center justify-center py-10">
 		<span class="loading loading-spinner loading-md"></span>
 	</div>
 {:else}
-	<div class="flex flex-col gap-3">
+	<div class="flex flex-col gap-4">
 		<label class="flex items-center justify-between cursor-pointer">
 			<div>
 				<p class="font-medium text-sm">Enable AI</p>
@@ -87,7 +93,7 @@
 		</label>
 
 		{#if aiEnabled}
-			<div class="divider my-1"></div>
+			<div class="border-t border-base-300 pt-4 mt-4"></div>
 
 			<div class="flex flex-col gap-1">
 				<label class="font-medium text-sm" for="api-key">OpenRouter API Key</label>
@@ -130,7 +136,7 @@
 				</p>
 			</div>
 
-			<div class="divider my-1"></div>
+			<div class="border-t border-base-300 pt-4 mt-4"></div>
 
 			<label class="flex items-center justify-between cursor-pointer pl-4">
 				<div>
@@ -159,3 +165,5 @@
 		</div>
 	</div>
 {/if}
+</div>
+</div>

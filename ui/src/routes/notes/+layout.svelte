@@ -130,10 +130,10 @@
 			{selectedNoteId || isNewNote ? 'hidden md:flex' : 'flex'}"
 	>
 		<!-- Header: search + sort + new -->
-		<div class="px-4 py-3 border-b border-base-300">
-			<div class="flex items-center gap-2">
+		<div class="px-4 py-3 border-b border-base-300 shrink-0">
+			<div class="flex items-center gap-2 h-8 overflow-hidden">
 				<button
-					class="btn btn-ghost btn-sm flex-1 justify-start transition-[width] duration-200 !outline-none !shadow-none
+					class="btn btn-ghost btn-sm flex-1 min-w-0 justify-start transition-[width] duration-200 !outline-none !shadow-none
 						{searchOpen ? 'bg-base-200' : ''}"
 					onclick={() => { if (!searchOpen) openSearch(); }}
 				>
@@ -160,7 +160,7 @@
 						Search
 					{/if}
 				</button>
-				<div class="dropdown dropdown-end">
+				<div class="dropdown dropdown-end shrink-0">
 					<button tabindex="0" class="btn btn-ghost btn-sm btn-square" title="Sort">
 						{#if sortBy === 'newest'}
 							<ArrowDownNarrowWide size={14} />
@@ -180,8 +180,8 @@
 						<li><button class={sortBy === 'title_desc' ? 'active' : ''} onclick={() => (sortBy = 'title_desc')}><ArrowDownZA size={14} />Title Z-A</button></li>
 					</ul>
 				</div>
-				<NoteImportButton />
-				<a href="/notes/new" class="btn btn-primary btn-sm btn-square" title="New note">
+				<div class="shrink-0"><NoteImportButton /></div>
+				<a href="/notes/new" class="btn btn-primary btn-sm btn-square shrink-0" title="New note">
 					<Plus size={16} />
 				</a>
 			</div>

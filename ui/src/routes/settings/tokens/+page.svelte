@@ -86,16 +86,33 @@
 			return iso;
 		}
 	}
+
+	function formatUserAgent(ua: string | null): string {
+		if (!ua) return '';
+		// Extract browser info from user agent
+		if (ua.includes('Firefox/')) return 'Firefox';
+		if (ua.includes('Edg/')) return 'Edge';
+		if (ua.includes('Chrome/')) return 'Chrome';
+		if (ua.includes('Safari/') && !ua.includes('Chrome')) return 'Safari';
+		if (ua.includes('curl/')) return 'curl';
+		// Truncate if unrecognized
+		return ua.length > 20 ? ua.slice(0, 20) + '...' : ua;
+	}
 </script>
 
-<a href="/settings" class="btn btn-ghost btn-sm gap-1 mb-4 md:hidden">
-	<ChevronLeft size={16} />
-	Settings
-</a>
+<!-- Header bar -->
+<div class="px-4 py-3 border-b border-base-300 shrink-0">
+	<div class="flex items-center gap-2 h-8">
+		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
+			<ChevronLeft size={18} />
+		</a>
+		<h2 class="font-semibold">Sessions & API Keys</h2>
+	</div>
+</div>
 
-<h2 class="font-semibold text-lg mb-4">Sessions & API Keys</h2>
-
-<div class="flex flex-col gap-3">
+<!-- Scrollable content -->
+<div class="flex-1 overflow-y-auto p-4 md:p-6">
+<div class="max-w-3xl flex flex-col gap-4">
 	{#if loadingTokens}
 		<span class="loading loading-spinner loading-sm"></span>
 	{:else if tokens.length === 0}
@@ -119,6 +136,12 @@
 						</div>
 						<div class="text-xs text-base-content/50">
 							Used {formatRelativeTime(token.last_used_at)} · Created {new Date(token.created_at).toLocaleDateString()}
+							{#if token.ip_address || token.user_agent}
+								<span class="text-base-content/40">
+									{#if token.ip_address}· {token.ip_address}{/if}
+									{#if token.user_agent} · {formatUserAgent(token.user_agent)}{/if}
+								</span>
+							{/if}
 						</div>
 					</div>
 					{#if !token.is_current}
@@ -139,6 +162,7 @@
 			Create API Key
 		</Button>
 	</div>
+</div>
 </div>
 
 <!-- Create API Key Modal -->

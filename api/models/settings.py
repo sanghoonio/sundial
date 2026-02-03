@@ -23,6 +23,8 @@ class AuthToken(Base):
     token_type = Column(String, nullable=False, default="session")  # session | api_key
     name = Column(String, nullable=True)
     scope = Column(String, nullable=False, default="read_write")  # read | read_write
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
     last_used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

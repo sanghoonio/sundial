@@ -46,16 +46,6 @@
 	<div class="grid grid-cols-[1fr_auto_1fr] items-center px-4 lg:pr-68 py-3">
 		<div class="flex items-center gap-2">
 			<h2 class="text-lg font-semibold">{label}</h2>
-			{#if onsync}
-				<button
-					class="btn btn-ghost btn-sm btn-square"
-					onclick={onsync}
-					disabled={syncing}
-					title="Sync calendar"
-				>
-					<RefreshCw size={16} class={syncing ? 'animate-spin' : ''} />
-				</button>
-			{/if}
 		</div>
 
 		<div class="flex items-center gap-1">
@@ -72,6 +62,16 @@
 	</div>
 
 	<div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+		{#if onsync}
+			<button
+				class="btn btn-ghost btn-sm btn-square"
+				onclick={onsync}
+				disabled={syncing}
+				title="Sync calendar"
+			>
+				<RefreshCw size={16} class={syncing ? 'animate-spin' : ''} />
+			</button>
+		{/if}
 		{#each views as v}
 			<button
 				class="btn btn-ghost btn-sm {view === v ? 'btn-active' : ''}"

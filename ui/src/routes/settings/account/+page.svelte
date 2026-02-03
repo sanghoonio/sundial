@@ -60,14 +60,19 @@
 	}
 </script>
 
-<a href="/settings" class="btn btn-ghost btn-sm gap-1 mb-4 md:hidden">
-	<ChevronLeft size={16} />
-	Settings
-</a>
+<!-- Header bar -->
+<div class="px-4 py-3 border-b border-base-300 shrink-0">
+	<div class="flex items-center gap-2 h-8">
+		<a href="/settings" class="btn btn-ghost btn-sm btn-square md:hidden">
+			<ChevronLeft size={18} />
+		</a>
+		<h2 class="font-semibold">Account</h2>
+	</div>
+</div>
 
-<h2 class="font-semibold text-lg mb-4">Account</h2>
-
-<div class="flex flex-col gap-6">
+<!-- Scrollable content -->
+<div class="flex-1 overflow-y-auto p-4 md:p-6">
+<div class="max-w-3xl flex flex-col gap-4">
 	<!-- Username -->
 	<div>
 		<p class="text-sm font-medium mb-1">Username</p>
@@ -89,7 +94,7 @@
 	</div>
 
 	<!-- Password Change -->
-	<div class="border-t border-base-300 pt-4">
+	<div class="border-t border-base-300 pt-4 mt-4">
 		<p class="text-sm font-medium mb-2">Change password</p>
 		<div class="flex flex-col gap-2">
 			<input
@@ -122,4 +127,5 @@
 			{/if}
 		</div>
 	</div>
+</div>
 </div>

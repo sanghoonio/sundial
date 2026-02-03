@@ -287,33 +287,29 @@
 	<div class="{sidebarExpanded ? 'w-56' : 'w-16'} shrink-0 border-r border-base-300 flex flex-col transition-all duration-200 overflow-hidden">
 		<div class="flex-1 flex flex-col gap-1 px-2 py-2 overflow-y-auto">
 			<button
-				class="rounded-lg flex items-center transition-colors shrink-0
-					{sidebarExpanded ? 'w-full px-3 py-2 gap-3' : 'px-3 py-2 justify-center'}
+				class="rounded-lg flex items-center justify-center transition-colors shrink-0 h-9 px-3
 					hover:bg-base-300 text-base-content/60"
 				onclick={() => (sidebarExpanded = !sidebarExpanded)}
 				title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
 			>
-				<div class="shrink-0">
-					{#if sidebarExpanded}
-						<ChevronLeft size={18} />
-					{:else}
-						<ChevronRight size={18} />
-					{/if}
-				</div>
 				{#if sidebarExpanded}
-					<span class="text-sm truncate min-w-0">Collapse</span>
+					<ChevronLeft size={18} />
+				{:else}
+					<ChevronRight size={18} />
 				{/if}
 			</button>
 			{#each projects as project (project.id)}
 				<button
-					class="rounded-lg flex items-center transition-colors shrink-0 relative group
-						{sidebarExpanded ? 'w-full px-3 py-2 gap-3' : 'px-3 py-2 justify-center'}
+					class="rounded-lg flex items-center transition-colors shrink-0 relative group h-9
+						{sidebarExpanded ? 'w-full px-3 gap-3' : 'px-3 justify-center'}
 						{selectedProjectId === project.id
-							? 'bg-primary text-primary-content'
-							: 'hover:bg-base-300 text-base-content/60'}"
+							? 'text-base-100'
+							: 'hover:bg-base-300'}"
 					onclick={() => selectProject(project.id)}
 					title={sidebarExpanded ? undefined : project.name}
-					style={selectedProjectId !== project.id ? `color: ${project.color || '#6b7280'}` : ''}
+					style={selectedProjectId === project.id
+						? `background-color: ${project.color || '#6b7280'}`
+						: `color: ${project.color || '#6b7280'}`}
 				>
 					<div class="shrink-0">
 						<ProjectIcon name={project.icon || 'folder-kanban'} size={18} />

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,8 +28,18 @@ from api.utils.auth import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def get_client_ip(request: Request) -> str | None:
+    """Extract client IP, handling proxy headers."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return None
+
+
 @router.post("/setup", response_model=TokenResponse)
-async def setup(request: SetupRequest, db: AsyncSession = Depends(get_db)):
+async def setup(request: SetupRequest, req: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(UserSettings).where(UserSettings.key == "password_hash"))
     existing = result.scalar_one_or_none()
     if existing is not None:
@@ -51,6 +61,8 @@ async def setup(request: SetupRequest, db: AsyncSession = Depends(get_db)):
         token_type="session",
         name=f"Browser session ({now.strftime('%Y-%m-%d')})",
         scope="read_write",
+        ip_address=get_client_ip(req),
+        user_agent=req.headers.get("User-Agent"),
     ))
     await db.commit()
 
@@ -58,7 +70,7 @@ async def setup(request: SetupRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(request: LoginRequest, req: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(UserSettings).where(UserSettings.key == "password_hash"))
     row = result.scalar_one_or_none()
     if row is None:
@@ -75,6 +87,8 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
         token_type="session",
         name=f"Browser session ({now.strftime('%Y-%m-%d')})",
         scope="read_write",
+        ip_address=get_client_ip(req),
+        user_agent=req.headers.get("User-Agent"),
     ))
     await db.commit()
 
@@ -176,6 +190,8 @@ async def list_tokens(
             token_type=t.token_type,
             name=t.name,
             scope=t.scope,
+            ip_address=t.ip_address,
+            user_agent=t.user_agent,
             last_used_at=t.last_used_at.isoformat() if t.last_used_at else None,
             created_at=t.created_at.isoformat() if t.created_at else "",
             is_current=t.id == current_user.token_id,
@@ -187,6 +203,7 @@ async def list_tokens(
 @router.post("/tokens", response_model=ApiKeyCreatedResponse)
 async def create_api_key(
     request: CreateApiKeyRequest,
+    req: Request,
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -199,6 +216,8 @@ async def create_api_key(
         token_type="api_key",
         name=request.name,
         scope=request.scope,
+        ip_address=get_client_ip(req),
+        user_agent=req.headers.get("User-Agent"),
     )
     db.add(auth_token)
     await db.commit()

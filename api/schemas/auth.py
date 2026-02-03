@@ -40,6 +40,8 @@ class TokenListItem(BaseModel):
     token_type: str
     name: str | None
     scope: str
+    ip_address: str | None
+    user_agent: str | None
     last_used_at: str | None
     created_at: str
     is_current: bool

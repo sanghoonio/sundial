@@ -15,6 +15,8 @@ export interface TokenListItem {
 	token_type: string;
 	name: string | null;
 	scope: string;
+	ip_address: string | null;
+	user_agent: string | null;
 	last_used_at: string | null;
 	created_at: string;
 	is_current: boolean;

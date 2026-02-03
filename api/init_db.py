@@ -54,6 +54,15 @@ async def init_database():
             except Exception:
                 pass  # column already exists
 
+        # Migrate: add ip_address and user_agent columns to auth_tokens
+        for col, coltype in [("ip_address", "VARCHAR"), ("user_agent", "VARCHAR")]:
+            try:
+                await conn.execute(text(
+                    f"ALTER TABLE auth_tokens ADD COLUMN {col} {coltype}"
+                ))
+            except Exception:
+                pass  # column already exists
+
     # Seed default data
     from api.database import async_session
     from api.models.project import Project, ProjectMilestone
