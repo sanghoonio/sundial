@@ -61,84 +61,92 @@
 	);
 </script>
 
-<div class="max-w-2xl mx-auto">
-	<form onsubmit={handleSubmit} class="mb-6">
-		<div class="relative">
-			<Search size={18} class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40" />
-			<!-- svelte-ignore a11y_autofocus -->
-			<input
-				type="text"
-				class="input input-bordered w-full pl-10 text-lg"
-				placeholder="Search notes, tasks..."
-				value={query}
-				oninput={handleInput}
-				autofocus
-			/>
-		</div>
-	</form>
-
-	{#if loading}
-		<div class="flex items-center justify-center py-12">
-			<span class="loading loading-spinner loading-lg"></span>
-		</div>
-	{:else if hasResults}
-		<p class="text-sm text-base-content/50 mb-4">
-			{results!.total} result{results!.total === 1 ? '' : 's'} for "{results!.query}"
-		</p>
-
-		{#if results!.results.length > 0}
-			<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-2">Notes</h3>
-			<div class="flex flex-col gap-3 mb-6">
-				{#each results!.results as item (item.id)}
-					<a href="/notes/{item.id}" class="block">
-						<Card hoverable compact>
-							<div class="flex items-start gap-3">
-								<div class="text-base-content/40 mt-0.5">
-									<StickyNote size={18} />
-								</div>
-								<div class="flex-1 min-w-0">
-									<h3 class="font-medium">{item.title}</h3>
-									{#if item.snippet}
-										<p class="text-sm text-base-content/60 mt-1 line-clamp-2">{item.snippet}</p>
-									{/if}
-								</div>
-							</div>
-						</Card>
-					</a>
-				{/each}
+<div class="absolute inset-0 flex flex-col overflow-hidden">
+	<!-- Toolbar -->
+	<div class="flex items-center justify-center px-4 py-3 border-b border-base-300 shrink-0">
+		<form onsubmit={handleSubmit} class="w-full max-w-2xl">
+			<div class="relative">
+				<Search size={18} class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40" />
+				<!-- svelte-ignore a11y_autofocus -->
+				<input
+					type="text"
+					class="input input-bordered w-full pl-10"
+					placeholder="Search notes, tasks..."
+					value={query}
+					oninput={handleInput}
+					autofocus
+				/>
 			</div>
-		{/if}
+		</form>
+	</div>
 
-		{#if results!.tasks.length > 0}
-			<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-2">Tasks</h3>
-			<div class="flex flex-col gap-3">
-				{#each results!.tasks as task (task.id)}
-					<a href="/tasks/{task.project_id}" class="block">
-						<Card hoverable compact>
-							<div class="flex items-start gap-3">
-								<div class="text-base-content/40 mt-0.5">
-									<CheckSquare size={18} />
-								</div>
-								<div class="flex-1 min-w-0">
-									<h3 class="font-medium">{task.title}</h3>
-									{#if task.description}
-										<p class="text-sm text-base-content/60 mt-1 line-clamp-2">{task.description}</p>
-									{/if}
-									<span class="badge badge-xs badge-ghost mt-1">{task.status}</span>
-								</div>
-							</div>
-						</Card>
-					</a>
-				{/each}
-			</div>
-		{/if}
-	{:else if hasSearched}
-		<div class="text-center py-12">
-			<p class="text-base-content/40">No results found for "{query}"</p>
+	<!-- Scrollable results -->
+	<div class="flex-1 overflow-y-auto p-4">
+		<div class="max-w-2xl mx-auto">
+			{#if loading}
+				<div class="flex items-center justify-center py-12">
+					<span class="loading loading-spinner loading-lg"></span>
+				</div>
+			{:else if hasResults}
+				<p class="text-sm text-base-content/50 mb-4">
+					{results!.total} result{results!.total === 1 ? '' : 's'} for "{results!.query}"
+				</p>
+
+				{#if results!.results.length > 0}
+					<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-2">Notes</h3>
+					<div class="flex flex-col gap-3 mb-6">
+						{#each results!.results as item (item.id)}
+							<a href="/notes/{item.id}" class="block">
+								<Card hoverable compact>
+									<div class="flex items-start gap-3">
+										<div class="text-base-content/40 mt-0.5">
+											<StickyNote size={18} />
+										</div>
+										<div class="flex-1 min-w-0">
+											<h3 class="font-medium">{item.title}</h3>
+											{#if item.snippet}
+												<p class="text-sm text-base-content/60 mt-1 line-clamp-2">{item.snippet}</p>
+											{/if}
+										</div>
+									</div>
+								</Card>
+							</a>
+						{/each}
+					</div>
+				{/if}
+
+				{#if results!.tasks.length > 0}
+					<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-2">Tasks</h3>
+					<div class="flex flex-col gap-3">
+						{#each results!.tasks as task (task.id)}
+							<a href="/tasks/{task.project_id}" class="block">
+								<Card hoverable compact>
+									<div class="flex items-start gap-3">
+										<div class="text-base-content/40 mt-0.5">
+											<CheckSquare size={18} />
+										</div>
+										<div class="flex-1 min-w-0">
+											<h3 class="font-medium">{task.title}</h3>
+											{#if task.description}
+												<p class="text-sm text-base-content/60 mt-1 line-clamp-2">{task.description}</p>
+											{/if}
+											<span class="badge badge-xs badge-ghost mt-1">{task.status}</span>
+										</div>
+									</div>
+								</Card>
+							</a>
+						{/each}
+					</div>
+				{/if}
+			{:else if hasSearched}
+				<div class="text-center py-10">
+					<p class="text-sm text-base-content/40">No results found for "{query}"</p>
+				</div>
+			{:else}
+				<div class="text-center py-10">
+					<p class="text-sm text-base-content/40">Type to search across all your notes and tasks</p>
+				</div>
+			{/if}
 		</div>
-	{:else}
-		<div class="text-center py-12">
-			<p class="text-base-content/40">Type to search across all your notes and tasks</p>
-		</div>
-	{/if}
+	</div>
 </div>

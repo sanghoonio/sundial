@@ -5,6 +5,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock } from 'lucide-svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	interface Props {
 		task: TaskResponse | null;
@@ -92,7 +93,14 @@
 	}
 
 	async function handleDelete() {
-		if (!task || !confirm('Delete this task?')) return;
+		if (!task) return;
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Task',
+			message: 'Are you sure you want to delete this task?',
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (!confirmed) return;
 		try {
 			await api.delete(`/api/tasks/${task.id}`);
 			ondeleted?.(task.id);

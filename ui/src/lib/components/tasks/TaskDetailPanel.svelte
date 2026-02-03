@@ -2,6 +2,7 @@
 	import { api } from '$lib/services/api';
 	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, ProjectResponse, NoteResponse, EventResponse } from '$lib/types';
 	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X, Save, Check } from 'lucide-svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	interface Props {
 		task: TaskResponse;
@@ -141,7 +142,13 @@
 	});
 
 	async function handleDelete() {
-		if (!confirm('Delete this task?')) return;
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Task',
+			message: 'Are you sure you want to delete this task?',
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (!confirmed) return;
 		try {
 			await api.delete(`/api/tasks/${task.id}`);
 			ondeleted?.(task.id);

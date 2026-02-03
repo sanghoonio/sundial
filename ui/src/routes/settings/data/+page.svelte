@@ -2,6 +2,7 @@
 	import { api } from '$lib/services/api';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { ChevronLeft, Download, Upload } from 'lucide-svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	let exporting = $state(false);
 	let importing = $state(false);
@@ -36,7 +37,13 @@
 		const file = input.files?.[0];
 		if (!file) return;
 
-		if (!confirm('This will replace ALL existing data with the backup. Continue?')) {
+		const confirmed = await confirmModal.confirm({
+			title: 'Replace Data',
+			message: 'This will replace ALL existing data with the backup. Continue?',
+			confirmText: 'Replace',
+			variant: 'warning'
+		});
+		if (!confirmed) {
 			input.value = '';
 			return;
 		}

@@ -4,6 +4,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import { Trash2 } from 'lucide-svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	interface Props {
 		open: boolean;
@@ -91,9 +92,15 @@
 		saving = false;
 	}
 
-	function handleDelete() {
+	async function handleDelete() {
 		if (!event || !ondelete) return;
-		if (!confirm('Delete this event?')) return;
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Event',
+			message: 'Are you sure you want to delete this event?',
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (!confirmed) return;
 		ondelete(event.id);
 	}
 </script>

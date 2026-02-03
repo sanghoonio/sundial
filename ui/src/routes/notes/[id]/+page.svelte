@@ -8,6 +8,7 @@
 	import ProjectSelect from '$lib/components/notes/ProjectSelect.svelte';
 	import NoteEditor from '$lib/components/notes/NoteEditor.svelte';
 	import { notesList } from '$lib/stores/noteslist.svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 	import TaskCreatePanel from '$lib/components/tasks/TaskCreatePanel.svelte';
 	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays } from 'lucide-svelte';
 
@@ -145,7 +146,13 @@
 	});
 
 	async function handleDelete() {
-		if (!confirm('Delete this note?')) return;
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Note',
+			message: 'Are you sure you want to delete this note?',
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (!confirmed) return;
 		try {
 			await api.delete(`/api/notes/${noteId}`);
 			notesList.refresh();

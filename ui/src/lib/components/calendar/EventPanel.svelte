@@ -5,6 +5,7 @@
 	import RecurrenceInput from '$lib/components/calendar/RecurrenceInput.svelte';
 	import TaskCreateModal from '$lib/components/tasks/TaskCreateModal.svelte';
 	import { Trash2, X, Check, Save, StickyNote, ListTodo, Plus, Repeat } from 'lucide-svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	interface Props {
 		event?: EventResponse | null;
@@ -195,17 +196,29 @@
 		}
 	}
 
-	function handleDelete() {
+	async function handleDelete() {
 		const id = liveEventId || event?.id;
 		if (!id || !ondeleted) return;
-		if (!confirm('Delete this event?')) return;
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Event',
+			message: 'Are you sure you want to delete this event?',
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (!confirmed) return;
 		ondeleted(id);
 	}
 
-	function handleDeleteSeries() {
+	async function handleDeleteSeries() {
 		const mid = masterEventId || liveEventId || event?.id;
 		if (!mid || !onseriesdeleted) return;
-		if (!confirm('Delete this entire recurring series?')) return;
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Series',
+			message: 'Are you sure you want to delete this entire recurring series?',
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (!confirmed) return;
 		onseriesdeleted(mid);
 	}
 </script>

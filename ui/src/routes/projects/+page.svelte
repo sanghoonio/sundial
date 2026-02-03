@@ -16,6 +16,7 @@
 	import Input from '$lib/components/ui/Input.svelte';
 	import IconPicker from '$lib/components/ui/IconPicker.svelte';
 	import ProjectIcon from '$lib/components/ui/ProjectIcon.svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 	import {
 		Plus, FolderKanban, CheckSquare, ExternalLink,
 		Trash2, Save, Check, Clock, X, ArrowLeft
@@ -194,7 +195,13 @@
 
 	async function handleDeleteProject() {
 		if (!selectedProjectId) return;
-		if (!confirm('Delete this project and all its tasks?')) return;
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Project',
+			message: 'Are you sure you want to delete this project and all its tasks?',
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (!confirmed) return;
 		try {
 			await api.delete(`/api/projects/${selectedProjectId}`);
 			projects = projects.filter((p) => p.id !== selectedProjectId);
@@ -319,8 +326,8 @@
 						<button
 							class="card bg-base-100 border text-left transition-all aspect-square
 								{selectedProjectId === project.id
-									? 'border-primary/40 shadow-md ring-2 ring-primary/20'
-									: 'border-base-300 shadow-sm hover:shadow-md hover:border-base-content/20'}"
+									? 'border-primary bg-base-200/50'
+									: 'border-base-300 hover:border-base-content/30'}"
 							onclick={() => selectProject(project.id)}
 						>
 							<div class="card-body p-4 flex flex-col justify-between h-full">

@@ -3,6 +3,7 @@
 	import TaskCard from './TaskCard.svelte';
 	import TaskQuickAdd from './TaskQuickAdd.svelte';
 	import { Inbox, Trash2, GripVertical, Lock } from 'lucide-svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	interface Props {
 		milestone: MilestoneResponse;
@@ -51,8 +52,14 @@
 		}
 	}
 
-	function handleDelete() {
-		if (confirm(`Delete column "${milestone.name}"? Tasks in this column will need to be reassigned.`)) {
+	async function handleDelete() {
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Column',
+			message: `Delete column "${milestone.name}"? Tasks in this column will need to be reassigned.`,
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (confirmed) {
 			ondelete?.(milestone.id);
 		}
 	}
