@@ -27,16 +27,17 @@ const wikiLinkExtension = {
 		const display = pipeIdx >= 0 ? text.slice(pipeIdx + 1).trim() : text;
 
 		// If it's task:id or event:id, link accordingly
+		// Use # as href since the click handler in MarkdownBlock.svelte handles navigation with base path
 		if (target.startsWith('task:')) {
 			const id = target.slice(5);
-			return `<a href="/tasks" class="wiki-link wiki-link-task" data-type="task" data-id="${escapeAttr(id)}">${escapeHtml(display)}</a>`;
+			return `<a href="#" class="wiki-link wiki-link-task" data-type="task" data-id="${escapeAttr(id)}">${escapeHtml(display)}</a>`;
 		}
 		if (target.startsWith('event:')) {
 			const id = target.slice(6);
-			return `<a href="/calendar" class="wiki-link wiki-link-event" data-type="event" data-id="${escapeAttr(id)}">${escapeHtml(display)}</a>`;
+			return `<a href="#" class="wiki-link wiki-link-event" data-type="event" data-id="${escapeAttr(id)}">${escapeHtml(display)}</a>`;
 		}
 		// Default: link to note by title
-		return `<a href="/notes" class="wiki-link wiki-link-note" data-title="${escapeAttr(target)}">${escapeHtml(display)}</a>`;
+		return `<a href="#" class="wiki-link wiki-link-note" data-title="${escapeAttr(target)}">${escapeHtml(display)}</a>`;
 	}
 };
 

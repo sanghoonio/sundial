@@ -14,7 +14,7 @@
 	async function handleExportWorkspace() {
 		exporting = true;
 		try {
-			const res = await fetch('/api/export/workspace', {
+			const res = await fetch(`${base}/api/export/workspace`, {
 				headers: api.authHeaders()
 			});
 			if (!res.ok) throw new Error('Export failed');
@@ -56,7 +56,7 @@
 		try {
 			const formData = new FormData();
 			formData.append('file', file);
-			const res = await fetch('/api/import/workspace', {
+			const res = await fetch(`${base}/api/import/workspace`, {
 				method: 'POST',
 				headers: api.authHeaders(),
 				body: formData

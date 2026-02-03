@@ -26,7 +26,7 @@
 	let hasOpenrouterKey = $derived(openrouterApiKey.length > 0 && openrouterApiKey !== '');
 	let hasNvidiaKey = $derived(nvidiaApiKey.length > 0 && nvidiaApiKey !== '');
 
-	let mcpUrl = $derived(typeof window !== 'undefined' ? `${window.location.origin}/mcp/sse` : '');
+	let mcpUrl = $derived(typeof window !== 'undefined' ? `${window.location.origin}${base}/mcp/sse` : '');
 	let mcpConfig = $derived(JSON.stringify({
 		mcpServers: {
 			sundial: {

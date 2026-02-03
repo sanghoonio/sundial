@@ -188,10 +188,25 @@
 
 	async function handlePreviewClick(e: MouseEvent) {
 		const target = e.target as HTMLElement;
-		const link = target.closest('a.wiki-link-note') as HTMLAnchorElement | null;
+		const link = target.closest('a.wiki-link') as HTMLAnchorElement | null;
 		if (!link) return;
 		e.preventDefault();
 
+		// Handle task links
+		if (link.classList.contains('wiki-link-task')) {
+			const id = link.dataset.id;
+			if (id) goto(`${base}/tasks?task=${id}`);
+			return;
+		}
+
+		// Handle event links
+		if (link.classList.contains('wiki-link-event')) {
+			const id = link.dataset.id;
+			if (id) goto(`${base}/calendar?event=${id}`);
+			return;
+		}
+
+		// Handle note links
 		const title = link.dataset.title;
 		if (!title) return;
 

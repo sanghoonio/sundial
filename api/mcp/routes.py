@@ -12,11 +12,13 @@ from starlette.routing import Mount, Route
 from mcp.server.sse import SseServerTransport
 
 from api.mcp.server import mcp_server
+from api.config import settings
 
 logger = logging.getLogger(__name__)
 
-# SSE transport — the messages endpoint path is relative to the mount point
-sse_transport = SseServerTransport("/mcp/messages")
+# SSE transport — the messages endpoint path must include BASE_PATH for subpath deployments
+messages_path = f"{settings.BASE_PATH}/mcp/messages" if settings.BASE_PATH else "/mcp/messages"
+sse_transport = SseServerTransport(messages_path)
 
 
 async def _check_mcp_enabled(db) -> bool:
