@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { api } from '$lib/services/api';
 	import { notesList } from '$lib/stores/noteslist.svelte';
+	import { confirmModal } from '$lib/stores/confirm.svelte';
 	import type { NoteCreate, NoteList, NoteListItem, NoteResponse, TagListResponse } from '$lib/types';
 	import NoteListItemComponent from '$lib/components/notes/NoteListItem.svelte';
 	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA, ChevronDown, BookOpen, Upload } from 'lucide-svelte';
@@ -305,6 +306,26 @@
 
 		return lines.join('\n');
 	}
+
+	// --- Delete from list ---
+	async function handleDeleteNote(noteId: string) {
+		const confirmed = await confirmModal.confirm({
+			title: 'Delete Note',
+			message: 'Are you sure you want to delete this note?',
+			confirmText: 'Delete',
+			variant: 'danger'
+		});
+		if (!confirmed) return;
+		try {
+			await api.delete(`/api/notes/${noteId}`);
+			notesList.refresh();
+			if (selectedNoteId === noteId) {
+				goto('/notes');
+			}
+		} catch (e) {
+			console.error('Failed to delete note', e);
+		}
+	}
 </script>
 
 <div class="absolute inset-0 flex overflow-hidden">
@@ -428,14 +449,14 @@
 		{/if}
 
 		<!-- Scrollable note list -->
-		<div class="flex-1 overflow-y-auto">
+		<div class="flex-1 overflow-y-auto overscroll-x-contain">
 			{#if loading}
 				<div class="flex items-center justify-center py-10">
 					<span class="loading loading-spinner loading-md"></span>
 				</div>
 			{:else if displayNotes.length > 0}
 				{#each displayNotes as note (note.id)}
-					<NoteListItemComponent {note} selected={selectedNoteId === note.id} />
+					<NoteListItemComponent {note} selected={selectedNoteId === note.id} ondelete={handleDeleteNote} />
 				{/each}
 
 				{#if hasMore && !activeSearch}
