@@ -23,6 +23,7 @@ sse_transport = SseServerTransport(messages_path)
 
 async def _check_mcp_enabled(db) -> bool:
     """Check if MCP is enabled in settings."""
+    from sqlalchemy import select
     from api.models.settings import UserSettings
     result = await db.execute(
         select(UserSettings).where(UserSettings.key == "mcp_enabled")
