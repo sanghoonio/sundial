@@ -126,7 +126,7 @@ if _ui_build.is_dir():
 
 # Mount api_app at BASE_PATH if configured, otherwise use it directly as the root app
 if settings.BASE_PATH:
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan)
     app.mount(settings.BASE_PATH, api_app)
 else:
     app = api_app
