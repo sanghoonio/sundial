@@ -392,6 +392,7 @@
 					<Save size={16} />
 				{/if}
 			</button>
+			<ProjectSelect bind:value={projectId} />
 			<button
 				class="btn btn-ghost btn-sm"
 				class:btn-active={showMeta}
@@ -427,15 +428,9 @@
 		<!-- Metadata section -->
 		{#if showMeta}
 			<div class="mb-4 md:mb-6 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col gap-3">
-				<div class="flex flex-col sm:flex-row gap-3">
-					<div class="flex-1">
-						<span class="text-xs font-medium text-base-content/50 mb-1 block">Tags</span>
-						<TagInput bind:tags />
-					</div>
-					<div class="sm:w-48">
-						<span class="text-xs font-medium text-base-content/50 mb-1 block">Project</span>
-						<ProjectSelect bind:value={projectId} />
-					</div>
+				<div>
+					<span class="text-xs font-medium text-base-content/50 mb-1 block">Tags</span>
+					<TagInput bind:tags />
 				</div>
 				{#if note}
 					<div class="flex gap-6 text-xs text-base-content/40">

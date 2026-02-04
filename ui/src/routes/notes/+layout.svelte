@@ -6,9 +6,9 @@
 	import { api } from '$lib/services/api';
 	import { notesList } from '$lib/stores/noteslist.svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
-	import type { NoteCreate, NoteList, NoteListItem, NoteResponse, TagListResponse } from '$lib/types';
+	import type { NoteCreate, NoteList, NoteListItem, NoteResponse, TagListResponse, TagWithCount, ProjectList, ProjectResponse } from '$lib/types';
 	import NoteListItemComponent from '$lib/components/notes/NoteListItem.svelte';
-	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA, ChevronDown, BookOpen, Upload } from 'lucide-svelte';
+	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA, ChevronDown, BookOpen, Upload, FolderKanban, Tag } from 'lucide-svelte';
 
 	let { children } = $props();
 
@@ -16,9 +16,12 @@
 
 	let notes = $state<NoteListItem[]>([]);
 	let total = $state(0);
-	let allTags = $state<string[]>([]);
+	let tagsWithCount = $state<TagWithCount[]>([]);
+	let projects = $state<ProjectResponse[]>([]);
 	let search = $state('');
 	let selectedTag = $state('');
+	let selectedProject = $state('');
+	let tagSearch = $state('');
 	let sortBy = $state<'newest' | 'oldest' | 'title_asc' | 'title_desc'>('newest');
 	let loading = $state(true);
 	let loadingMore = $state(false);
@@ -48,6 +51,7 @@
 		try {
 			const params = new URLSearchParams();
 			if (selectedTag) params.set('tag', selectedTag);
+			if (selectedProject) params.set('project_id', selectedProject);
 			if (activeSearch) params.set('search', activeSearch);
 			params.set('limit', String(PAGE_SIZE));
 			params.set('offset', String(append ? offset : 0));
@@ -72,20 +76,40 @@
 	async function loadTags() {
 		try {
 			const res = await api.get<TagListResponse>('/api/tags');
-			allTags = res.tags.map((t) => t.name);
+			tagsWithCount = res.tags;
+		} catch {
+			// ignore
+		}
+	}
+
+	async function loadProjects() {
+		try {
+			const res = await api.get<ProjectList>('/api/projects');
+			projects = res.projects;
 		} catch {
 			// ignore
 		}
 	}
 
 	$effect(() => {
-		// Re-fetch when tag/search filter changes or child routes signal a refresh
+		// Re-fetch when tag/search/project filter changes or child routes signal a refresh
 		selectedTag;
+		selectedProject;
 		activeSearch;
 		notesList.refreshKey;
 		load();
 		loadTags();
+		loadProjects();
 	});
+
+	let filteredTags = $derived(
+		tagSearch
+			? tagsWithCount.filter((t) => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+			: tagsWithCount
+	);
+
+	let selectedProjectData = $derived(projects.find((p) => p.id === selectedProject));
+	let selectedTagData = $derived(tagsWithCount.find((t) => t.name === selectedTag));
 
 	let displayNotes = $derived(sortNotes(notes, sortBy));
 
@@ -340,7 +364,7 @@
 		class="w-72 lg:w-80 border-r border-base-300 flex-col bg-base-100
 			{selectedNoteId || isNewNote ? 'hidden md:flex' : 'flex'}"
 	>
-		<!-- Header: search + sort + new -->
+		<!-- Header: search + new -->
 		<div class="px-4 py-3 border-b border-base-300 shrink-0">
 			<div class="flex items-center gap-2 h-8">
 				<button
@@ -371,26 +395,6 @@
 						Search
 					{/if}
 				</button>
-				<div class="dropdown dropdown-end shrink-0">
-					<button tabindex="0" class="btn btn-ghost btn-sm btn-square" title="Sort">
-						{#if sortBy === 'newest'}
-							<ArrowDownNarrowWide size={14} />
-						{:else if sortBy === 'oldest'}
-							<ArrowUpNarrowWide size={14} />
-						{:else if sortBy === 'title_asc'}
-							<ArrowDownAZ size={14} />
-						{:else}
-							<ArrowDownZA size={14} />
-						{/if}
-					</button>
-					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-					<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-44 p-1 border border-base-300 mt-1">
-						<li><button class={sortBy === 'newest' ? 'active' : ''} onclick={() => (sortBy = 'newest')}><ArrowDownNarrowWide size={14} />Newest first</button></li>
-						<li><button class={sortBy === 'oldest' ? 'active' : ''} onclick={() => (sortBy = 'oldest')}><ArrowUpNarrowWide size={14} />Oldest first</button></li>
-						<li><button class={sortBy === 'title_asc' ? 'active' : ''} onclick={() => (sortBy = 'title_asc')}><ArrowDownAZ size={14} />Title A-Z</button></li>
-						<li><button class={sortBy === 'title_desc' ? 'active' : ''} onclick={() => (sortBy = 'title_desc')}><ArrowDownZA size={14} />Title Z-A</button></li>
-					</ul>
-				</div>
 				<div class="join shrink-0">
 					<a href="{base}/notes/new" class="btn btn-primary btn-sm btn-square join-item" title="New note">
 						<Plus size={16} />
@@ -434,25 +438,132 @@
 			</div>
 		</div>
 
-		<!-- Tag filter chips -->
-		{#if allTags.length > 0}
-			<div class="flex gap-1 px-4 py-2 overflow-x-auto border-b border-base-300">
-				<button
-					class="badge badge-xs cursor-pointer shrink-0 {selectedTag === '' ? 'badge-primary' : 'badge-ghost'}"
-					onclick={() => (selectedTag = '')}
-				>
-					All
+		<!-- Filter row: Project + Tag + Sort dropdowns -->
+		<div class="flex items-center justify-between px-4 py-2 border-b border-base-300">
+			<!-- Project filter dropdown -->
+			<div class="dropdown dropdown-start">
+				<button tabindex="0" class="btn btn-ghost btn-xs gap-1 min-w-0 {selectedProject ? 'btn-active' : ''}">
+					{#if selectedProjectData}
+						<span class="w-2 h-2 rounded-full shrink-0" style:background-color={selectedProjectData.color}></span>
+						<span class="truncate max-w-20">{selectedProjectData.name}</span>
+					{:else}
+						<FolderKanban size={12} class="shrink-0" />
+						<span>Project</span>
+					{/if}
+					<ChevronDown size={10} class="shrink-0 opacity-50" />
 				</button>
-				{#each allTags as tag}
-					<button
-						class="badge badge-xs cursor-pointer shrink-0 {selectedTag === tag ? 'badge-primary' : 'badge-ghost'}"
-						onclick={() => (selectedTag = selectedTag === tag ? '' : tag)}
-					>
-						{tag}
-					</button>
-				{/each}
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-48 p-1 border border-base-300 mt-1 max-h-60 overflow-y-auto">
+					<li>
+						<button class={selectedProject === '' ? 'active' : ''} onclick={() => (selectedProject = '')}>
+							All projects
+						</button>
+					</li>
+					{#each projects as project}
+						<li>
+							<button
+								class={selectedProject === project.id ? 'active' : ''}
+								onclick={() => (selectedProject = selectedProject === project.id ? '' : project.id)}
+							>
+								<span class="w-2 h-2 rounded-full shrink-0" style:background-color={project.color}></span>
+								<span class="truncate">{project.name}</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
 			</div>
-		{/if}
+
+			<!-- Tag filter dropdown -->
+			<div class="dropdown dropdown-start">
+				<button tabindex="0" class="btn btn-ghost btn-xs gap-1 min-w-0 {selectedTag ? 'btn-active' : ''}">
+					{#if selectedTagData}
+						<Tag size={12} class="shrink-0" />
+						<span class="truncate max-w-20">{selectedTagData.name}</span>
+						<span class="badge badge-xs badge-ghost">{selectedTagData.count}</span>
+					{:else}
+						<Tag size={12} class="shrink-0" />
+						<span>Tag</span>
+					{/if}
+					<ChevronDown size={10} class="shrink-0 opacity-50" />
+				</button>
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div tabindex="0" class="dropdown-content bg-base-100 rounded-box shadow-lg z-10 w-52 border border-base-300 mt-1">
+					<div class="p-2 border-b border-base-300">
+						<input
+							type="text"
+							placeholder="Search tags..."
+							class="input input-xs input-bordered w-full"
+							bind:value={tagSearch}
+							onclick={(e) => e.stopPropagation()}
+						/>
+					</div>
+					<ul class="menu p-1 max-h-48 overflow-y-auto">
+						<li>
+							<button class={selectedTag === '' ? 'active' : ''} onclick={() => { selectedTag = ''; tagSearch = ''; }}>
+								All tags
+							</button>
+						</li>
+						{#each filteredTags as tag}
+							<li>
+								<button
+									class="justify-between {selectedTag === tag.name ? 'active' : ''}"
+									onclick={() => { selectedTag = selectedTag === tag.name ? '' : tag.name; tagSearch = ''; }}
+								>
+									<span class="truncate">{tag.name}</span>
+									<span class="badge badge-xs badge-ghost">{tag.count}</span>
+								</button>
+							</li>
+						{/each}
+						{#if filteredTags.length === 0 && tagSearch}
+							<li class="text-xs text-base-content/50 px-3 py-2">No tags match "{tagSearch}"</li>
+						{/if}
+					</ul>
+				</div>
+			</div>
+
+			<!-- Sort dropdown -->
+			<div class="dropdown dropdown-end">
+				<button tabindex="0" class="btn btn-ghost btn-xs gap-1 min-w-0">
+					{#if sortBy === 'newest'}
+						<ArrowDownNarrowWide size={12} class="shrink-0" />
+						<span>Newest</span>
+					{:else if sortBy === 'oldest'}
+						<ArrowUpNarrowWide size={12} class="shrink-0" />
+						<span>Oldest</span>
+					{:else if sortBy === 'title_asc'}
+						<ArrowDownAZ size={12} class="shrink-0" />
+						<span>A-Z</span>
+					{:else}
+						<ArrowDownZA size={12} class="shrink-0" />
+						<span>Z-A</span>
+					{/if}
+					<ChevronDown size={10} class="shrink-0 opacity-50" />
+				</button>
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-36 p-1 border border-base-300 mt-1">
+					<li>
+						<button class={sortBy === 'newest' ? 'active' : ''} onclick={() => (sortBy = 'newest')}>
+							<ArrowDownNarrowWide size={12} />Newest
+						</button>
+					</li>
+					<li>
+						<button class={sortBy === 'oldest' ? 'active' : ''} onclick={() => (sortBy = 'oldest')}>
+							<ArrowUpNarrowWide size={12} />Oldest
+						</button>
+					</li>
+					<li>
+						<button class={sortBy === 'title_asc' ? 'active' : ''} onclick={() => (sortBy = 'title_asc')}>
+							<ArrowDownAZ size={12} />Title A-Z
+						</button>
+					</li>
+					<li>
+						<button class={sortBy === 'title_desc' ? 'active' : ''} onclick={() => (sortBy = 'title_desc')}>
+							<ArrowDownZA size={12} />Title Z-A
+						</button>
+					</li>
+				</ul>
+			</div>
+		</div>
 
 		<!-- Scrollable note list -->
 		<div class="flex-1 overflow-y-auto overscroll-x-contain">

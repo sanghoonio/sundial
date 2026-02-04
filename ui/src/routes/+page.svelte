@@ -155,7 +155,7 @@
 					<div class="flex-1 overflow-y-auto min-h-0">
 						<div class="flex flex-col gap-2">
 							{#each dashboard.tasks_due as task}
-								<a href="{base}/tasks?task={task.id}" class="block p-3 rounded-lg bg-base-100 hover:bg-base-100/80 transition-colors">
+								<a href="{base}/tasks/{task.project_id}?task={task.id}" class="block p-3 rounded-lg bg-base-100 hover:bg-base-100/80 transition-colors">
 									<h3 class="text-sm font-medium truncate">{task.title}</h3>
 									<span class="text-xs text-base-content/40">{formatTaskPriority(task)}{formatTaskPriority(task) ? ' priority' : 'Due today'}</span>
 								</a>

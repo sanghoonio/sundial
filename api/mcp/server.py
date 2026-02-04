@@ -100,6 +100,7 @@ def _tool_list() -> list[Tool]:
                     "title": {"type": "string", "description": "New title"},
                     "status": {"type": "string", "description": "New status (open/in_progress/done)", "enum": ["open", "in_progress", "done"]},
                     "priority": {"type": "string", "description": "New priority (low/medium/high)"},
+                    "due_date": {"type": "string", "description": "New due date in YYYY-MM-DD format (or null to clear)"},
                     "note_ids": {"type": "array", "items": {"type": "string"}, "description": "Note IDs to link (replaces all existing links)"},
                 },
                 "required": ["task_id"],
@@ -442,7 +443,17 @@ async def _create_task(db, args: dict) -> list[TextContent]:
     due_date = None
     if args.get("due_date"):
         try:
-            due_date = datetime.strptime(args["due_date"], "%Y-%m-%d")
+            # Parse as local date and convert to UTC midnight
+            # This ensures the date is stored correctly regardless of timezone
+            local_date = datetime.strptime(args["due_date"], "%Y-%m-%d")
+            # Treat the input as a local date at midnight, then convert to UTC
+            import zoneinfo
+            try:
+                local_tz = zoneinfo.ZoneInfo("localtime")
+            except Exception:
+                # Fallback: treat as UTC if local timezone unavailable
+                local_tz = timezone.utc
+            due_date = local_date.replace(tzinfo=local_tz).astimezone(timezone.utc)
         except ValueError:
             return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD.")]
 
@@ -501,6 +512,20 @@ async def _update_task(db, args: dict) -> list[TextContent]:
             task.completed_at = datetime.now(timezone.utc)
     if "priority" in args:
         task.priority = args["priority"]
+    if "due_date" in args:
+        if args["due_date"] is None:
+            task.due_date = None
+        else:
+            try:
+                # Parse as local date and convert to UTC midnight
+                local_date = datetime.strptime(args["due_date"], "%Y-%m-%d")
+                try:
+                    local_tz = zoneinfo.ZoneInfo("localtime")
+                except Exception:
+                    local_tz = timezone.utc
+                task.due_date = local_date.replace(tzinfo=local_tz).astimezone(timezone.utc)
+            except ValueError:
+                return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD.")]
 
     # Handle note_ids: replace all linked notes
     linked_notes = []

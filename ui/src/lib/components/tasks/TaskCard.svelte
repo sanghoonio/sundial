@@ -168,7 +168,7 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 	<div
-		class="rounded-lg {selected ? 'bg-primary/5' : 'bg-base-100'} {onclick ? 'cursor-pointer hover:bg-base-100/80' : ''} {isAiSuggested ? 'border border-dashed border-primary/40' : ''} transition-colors"
+		class="rounded-lg {selected ? 'bg-primary/5 hover:bg-primary/10' : 'bg-base-100'} {onclick && !selected ? 'hover:bg-base-100/80' : ''} {onclick ? 'cursor-pointer' : ''} {isAiSuggested ? 'border border-dashed border-primary/40' : ''} transition-colors"
 		onclick={onclick}
 		onkeydown={(e) => { if (e.key === 'Enter' && onclick) onclick(); }}
 		role={onclick ? 'button' : undefined}

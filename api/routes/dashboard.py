@@ -1,5 +1,7 @@
+import zoneinfo
 from datetime import datetime, timedelta, timezone
 
+from dateutil.rrule import rrulestr
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -91,14 +93,107 @@ async def get_today(db: AsyncSession = Depends(get_db)):
     )
     tasks_due = list(task_result.scalars().all())
 
-    # Events for today
-    event_result = await db.execute(
+    # Events for today - with recurring event expansion
+    events_out: list[tuple[datetime, str, datetime | None, bool, str]] = []  # (start_time, title, end_time, all_day, id)
+
+    # Non-recurring events today (no rrule, no recurring_event_id)
+    non_recurring_result = await db.execute(
         select(CalendarEvent)
-        .where(CalendarEvent.start_time.between(today_start, today_end))
-        .order_by(CalendarEvent.start_time)
-        .limit(10)
+        .where(
+            CalendarEvent.rrule.is_(None),
+            CalendarEvent.recurring_event_id.is_(None),
+            CalendarEvent.start_time >= today_start,
+            CalendarEvent.start_time < today_end,
+        )
     )
-    events = list(event_result.scalars().all())
+    for e in non_recurring_result.scalars().all():
+        events_out.append((_ensure_utc(e.start_time), e.title, e.end_time, e.all_day, e.id))
+
+    # Recurring masters - expand their RRULEs
+    masters_result = await db.execute(
+        select(CalendarEvent).where(
+            CalendarEvent.rrule.isnot(None),
+            CalendarEvent.recurring_event_id.is_(None),
+        )
+    )
+    masters = masters_result.scalars().all()
+
+    # Exception instances for today
+    exc_result = await db.execute(
+        select(CalendarEvent).where(
+            CalendarEvent.recurring_event_id.isnot(None),
+            CalendarEvent.start_time >= today_start,
+            CalendarEvent.start_time < today_end,
+        )
+    )
+    exceptions = exc_result.scalars().all()
+    exc_by_master: dict[str, dict[str, CalendarEvent]] = {}
+    for exc in exceptions:
+        if exc.recurring_event_id not in exc_by_master:
+            exc_by_master[exc.recurring_event_id] = {}
+        if exc.recurrence_id:
+            exc_by_master[exc.recurring_event_id][exc.recurrence_id] = exc
+
+    # Expand each master's RRULE
+    for master in masters:
+        try:
+            duration = (master.end_time - master.start_time) if master.end_time else timedelta(hours=1)
+
+            # Handle timezone-aware expansion
+            orig_tz = None
+            if master.original_timezone:
+                try:
+                    orig_tz = zoneinfo.ZoneInfo(master.original_timezone)
+                except Exception:
+                    pass
+
+            if orig_tz:
+                dtstart_utc = master.start_time
+                if dtstart_utc.tzinfo is None:
+                    dtstart_utc = dtstart_utc.replace(tzinfo=timezone.utc)
+                dtstart_local = dtstart_utc.astimezone(orig_tz)
+                local_start = today_start.astimezone(orig_tz)
+                local_end = today_end.astimezone(orig_tz)
+                rule = rrulestr(master.rrule, dtstart=dtstart_local)
+                occurrences_local = rule.between(local_start, local_end, inc=True)
+                occurrences = [occ.astimezone(timezone.utc) for occ in occurrences_local]
+            else:
+                dtstart = master.start_time
+                if dtstart.tzinfo is None:
+                    dtstart = dtstart.replace(tzinfo=timezone.utc)
+                rule = rrulestr(master.rrule, dtstart=dtstart)
+                occurrences = rule.between(today_start, today_end, inc=True)
+
+            master_exceptions = exc_by_master.get(master.id, {})
+
+            for occ_dt in occurrences:
+                occ_iso = occ_dt.isoformat()
+                if occ_iso in master_exceptions:
+                    exc_event = master_exceptions[occ_iso]
+                    events_out.append((_ensure_utc(exc_event.start_time), exc_event.title, exc_event.end_time, exc_event.all_day, exc_event.id))
+                else:
+                    occ_end = occ_dt + duration
+                    synthetic_id = f"{master.id}__rec__{occ_dt.strftime('%Y%m%dT%H%M%S')}"
+                    events_out.append((occ_dt, master.title, occ_end, master.all_day, synthetic_id))
+        except Exception:
+            # If RRULE expansion fails, skip this master
+            pass
+
+    # Add any exceptions not already included (edge case: moved outside original date)
+    included_ids = {e[4] for e in events_out}
+    for exc in exceptions:
+        if exc.id not in included_ids:
+            events_out.append((_ensure_utc(exc.start_time), exc.title, exc.end_time, exc.all_day, exc.id))
+
+    # Sort by start time and limit
+    events_out.sort(key=lambda e: e[0])
+    events_out = events_out[:10]
+
+    # Convert to list of event-like objects for the response
+    events = [
+        type('Event', (), {'id': eid, 'title': title, 'start_time': start, 'end_time': end, 'all_day': all_day})()
+        for start, title, end, all_day, eid in events_out
+    ]
 
     # Tasks linked to today's events
     event_ids = [e.id for e in events]
