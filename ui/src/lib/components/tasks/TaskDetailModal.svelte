@@ -35,17 +35,29 @@
 	let checklistTotal = $derived(checklist.length);
 	let checklistPct = $derived(checklistTotal > 0 ? Math.round((checklistDone / checklistTotal) * 100) : 0);
 
-	let linkedNoteTitle = $state<string | null>(null);
+	let linkedNoteTitles = $state<Record<string, string>>({});
 	let linkedEventTitle = $state<string | null>(null);
 
-	// Fetch linked note/event titles
+	// Fetch linked note titles
 	$effect(() => {
-		const noteId = task?.source_note_id;
-		if (noteId) {
-			api.get<NoteResponse>(`/api/notes/${noteId}`).then((n) => (linkedNoteTitle = n.title)).catch(() => (linkedNoteTitle = null));
-		} else {
-			linkedNoteTitle = null;
+		const noteIds = task?.note_ids ?? [];
+		if (noteIds.length === 0) {
+			linkedNoteTitles = {};
+			return;
 		}
+		Promise.all(
+			noteIds.map((id) =>
+				api.get<NoteResponse>(`/api/notes/${id}`)
+					.then((n) => ({ id, title: n.title }))
+					.catch(() => ({ id, title: 'Unknown note' }))
+			)
+		).then((results) => {
+			const titles: Record<string, string> = {};
+			results.forEach(({ id, title }) => {
+				titles[id] = title;
+			});
+			linkedNoteTitles = titles;
+		});
 	});
 
 	$effect(() => {
@@ -232,14 +244,14 @@
 			{/if}
 
 			<!-- Linked items -->
-			{#if task.source_note_id || task.calendar_event_id}
+			{#if (task.note_ids?.length ?? 0) > 0 || task.calendar_event_id}
 				<div class="flex flex-col gap-1 text-xs text-base-content/60">
-					{#if task.source_note_id}
-						<a href="{base}/notes/{task.source_note_id}" class="flex items-center gap-1 hover:text-primary transition-colors" onclick={(e) => e.stopPropagation()}>
+					{#each task.note_ids ?? [] as noteId}
+						<a href="{base}/notes/{noteId}" class="flex items-center gap-1 hover:text-primary transition-colors" onclick={(e) => e.stopPropagation()}>
 							<StickyNote size={12} />
-							{linkedNoteTitle ?? 'Linked note'}
+							{linkedNoteTitles[noteId] ?? 'Linked note'}
 						</a>
-					{/if}
+					{/each}
 					{#if task.calendar_event_id}
 						<a href="{base}/calendar" class="flex items-center gap-1 hover:text-primary transition-colors" onclick={(e) => e.stopPropagation()}>
 							<CalendarDays size={12} />

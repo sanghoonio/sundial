@@ -7,12 +7,12 @@
 	interface Props {
 		projectId: string;
 		projects?: ProjectResponse[];
-		sourceNoteId?: string | null;
+		initialNoteId?: string | null;
 		onclose: () => void;
 		oncreated?: (task: TaskResponse) => void;
 	}
 
-	let { projectId, projects = [], sourceNoteId = null, onclose, oncreated }: Props = $props();
+	let { projectId, projects = [], initialNoteId = null, onclose, oncreated }: Props = $props();
 
 	let title = $state('');
 	let description = $state('');
@@ -45,7 +45,7 @@
 			if (dueDate) data.due_date = new Date(dueDate).toISOString();
 			if (selectedMilestoneId) data.milestone_id = selectedMilestoneId;
 			if (checklist.length > 0) data.checklist = checklist;
-			if (sourceNoteId) data.source_note_id = sourceNoteId;
+			if (initialNoteId) data.note_ids = [initialNoteId];
 
 			const task = await api.post<TaskResponse>('/api/tasks', data);
 			oncreated?.(task);
@@ -156,8 +156,8 @@
 			{/if}
 		</div>
 
-		<!-- Source note badge -->
-		{#if sourceNoteId}
+		<!-- Initial note badge -->
+		{#if initialNoteId}
 			<div class="flex items-center gap-1 text-xs text-base-content/60">
 				<StickyNote size={12} />
 				<span>Linked to note</span>

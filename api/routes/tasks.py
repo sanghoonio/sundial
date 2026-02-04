@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,15 @@ from api.utils.websocket import manager
 router = APIRouter(prefix="/tasks", tags=["tasks"], dependencies=[Depends(get_current_user)])
 
 
+def _ensure_utc(dt: datetime | None) -> datetime | None:
+    """Ensure datetime is UTC-aware for consistent frontend parsing."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)):
     checklist = [item.model_dump() for item in body.checklist] if body.checklist else None
@@ -23,7 +32,6 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)):
         due_date=body.due_date,
         project_id=body.project_id,
         milestone_id=body.milestone_id,
-        source_note_id=body.source_note_id,
         calendar_event_id=body.calendar_event_id,
         checklist=checklist,
         note_ids=body.note_ids if body.note_ids else None,
@@ -138,19 +146,18 @@ def _task_to_response(task) -> TaskResponse:
         description=task.description,
         status=task.status,
         priority=task.priority,
-        due_date=task.due_date,
+        due_date=_ensure_utc(task.due_date),
         project_id=task.project_id,
         milestone_id=task.milestone_id,
-        source_note_id=task.source_note_id,
         calendar_event_id=task.calendar_event_id,
         ai_suggested=task.ai_suggested or False,
         position=task.position,
-        completed_at=task.completed_at,
+        completed_at=_ensure_utc(task.completed_at),
         checklist=[
             {"id": c.id, "text": c.text, "is_checked": c.is_checked, "position": c.position}
             for c in task.checklist
         ],
         note_ids=[n.note_id for n in task.notes],
-        created_at=task.created_at,
-        updated_at=task.updated_at,
+        created_at=_ensure_utc(task.created_at),
+        updated_at=_ensure_utc(task.updated_at),
     )

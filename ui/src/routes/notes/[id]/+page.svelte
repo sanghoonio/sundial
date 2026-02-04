@@ -589,7 +589,7 @@
 		<TaskCreatePanel
 			projectId={createTaskProjectId}
 			projects={createTaskProjects}
-			sourceNoteId={noteId}
+			initialNoteId={noteId}
 			onclose={() => (createTaskOpen = false)}
 			oncreated={async () => {
 				links = await api.get<LinksResponse>(`/api/notes/${noteId}/links`);

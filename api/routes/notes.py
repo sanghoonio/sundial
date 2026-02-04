@@ -114,11 +114,20 @@ async def get_backlinks(note_id: str, db: AsyncSession = Depends(get_db)):
 
     backlink_notes = await note_service.get_backlinks(db, note_id)
 
-    # Also find tasks that reference this note via source_note_id
-    task_result = await db.execute(
-        select(Task).where(Task.source_note_id == note_id)
+    # Find tasks linked to this note via TaskNote table
+    from api.models.task import TaskNote
+
+    task_note_result = await db.execute(
+        select(TaskNote).where(TaskNote.note_id == note_id)
     )
-    backlink_tasks = list(task_result.scalars().all())
+    linked_task_ids = [link.task_id for link in task_note_result.scalars().all()]
+
+    backlink_tasks = []
+    if linked_task_ids:
+        linked_tasks_result = await db.execute(
+            select(Task).where(Task.id.in_(linked_task_ids))
+        )
+        backlink_tasks = list(linked_tasks_result.scalars().all())
 
     return BacklinksResponse(
         notes=[BacklinkItem(id=n.id, title=n.title, filepath=n.filepath) for n in backlink_notes],
@@ -195,11 +204,20 @@ async def get_links(note_id: str, db: AsyncSession = Depends(get_db)):
     # Incoming note links (notes that link to this note)
     incoming_notes = await note_service.get_backlinks(db, note_id)
 
-    # Incoming task links (tasks created from this note via source_note_id)
-    incoming_tasks_result = await db.execute(
-        select(Task).where(Task.source_note_id == note_id)
+    # Incoming task links via TaskNote table
+    from api.models.task import TaskNote
+
+    task_note_result = await db.execute(
+        select(TaskNote).where(TaskNote.note_id == note_id)
     )
-    incoming_tasks = list(incoming_tasks_result.scalars().all())
+    linked_task_ids = [link.task_id for link in task_note_result.scalars().all()]
+
+    incoming_tasks = []
+    if linked_task_ids:
+        linked_tasks_result = await db.execute(
+            select(Task).where(Task.id.in_(linked_task_ids))
+        )
+        incoming_tasks = list(linked_tasks_result.scalars().all())
 
     return LinksResponse(
         outgoing_notes=[BacklinkItem(id=n.id, title=n.title, filepath=n.filepath) for n in outgoing_notes],
@@ -221,9 +239,10 @@ async def _note_to_response(note, db: AsyncSession) -> NoteResponse:
     if hasattr(note, "calendar_links") and note.calendar_links:
         linked_events = [cl.event_id for cl in note.calendar_links]
 
-    # Gather linked tasks
+    # Gather linked tasks via TaskNote table
+    from api.models.task import TaskNote
     task_result = await db.execute(
-        select(Task.id).where(Task.source_note_id == note.id)
+        select(TaskNote.task_id).where(TaskNote.note_id == note.id)
     )
     linked_tasks = list(task_result.scalars().all())
 
@@ -254,9 +273,10 @@ async def _note_to_list_item(note, db: AsyncSession) -> NoteListItem:
         md_text = extract_markdown_text(note.content)
         preview = md_text[:200].strip()
 
-    # Gather linked tasks
+    # Gather linked tasks via TaskNote table
+    from api.models.task import TaskNote
     task_result = await db.execute(
-        select(Task.id).where(Task.source_note_id == note.id)
+        select(TaskNote.task_id).where(TaskNote.note_id == note.id)
     )
     linked_tasks = list(task_result.scalars().all())
 

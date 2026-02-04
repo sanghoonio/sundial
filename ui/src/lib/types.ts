@@ -171,7 +171,6 @@ export interface TaskCreate {
 	due_date?: string | null;
 	project_id?: string;
 	milestone_id?: string | null;
-	source_note_id?: string | null;
 	calendar_event_id?: string | null;
 	checklist?: ChecklistItemCreate[];
 	note_ids?: string[];
@@ -203,7 +202,6 @@ export interface TaskResponse {
 	due_date: string | null;
 	project_id: string;
 	milestone_id: string | null;
-	source_note_id: string | null;
 	calendar_event_id: string | null;
 	ai_suggested: boolean;
 	position: number;

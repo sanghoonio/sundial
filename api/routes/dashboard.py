@@ -62,6 +62,15 @@ class JournalDataResponse(BaseModel):
 router = APIRouter(prefix="/dashboard", tags=["dashboard"], dependencies=[Depends(get_current_user)])
 
 
+def _ensure_utc(dt: datetime | None) -> datetime | None:
+    """Ensure datetime is UTC-aware for consistent frontend parsing."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 @router.get("/today", response_model=DashboardResponse)
 async def get_today(db: AsyncSession = Depends(get_db)):
     now = datetime.now(timezone.utc)
@@ -112,16 +121,16 @@ async def get_today(db: AsyncSession = Depends(get_db)):
     return DashboardResponse(
         date=today_start.strftime("%Y-%m-%d"),
         calendar_events=[DashboardEvent(
-            id=e.id, title=e.title, start_time=e.start_time, end_time=e.end_time, all_day=e.all_day,
+            id=e.id, title=e.title, start_time=_ensure_utc(e.start_time), end_time=_ensure_utc(e.end_time), all_day=e.all_day,
         ) for e in events],
         tasks_due=[DashboardTask(
-            id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=t.due_date, project_id=t.project_id,
+            id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=_ensure_utc(t.due_date), project_id=t.project_id,
         ) for t in tasks_due],
         tasks_linked_to_events=[DashboardTask(
-            id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=t.due_date, project_id=t.project_id,
+            id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=_ensure_utc(t.due_date), project_id=t.project_id,
         ) for t in tasks_linked],
         recent_notes=[DashboardNote(
-            id=n.id, title=n.title, updated_at=n.updated_at,
+            id=n.id, title=n.title, updated_at=_ensure_utc(n.updated_at),
         ) for n in notes],
         suggestions=[],
     )
@@ -180,9 +189,9 @@ async def get_journal_data(db: AsyncSession = Depends(get_db)):
 
     return JournalDataResponse(
         date=today_start.strftime("%Y-%m-%d"),
-        notes_created=[DashboardNote(id=n.id, title=n.title, updated_at=n.updated_at) for n in notes_created],
-        notes_updated=[DashboardNote(id=n.id, title=n.title, updated_at=n.updated_at) for n in notes_updated],
-        tasks_created=[DashboardTask(id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=t.due_date, project_id=t.project_id) for t in tasks_created],
-        tasks_completed=[DashboardTask(id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=t.due_date, project_id=t.project_id) for t in tasks_completed],
-        events=[DashboardEvent(id=e.id, title=e.title, start_time=e.start_time, end_time=e.end_time, all_day=e.all_day) for e in events],
+        notes_created=[DashboardNote(id=n.id, title=n.title, updated_at=_ensure_utc(n.updated_at)) for n in notes_created],
+        notes_updated=[DashboardNote(id=n.id, title=n.title, updated_at=_ensure_utc(n.updated_at)) for n in notes_updated],
+        tasks_created=[DashboardTask(id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=_ensure_utc(t.due_date), project_id=t.project_id) for t in tasks_created],
+        tasks_completed=[DashboardTask(id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=_ensure_utc(t.due_date), project_id=t.project_id) for t in tasks_completed],
+        events=[DashboardEvent(id=e.id, title=e.title, start_time=_ensure_utc(e.start_time), end_time=_ensure_utc(e.end_time), all_day=e.all_day) for e in events],
     )

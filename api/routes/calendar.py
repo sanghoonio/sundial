@@ -91,12 +91,20 @@ async def _build_event_response(event: CalendarEvent, db: AsyncSession) -> Event
     )
     linked_tasks = [LinkedTaskRef(id=row[0], title=row[1], status=row[2]) for row in task_result.fetchall()]
 
+    # Ensure all datetimes are UTC-aware for consistent frontend parsing
+    def ensure_utc_aware(dt: datetime | None) -> datetime | None:
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt
+
     return EventResponse(
         id=event.id,
         title=event.title,
         description=event.description or "",
-        start_time=event.start_time,
-        end_time=event.end_time,
+        start_time=ensure_utc_aware(event.start_time),
+        end_time=ensure_utc_aware(event.end_time),
         all_day=event.all_day,
         location=event.location or "",
         calendar_source=event.calendar_source or "local",
@@ -104,12 +112,21 @@ async def _build_event_response(event: CalendarEvent, db: AsyncSession) -> Event
         rrule=event.rrule,
         recurring_event_id=event.recurring_event_id,
         recurrence_id=event.recurrence_id,
-        synced_at=event.synced_at,
+        synced_at=ensure_utc_aware(event.synced_at),
         linked_notes=linked_notes,
         linked_tasks=linked_tasks,
-        created_at=event.created_at,
-        updated_at=event.updated_at,
+        created_at=ensure_utc_aware(event.created_at),
+        updated_at=ensure_utc_aware(event.updated_at),
     )
+
+
+def _ensure_utc(dt: datetime | None) -> datetime | None:
+    """Convert datetime to UTC. Naive datetimes are assumed to be UTC."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 @router.post("/events", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
@@ -117,8 +134,8 @@ async def create_event(body: EventCreate, db: AsyncSession = Depends(get_db)):
     event = CalendarEvent(
         title=body.title,
         description=body.description,
-        start_time=body.start_time,
-        end_time=body.end_time,
+        start_time=_ensure_utc(body.start_time),
+        end_time=_ensure_utc(body.end_time),
         all_day=body.all_day,
         location=body.location,
         rrule=body.rrule,
@@ -262,6 +279,10 @@ async def list_events(
                 # Generate virtual instance
                 occ_end = occ_dt + duration
                 synthetic_id = f"{master.id}__rec__{occ_dt.strftime('%Y%m%dT%H%M%S')}"
+                # Ensure datetimes are UTC-aware
+                synced = master.synced_at.replace(tzinfo=timezone.utc) if master.synced_at and master.synced_at.tzinfo is None else master.synced_at
+                created = master.created_at.replace(tzinfo=timezone.utc) if master.created_at and master.created_at.tzinfo is None else master.created_at
+                updated = master.updated_at.replace(tzinfo=timezone.utc) if master.updated_at and master.updated_at.tzinfo is None else master.updated_at
                 event_responses.append(EventResponse(
                     id=synthetic_id,
                     title=master.title,
@@ -275,11 +296,11 @@ async def list_events(
                     rrule=master.rrule,
                     recurring_event_id=master.id,
                     recurrence_id=None,
-                    synced_at=master.synced_at,
+                    synced_at=synced,
                     linked_notes=[],
                     linked_tasks=[],
-                    created_at=master.created_at,
-                    updated_at=master.updated_at,
+                    created_at=created,
+                    updated_at=updated,
                 ))
         except Exception as e:
             logger.warning("Failed to expand RRULE for event %s: %s", master.id, e)
@@ -316,6 +337,9 @@ async def update_event(event_id: str, body: EventUpdate, db: AsyncSession = Depe
         raise HTTPException(status_code=404, detail="Event not found")
 
     for field, value in body.model_dump(exclude_unset=True).items():
+        # Convert datetime fields to UTC
+        if field in ("start_time", "end_time") and value is not None:
+            value = _ensure_utc(value)
         setattr(event, field, value)
 
     await db.commit()

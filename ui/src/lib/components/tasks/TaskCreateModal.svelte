@@ -13,13 +13,13 @@
 		milestoneId?: string | null;
 		milestones?: MilestoneResponse[];
 		projects?: ProjectResponse[];
-		sourceNoteId?: string | null;
+		initialNoteId?: string | null;
 		calendarEventId?: string | null;
 		onclose?: () => void;
 		oncreated?: (task: TaskResponse) => void;
 	}
 
-	let { open = $bindable(false), projectId, milestoneId = null, milestones = [], projects = [], sourceNoteId = null, calendarEventId = null, onclose, oncreated }: Props = $props();
+	let { open = $bindable(false), projectId, milestoneId = null, milestones = [], projects = [], initialNoteId = null, calendarEventId = null, onclose, oncreated }: Props = $props();
 
 	let title = $state('');
 	let description = $state('');
@@ -62,7 +62,7 @@
 			if (priority !== 'medium') data.priority = priority;
 			if (dueDate) data.due_date = new Date(dueDate).toISOString();
 			if (checklist.length > 0) data.checklist = checklist;
-			if (sourceNoteId) data.source_note_id = sourceNoteId;
+			if (initialNoteId) data.note_ids = [initialNoteId];
 			if (calendarEventId) data.calendar_event_id = calendarEventId;
 
 			const task = await api.post<TaskResponse>('/api/tasks', data);
@@ -185,9 +185,9 @@
 			</div>
 		</div>
 
-		{#if sourceNoteId || calendarEventId}
+		{#if initialNoteId || calendarEventId}
 			<div class="flex items-center gap-3 text-xs text-base-content/60">
-				{#if sourceNoteId}
+				{#if initialNoteId}
 					<span class="flex items-center gap-1"><StickyNote size={12} /> Linked to note</span>
 				{/if}
 				{#if calendarEventId}

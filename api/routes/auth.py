@@ -38,6 +38,13 @@ def get_client_ip(request: Request) -> str | None:
     return None
 
 
+@router.get("/status")
+async def get_auth_status(db: AsyncSession = Depends(get_db)):
+    """Public endpoint to check if password is configured."""
+    result = await db.execute(select(UserSettings).where(UserSettings.key == "password_hash"))
+    return {"password_configured": result.scalar_one_or_none() is not None}
+
+
 @router.post("/setup", response_model=TokenResponse)
 async def setup(request: SetupRequest, req: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(UserSettings).where(UserSettings.key == "password_hash"))

@@ -11,6 +11,15 @@ from api.models.task import Task, TaskChecklist, TaskNote
 _UNSET: Any = object()
 
 
+def _ensure_utc(dt: datetime | None) -> datetime | None:
+    """Convert datetime to UTC. Naive datetimes are assumed to be UTC."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 async def create_task(
     db: AsyncSession,
     title: str,
@@ -19,7 +28,6 @@ async def create_task(
     due_date: datetime | None = None,
     project_id: str = "proj_inbox",
     milestone_id: str | None = None,
-    source_note_id: str | None = None,
     calendar_event_id: str | None = None,
     checklist: list[dict] | None = None,
     note_ids: list[str] | None = None,
@@ -35,10 +43,9 @@ async def create_task(
         title=title,
         description=description,
         priority=priority,
-        due_date=due_date,
+        due_date=_ensure_utc(due_date),
         project_id=project_id,
         milestone_id=milestone_id,
-        source_note_id=source_note_id,
         calendar_event_id=calendar_event_id,
         position=next_pos,
     )
@@ -149,7 +156,7 @@ async def update_task(
     if priority is not None:
         task.priority = priority
     if due_date is not _UNSET:
-        task.due_date = due_date
+        task.due_date = _ensure_utc(due_date)
     project_changed = False
     if project_id is not None:
         project_changed = project_id != task.project_id
@@ -192,8 +199,6 @@ async def update_task(
         await db.flush()
         for note_id in note_ids:
             db.add(TaskNote(task_id=task.id, note_id=note_id))
-        # Clear legacy source_note_id since notes are now managed via task_notes
-        task.source_note_id = None
 
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()

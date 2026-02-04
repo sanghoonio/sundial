@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { EventResponse, EventCreate, EventUpdate } from '$lib/types';
+	import { toLocalISOString } from '$lib/utils/calendar';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
@@ -71,10 +72,7 @@
 	}
 
 	function buildISOString(date: string, time: string): string {
-		if (time) {
-			return `${date}T${time}:00`;
-		}
-		return `${date}T00:00:00`;
+		return toLocalISOString(date, time || undefined);
 	}
 
 	async function handleSave() {

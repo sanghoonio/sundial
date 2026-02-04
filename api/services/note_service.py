@@ -234,8 +234,8 @@ async def update_note(db: AsyncSession, note_id: str, title: str | None = None, 
         tag_names = [t.name for t in note.tags]
 
     # Query linked tasks and events for frontmatter enrichment
-    from api.models.task import Task
-    task_result = await db.execute(select(Task.id).where(Task.source_note_id == note.id))
+    from api.models.task import TaskNote
+    task_result = await db.execute(select(TaskNote.task_id).where(TaskNote.note_id == note.id))
     linked_task_ids = [row[0] for row in task_result.fetchall()]
 
     linked_event_ids = [cl.event_id for cl in note.calendar_links]

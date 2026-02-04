@@ -2,13 +2,26 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { ApiError } from '$lib/services/api';
+	import { ApiError, api } from '$lib/services/api';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 
 	let password = $state('');
 	let error = $state('');
 	let loading = $state(false);
+	let passwordConfigured = $state(true); // Assume configured, hide link by default
+
+	// Check if password is configured to show/hide setup link
+	$effect(() => {
+		api.get<{ password_configured: boolean }>('/api/auth/status')
+			.then((res) => {
+				passwordConfigured = res.password_configured;
+				if (!res.password_configured) {
+					goto(`${base}/setup`);
+				}
+			})
+			.catch(() => {});
+	});
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -54,9 +67,11 @@
 				</Button>
 			</form>
 
-			<p class="text-center text-sm mt-4 text-base-content/60">
-				First time? <a href="{base}/setup" class="link link-primary">Set up password</a>
-			</p>
+			{#if !passwordConfigured}
+				<p class="text-center text-sm mt-4 text-base-content/60">
+					First time? <a href="{base}/setup" class="link link-primary">Set up password</a>
+				</p>
+			{/if}
 		</div>
 	</div>
 </div>

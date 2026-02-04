@@ -2,6 +2,7 @@
 	import { base } from '$app/paths';
 	import type { EventResponse, EventCreate, EventUpdate, ProjectList, TaskResponse, ProjectResponse } from '$lib/types';
 	import { api } from '$lib/services/api';
+	import { toLocalISOString } from '$lib/utils/calendar';
 	import Input from '$lib/components/ui/Input.svelte';
 	import RecurrenceInput from '$lib/components/calendar/RecurrenceInput.svelte';
 	import TaskCreateModal from '$lib/components/tasks/TaskCreateModal.svelte';
@@ -152,8 +153,7 @@
 	}
 
 	function buildISOString(date: string, time: string): string {
-		if (time) return `${date}T${time}:00`;
-		return `${date}T00:00:00`;
+		return toLocalISOString(date, time || undefined);
 	}
 
 	async function handleSave() {

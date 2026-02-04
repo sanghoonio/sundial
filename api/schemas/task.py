@@ -24,7 +24,6 @@ class TaskCreate(BaseModel):
     due_date: datetime | None = None
     project_id: str = "proj_inbox"
     milestone_id: str | None = None
-    source_note_id: str | None = None
     calendar_event_id: str | None = None
     checklist: list[ChecklistItemCreate] = []
     note_ids: list[str] = []
@@ -56,7 +55,6 @@ class TaskResponse(BaseModel):
     due_date: datetime | None
     project_id: str
     milestone_id: str | None
-    source_note_id: str | None = None
     calendar_event_id: str | None = None
     ai_suggested: bool = False
     position: int

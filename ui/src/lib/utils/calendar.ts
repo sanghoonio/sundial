@@ -1,5 +1,20 @@
 import type { CalendarItem } from '$lib/types';
 
+export function toLocalISOString(date: string, time?: string): string {
+	// Parse date and time components explicitly to avoid browser inconsistencies
+	// with Date string parsing (some browsers parse "2025-02-03T00:00:00" as UTC)
+	const [year, month, day] = date.split('-').map(Number);
+	const [hours, minutes] = time ? time.split(':').map(Number) : [0, 0];
+	const d = new Date(year, month - 1, day, hours, minutes, 0);
+	const tzOffset = -d.getTimezoneOffset();
+	const sign = tzOffset >= 0 ? '+' : '-';
+	const tzHours = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, '0');
+	const tzMinutes = String(Math.abs(tzOffset) % 60).padStart(2, '0');
+	const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:00`;
+	return `${dateStr}T${timeStr}${sign}${tzHours}:${tzMinutes}`;
+}
+
 export function formatDateKey(d: Date): string {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -49,11 +64,12 @@ export function formatHourLabel(hour: number): string {
 
 export function getItemDate(item: CalendarItem): string {
 	if (item.type === 'event') {
-		return item.data.all_day
-			? item.data.start_time.split('T')[0]
-			: formatDateKey(new Date(item.data.start_time));
+		// Always use Date parsing to correctly handle timezone conversion
+		// (string splitting fails when backend returns UTC times)
+		return formatDateKey(new Date(item.data.start_time));
 	}
-	return item.data.due_date?.split('T')[0] ?? '';
+	// For tasks, also parse as Date to handle timezone correctly
+	return item.data.due_date ? formatDateKey(new Date(item.data.due_date)) : '';
 }
 
 export function isAllDay(item: CalendarItem): boolean {

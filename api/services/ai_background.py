@@ -8,7 +8,7 @@ from api.database import async_session
 from api.models.calendar import CalendarEvent, NoteCalendarLink
 from api.models.note import Note, NoteTag, Tag
 from api.models.settings import AIProcessingQueue, UserSettings
-from api.models.task import Task
+from api.models.task import Task, TaskNote
 from api.services import ai_service
 from api.services.block_parser import extract_markdown_text
 from api.utils.encryption import decrypt_value
@@ -177,7 +177,9 @@ async def _run_extract_tasks(db: AsyncSession, note: Note, content: str) -> None
 
             # Check if a similar task already exists for this note
             existing = await db.execute(
-                select(Task).where(Task.source_note_id == note.id, Task.title == title)
+                select(Task)
+                .join(TaskNote, TaskNote.task_id == Task.id)
+                .where(TaskNote.note_id == note.id, Task.title == title)
             )
             if existing.scalar_one_or_none() is not None:
                 continue
@@ -192,12 +194,15 @@ async def _run_extract_tasks(db: AsyncSession, note: Note, content: str) -> None
                 title=title,
                 description=task_data.get("description", ""),
                 priority=task_data.get("priority", "medium"),
-                source_note_id=note.id,
                 ai_suggested=True,
                 position=next_pos,
             )
             db.add(task)
             await db.flush()
+
+            # Link task to note via TaskNote table
+            db.add(TaskNote(task_id=task.id, note_id=note.id))
+
             created_tasks.append({"id": task.id, "title": task.title})
 
         queue_entry.status = "completed"

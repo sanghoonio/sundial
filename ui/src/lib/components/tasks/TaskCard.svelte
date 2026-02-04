@@ -103,7 +103,7 @@
 	let checklistTotal = $derived(hasChecklist ? fullTask!.checklist.length : 0);
 	let checklistPct = $derived(checklistTotal > 0 ? Math.round((checklistDone / checklistTotal) * 100) : 0);
 	let isAiSuggested = $derived(fullTask?.ai_suggested ?? false);
-	let hasLinkedNote = $derived(fullTask?.source_note_id != null);
+	let hasLinkedNote = $derived((fullTask?.note_ids?.length ?? 0) > 0);
 	let hasLinkedEvent = $derived(fullTask?.calendar_event_id != null);
 	let overdue = $derived(isOverdue(task.due_date));
 	let hasPriorityIcon = $derived(task.priority === 'urgent' || task.priority === 'high');

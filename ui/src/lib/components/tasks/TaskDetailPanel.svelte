@@ -128,12 +128,7 @@
 		projectId = t.project_id;
 		milestoneId = t.milestone_id;
 		checklist = t.checklist.map((c) => ({ text: c.text, is_checked: c.is_checked }));
-		// Merge source_note_id into noteIds for uniform handling
-		const ids = t.note_ids ?? [];
-		if (t.source_note_id && !ids.includes(t.source_note_id)) {
-			ids.push(t.source_note_id);
-		}
-		noteIds = ids;
+		noteIds = t.note_ids ?? [];
 		linkedNoteTitles = {};
 		fetchedNoteIds.clear();
 		editingCheckIndex = null;

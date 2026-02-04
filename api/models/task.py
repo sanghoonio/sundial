@@ -22,7 +22,6 @@ class Task(Base):
     due_date = Column(DateTime, nullable=True)
     project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     milestone_id = Column(String, ForeignKey("project_milestones.id", ondelete="SET NULL"), nullable=True)
-    source_note_id = Column(String, ForeignKey("notes.id", ondelete="SET NULL"), nullable=True)
     calendar_event_id = Column(String, ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True)
     ai_suggested = Column(Boolean, default=False)
     position = Column(Integer, default=0)

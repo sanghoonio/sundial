@@ -49,12 +49,12 @@
 		const dateStr = formatDateKey(date);
 		return items.filter((item) => {
 			if (item.type === 'event') {
-				const eventDate = item.data.all_day
-					? item.data.start_time.split('T')[0]
-					: formatDateKey(new Date(item.data.start_time));
-				return eventDate === dateStr;
+				// Always use Date parsing to correctly handle timezone conversion
+				return formatDateKey(new Date(item.data.start_time)) === dateStr;
 			} else {
-				return item.data.due_date?.split('T')[0] === dateStr;
+				return item.data.due_date
+					? formatDateKey(new Date(item.data.due_date)) === dateStr
+					: false;
 			}
 		});
 	}
