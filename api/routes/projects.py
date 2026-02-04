@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from api.database import get_db
 from api.models.project import Project, ProjectMilestone
 from api.models.task import Task
-from api.schemas.project import MilestoneUpdate, ProjectCreate, ProjectList, ProjectResponse, ProjectUpdate
+from api.schemas.project import MilestoneUpdate, ProjectCreate, ProjectList, ProjectReorder, ProjectResponse, ProjectUpdate
 from api.utils.auth import get_current_user
 from api.utils.websocket import manager
 
@@ -40,7 +40,7 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
 @router.get("", response_model=ProjectList)
 async def list_projects(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Project).options(selectinload(Project.milestones)).order_by(Project.created_at)
+        select(Project).options(selectinload(Project.milestones)).order_by(Project.position, Project.created_at)
     )
     projects = list(result.scalars().all())
 
@@ -52,6 +52,17 @@ async def list_projects(db: AsyncSession = Depends(get_db)):
         projects=responses,
         total=len(projects),
     )
+
+
+@router.put("/reorder", response_model=ProjectList)
+async def reorder_projects(body: ProjectReorder, db: AsyncSession = Depends(get_db)):
+    """Reorder projects by providing the full list of project IDs in desired order."""
+    for i, project_id in enumerate(body.project_ids):
+        project = await db.get(Project, project_id)
+        if project:
+            project.position = i
+    await db.commit()
+    return await list_projects(db)
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
@@ -159,6 +170,7 @@ async def _project_to_response(db: AsyncSession, project: Project) -> ProjectRes
         color=project.color,
         icon=getattr(project, "icon", None) or "folder-kanban",
         status=project.status or "active",
+        position=getattr(project, "position", None) or 0,
         milestones=[
             {"id": ms.id, "name": ms.name, "position": ms.position}
             for ms in sorted(project.milestones, key=lambda m: m.position)

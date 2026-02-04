@@ -20,7 +20,7 @@
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 	import {
 		Plus, FolderKanban, CheckSquare, ExternalLink,
-		Trash2, Save, Check, Clock, X, ArrowLeft
+		Trash2, Save, Check, Clock, X, ArrowLeft, GripVertical
 	} from 'lucide-svelte';
 
 	let projects = $state<ProjectResponse[]>([]);
@@ -65,9 +65,15 @@
 
 	let completionPct = $derived(sidebarTasks.total > 0 ? Math.round((sidebarTasks.done / sidebarTasks.total) * 100) : 0);
 
+	// Drag state for project reordering
+	let draggingProjectId = $state<string | null>(null);
+	let draggedProjectWidth = $state(0);
+	let draggedProjectHeight = $state(0);
+	let projectDragOverIndex = $state<number | null>(null);
+
 	let filteredProjects = $derived.by(() => {
-		if (statusFilter === 'all') return projects;
-		return projects.filter((p) => p.status === statusFilter);
+		let filtered = statusFilter === 'all' ? projects : projects.filter((p) => p.status === statusFilter);
+		return filtered.slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 	});
 
 	async function loadProjects() {
@@ -304,6 +310,110 @@
 			}
 		}
 	}
+
+	// Project drag-drop handlers
+	function handleProjectDragStart(e: DragEvent, project: ProjectResponse) {
+		const card = e.currentTarget as HTMLElement;
+		if (e.dataTransfer) {
+			e.dataTransfer.setData('application/project-id', project.id);
+			e.dataTransfer.effectAllowed = 'move';
+
+			const width = card.offsetWidth;
+			const height = card.offsetHeight;
+			const rect = card.getBoundingClientRect();
+
+			// Clone for drag image
+			const clone = card.cloneNode(true) as HTMLElement;
+			clone.style.position = 'absolute';
+			clone.style.top = '-9999px';
+			clone.style.left = '-9999px';
+			clone.style.width = width + 'px';
+			document.body.appendChild(clone);
+			e.dataTransfer.setDragImage(clone, e.clientX - rect.left, e.clientY - rect.top);
+			requestAnimationFrame(() => clone.remove());
+
+			requestAnimationFrame(() => {
+				draggingProjectId = project.id;
+				draggedProjectWidth = width;
+				draggedProjectHeight = height;
+			});
+		}
+	}
+
+	function handleProjectDragEnd() {
+		draggingProjectId = null;
+		projectDragOverIndex = null;
+	}
+
+	function handleGridDragOver(e: DragEvent) {
+		if (!e.dataTransfer?.types.includes('application/project-id')) return;
+		e.preventDefault();
+		e.dataTransfer.dropEffect = 'move';
+
+		const grid = e.currentTarget as HTMLElement;
+		const cards = Array.from(grid.querySelectorAll('[data-project-id]')) as HTMLElement[];
+
+		// Use 75% threshold - easier to trigger insertion point
+		for (let i = 0; i < cards.length; i++) {
+			const card = cards[i];
+			if (card.dataset.projectId === draggingProjectId) continue;
+			const rect = card.getBoundingClientRect();
+			const threshold = rect.left + rect.width * 0.75;
+			if (e.clientX < threshold) {
+				// Find the index in filteredProjects
+				const proj = filteredProjects.find(p => p.id === card.dataset.projectId);
+				if (proj) {
+					projectDragOverIndex = filteredProjects.indexOf(proj);
+				}
+				return;
+			}
+		}
+		// Past all cards - drop at end
+		projectDragOverIndex = filteredProjects.length;
+	}
+
+	function handleGridDragLeave(e: DragEvent) {
+		const related = e.relatedTarget as Node | null;
+		const grid = e.currentTarget as HTMLElement;
+		if (related && grid.contains(related)) return;
+		projectDragOverIndex = null;
+	}
+
+	async function handleGridDrop(e: DragEvent) {
+		if (!e.dataTransfer?.types.includes('application/project-id')) return;
+		e.preventDefault();
+
+		const draggedId = e.dataTransfer.getData('application/project-id');
+		const dropIdx = projectDragOverIndex;
+		projectDragOverIndex = null;
+		draggingProjectId = null;
+
+		if (!draggedId || dropIdx === null) return;
+
+		// Build new order: all projects sorted by position, then move dragged to new position
+		const sorted = [...projects].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+		const draggedIndex = sorted.findIndex(p => p.id === draggedId);
+		if (draggedIndex === -1) return;
+
+		const [dragged] = sorted.splice(draggedIndex, 1);
+		// Adjust drop index if we removed from before it
+		const adjustedIdx = dropIdx > draggedIndex ? dropIdx - 1 : dropIdx;
+		sorted.splice(adjustedIdx, 0, dragged);
+
+		// Update positions locally
+		projects = sorted.map((p, i) => ({ ...p, position: i }));
+
+		// Save to backend
+		try {
+			await api.put<ProjectList>('/api/projects/reorder', {
+				project_ids: sorted.map(p => p.id)
+			});
+		} catch (e) {
+			console.error('Failed to reorder projects', e);
+			toast.error('Failed to reorder projects');
+			loadProjects(); // Reload to restore correct order
+		}
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -341,14 +451,35 @@
 					<span class="loading loading-spinner loading-lg"></span>
 				</div>
 			{:else if filteredProjects.length > 0}
-				<div class="grid gap-3 grid-cols-[repeat(auto-fill,180px)]">
-					{#each filteredProjects as project (project.id)}
-						<button
-							class="card bg-base-100 border border-base-300 text-left transition-all aspect-square
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="grid gap-3 grid-cols-[repeat(auto-fill,180px)]"
+					ondragover={handleGridDragOver}
+					ondragleave={handleGridDragLeave}
+					ondrop={handleGridDrop}
+				>
+					{#each filteredProjects as project, i (project.id)}
+						{#if projectDragOverIndex === i && draggingProjectId !== project.id}
+							<div
+								class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg aspect-square"
+								style="width: {draggedProjectWidth}px; height: {draggedProjectHeight}px;"
+							></div>
+						{/if}
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							data-project-id={project.id}
+							draggable="true"
+							ondragstart={(e) => handleProjectDragStart(e, project)}
+							ondragend={handleProjectDragEnd}
+							class="card bg-base-100 border border-base-300 text-left transition-all aspect-square cursor-pointer
 								{selectedProjectId === project.id
 									? 'bg-primary/5'
 									: 'hover:border-base-content/30'}"
+							style={draggingProjectId === project.id ? 'display: none;' : ''}
 							onclick={() => selectProject(project.id)}
+							role="button"
+							tabindex="0"
+							onkeydown={(e) => e.key === 'Enter' && selectProject(project.id)}
 						>
 							<div class="card-body p-4 flex flex-col justify-between h-full">
 								<div class="flex-1">
@@ -357,6 +488,9 @@
 											<ProjectIcon name={project.icon || 'folder-kanban'} size={18} />
 										</div>
 										<h3 class="font-semibold text-sm line-clamp-2 flex-1 min-w-0">{project.name}</h3>
+										<span class="shrink-0 text-base-content/20 hover:text-base-content/40 cursor-grab">
+											<GripVertical size={14} />
+										</span>
 									</div>
 									{#if project.description}
 										<p class="text-xs text-base-content/50 line-clamp-5 mt-2">{project.description}</p>
@@ -376,8 +510,14 @@
 									</div>
 								</div>
 							</div>
-						</button>
+						</div>
 					{/each}
+					{#if projectDragOverIndex === filteredProjects.length}
+						<div
+							class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg aspect-square"
+							style="width: {draggedProjectWidth}px; height: {draggedProjectHeight}px;"
+						></div>
+					{/if}
 				</div>
 			{:else if projects.length > 0}
 				<div class="text-center py-20">

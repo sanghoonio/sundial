@@ -40,6 +40,21 @@ async def init_database():
         except Exception:
             pass  # column already exists
 
+        # Migrate: add position column to projects
+        try:
+            await conn.execute(text(
+                "ALTER TABLE projects ADD COLUMN position INTEGER DEFAULT 0"
+            ))
+            # Set initial positions based on created_at order
+            await conn.execute(text("""
+                UPDATE projects SET position = (
+                    SELECT COUNT(*) FROM projects p2
+                    WHERE p2.created_at < projects.created_at
+                )
+            """))
+        except Exception:
+            pass  # column already exists
+
         # Migrate: add recurrence columns to calendar_events
         for col, coltype in [
             ("rrule", "TEXT"),

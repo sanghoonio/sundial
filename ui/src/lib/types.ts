@@ -254,6 +254,7 @@ export interface ProjectResponse {
 	color: string;
 	icon: string;
 	status: string;
+	position: number;
 	milestones: MilestoneResponse[];
 	task_count: number;
 	created_at: string;

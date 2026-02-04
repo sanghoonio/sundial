@@ -45,12 +45,17 @@ class ProjectResponse(BaseModel):
     color: str
     icon: str = "folder-kanban"
     status: str = "active"
+    position: int = 0
     milestones: list[MilestoneResponse]
     task_count: int = 0
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ProjectReorder(BaseModel):
+    project_ids: list[str]
 
 
 class ProjectList(BaseModel):

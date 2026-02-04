@@ -228,8 +228,8 @@
 		{#each tasks as task, i (task.id)}
 			{#if dragOver && dropIndex === i}
 				<div
-					class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg"
-					style="height: {draggedTaskHeight}px;"
+					class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg min-h-[60px]"
+					style="height: {draggedTaskHeight || 60}px;"
 				></div>
 			{/if}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -253,8 +253,8 @@
 		{/each}
 		{#if dragOver && dropIndex === tasks.length}
 			<div
-				class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg"
-				style="height: {draggedTaskHeight}px;"
+				class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg min-h-[60px]"
+				style="height: {draggedTaskHeight || 60}px;"
 			></div>
 		{/if}
 	</div>
