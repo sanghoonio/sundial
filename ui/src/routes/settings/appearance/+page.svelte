@@ -8,12 +8,14 @@
 	let saveStatus: 'idle' | 'saving' | 'saved' | 'error' = $state('idle');
 	let showSavedText = $state(false);
 	let theme = $state('light');
+	let sidebarDefaultCollapsed = $state(false);
 
 	async function loadSettings() {
 		loading = true;
 		try {
 			const res = await api.get<SettingsResponse>('/api/settings');
 			theme = res.theme;
+			sidebarDefaultCollapsed = res.sidebar_default_collapsed;
 		} catch (e) {
 			console.error('Failed to load settings', e);
 		} finally {
@@ -28,9 +30,11 @@
 	async function handleSave() {
 		saveStatus = 'saving';
 		try {
-			const update: SettingsUpdate = { theme };
+			const update: SettingsUpdate = { theme, sidebar_default_collapsed: sidebarDefaultCollapsed };
 			const res = await api.put<SettingsResponse>('/api/settings', update);
 			theme = res.theme;
+			sidebarDefaultCollapsed = res.sidebar_default_collapsed;
+			localStorage.setItem('sundial_sidebar_collapsed', String(sidebarDefaultCollapsed));
 			document.documentElement.setAttribute('data-theme', theme);
 			saveStatus = 'saved';
 			showSavedText = true;
@@ -95,6 +99,13 @@
 			<select class="select select-bordered select-sm w-full max-w-xs" bind:value={theme}>
 				<option value="light">Light</option>
 				<option value="dark">Dark</option>
+			</select>
+		</div>
+		<div>
+			<p class="text-sm font-medium mb-1">Default Sidebar</p>
+			<select class="select select-bordered select-sm w-full max-w-xs" bind:value={sidebarDefaultCollapsed}>
+				<option value={false}>Expanded</option>
+				<option value={true}>Collapsed</option>
 			</select>
 		</div>
 	</div>

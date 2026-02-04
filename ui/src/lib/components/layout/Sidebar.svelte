@@ -3,6 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { api } from '$lib/services/api';
+	import type { SettingsResponse } from '$lib/types';
 	import {
 		LayoutDashboard,
 		StickyNote,
@@ -20,7 +22,20 @@
 		LogOut
 	} from 'lucide-svelte';
 
-	let collapsed = $state(false);
+	// Initialize from localStorage cache for fast render, then sync with API
+	const cachedCollapsed = typeof localStorage !== 'undefined'
+		? localStorage.getItem('sundial_sidebar_collapsed') === 'true'
+		: false;
+	let collapsed = $state(cachedCollapsed);
+
+	$effect(() => {
+		api.get<SettingsResponse>('/api/settings').then((res) => {
+			collapsed = res.sidebar_default_collapsed;
+			localStorage.setItem('sundial_sidebar_collapsed', String(res.sidebar_default_collapsed));
+		}).catch(() => {
+			// Ignore errors, keep cached/default value
+		});
+	});
 	let darkMode = $state(false);
 
 	// Initialize theme from localStorage / system preference

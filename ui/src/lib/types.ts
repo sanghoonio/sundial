@@ -410,6 +410,7 @@ export interface SettingsResponse {
 	calendar_source: string;
 	calendar_sync_enabled: boolean;
 	theme: string;
+	sidebar_default_collapsed: boolean;
 	mcp_enabled: boolean;
 }
 
@@ -427,6 +428,7 @@ export interface SettingsUpdate {
 	calendar_source?: string;
 	calendar_sync_enabled?: boolean;
 	theme?: string;
+	sidebar_default_collapsed?: boolean;
 	mcp_enabled?: boolean;
 }
 

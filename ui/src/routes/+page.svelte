@@ -212,7 +212,7 @@
 		border-radius: 0.375rem;
 		padding: 0.75rem 1rem;
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-		font-size: 0.85rem;
+		font-size: 0.8rem;
 		line-height: 1.5;
 		overflow: hidden;
 		max-height: 100%;

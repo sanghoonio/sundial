@@ -27,6 +27,7 @@ _SETTINGS_KEYS = {
     "calendar_source": ("str", ""),
     "calendar_sync_enabled": ("bool", False),
     "theme": ("str", "light"),
+    "sidebar_default_collapsed": ("bool", False),
     "mcp_enabled": ("bool", True),
 }
 

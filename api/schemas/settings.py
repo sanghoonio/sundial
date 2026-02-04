@@ -15,6 +15,7 @@ class SettingsResponse(BaseModel):
     calendar_source: str = ""
     calendar_sync_enabled: bool = False
     theme: str = "light"
+    sidebar_default_collapsed: bool = False
     mcp_enabled: bool = True
 
 
@@ -32,4 +33,5 @@ class SettingsUpdate(BaseModel):
     calendar_source: str | None = None
     calendar_sync_enabled: bool | None = None
     theme: str | None = None
+    sidebar_default_collapsed: bool | None = None
     mcp_enabled: bool | None = None
