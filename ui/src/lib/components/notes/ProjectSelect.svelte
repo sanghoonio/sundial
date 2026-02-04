@@ -48,7 +48,7 @@
 			<ChevronDown size={12} class="shrink-0 opacity-50" />
 		</button>
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-		<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-48 p-1 border border-base-300 mt-1 max-h-60 overflow-y-auto">
+		<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-48 p-1 border border-base-300 mt-1 max-h-60 overflow-y-auto flex-nowrap">
 			<li>
 				<button class={value === null ? 'active' : ''} onclick={() => selectProject(null)}>
 					None

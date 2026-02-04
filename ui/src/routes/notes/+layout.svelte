@@ -453,7 +453,7 @@
 					<ChevronDown size={10} class="shrink-0 opacity-50" />
 				</button>
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-				<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-48 p-1 border border-base-300 mt-1 max-h-60 overflow-y-auto overflow-x-hidden">
+				<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-48 p-1 border border-base-300 mt-1 max-h-60 overflow-y-auto flex-nowrap">
 					<li>
 						<button class={selectedProject === '' ? 'active' : ''} onclick={() => (selectedProject = '')}>
 							All projects
@@ -497,7 +497,7 @@
 							onclick={(e) => e.stopPropagation()}
 						/>
 					</div>
-					<ul class="menu p-1 max-h-48 overflow-y-auto">
+					<ul class="menu p-1 max-h-48 overflow-y-auto overflow-x-hidden flex-nowrap">
 						<li>
 							<button class={selectedTag === '' ? 'active' : ''} onclick={() => { selectedTag = ''; tagSearch = ''; }}>
 								All tags
@@ -540,7 +540,7 @@
 					<ChevronDown size={10} class="shrink-0 opacity-50" />
 				</button>
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-				<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-36 p-1 border border-base-300 mt-1 overflow-x-hidden">
+				<ul tabindex="0" class="dropdown-content menu grid-cols-1 bg-base-100 rounded-box shadow-lg z-10 w-36 p-1 border border-base-300 mt-1 overflow-x-hidden">
 					<li>
 						<button class={sortBy === 'newest' ? 'active' : ''} onclick={() => (sortBy = 'newest')}>
 							<ArrowDownNarrowWide size={12} />Newest

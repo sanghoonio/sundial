@@ -429,15 +429,7 @@ async def _list_tasks(db, args: dict) -> list[TextContent]:
 
     lines = []
     for t in tasks:
-        if t.due_date:
-            try:
-                local_tz = zoneinfo.ZoneInfo("localtime")
-            except Exception:
-                local_tz = timezone.utc
-            local_due = t.due_date.astimezone(local_tz)
-            due = f", due: {local_due.strftime('%Y-%m-%d')}"
-        else:
-            due = ""
+        due = f", due: {t.due_date.strftime('%Y-%m-%d')}" if t.due_date else ""
         lines.append(f"- [{t.status}] **{t.title}** (id: {t.id}, priority: {t.priority}{due})")
 
     return [TextContent(type="text", text=f"Found {len(tasks)} tasks:\n\n" + "\n".join(lines))]
@@ -451,17 +443,7 @@ async def _create_task(db, args: dict) -> list[TextContent]:
     due_date = None
     if args.get("due_date"):
         try:
-            # Parse as local date and convert to UTC midnight
-            # This ensures the date is stored correctly regardless of timezone
-            local_date = datetime.strptime(args["due_date"], "%Y-%m-%d")
-            # Treat the input as a local date at midnight, then convert to UTC
-            import zoneinfo
-            try:
-                local_tz = zoneinfo.ZoneInfo("localtime")
-            except Exception:
-                # Fallback: treat as UTC if local timezone unavailable
-                local_tz = timezone.utc
-            due_date = local_date.replace(tzinfo=local_tz).astimezone(timezone.utc)
+            due_date = datetime.strptime(args["due_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
         except ValueError:
             return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD.")]
 
@@ -525,13 +507,7 @@ async def _update_task(db, args: dict) -> list[TextContent]:
             task.due_date = None
         else:
             try:
-                # Parse as local date and convert to UTC midnight
-                local_date = datetime.strptime(args["due_date"], "%Y-%m-%d")
-                try:
-                    local_tz = zoneinfo.ZoneInfo("localtime")
-                except Exception:
-                    local_tz = timezone.utc
-                task.due_date = local_date.replace(tzinfo=local_tz).astimezone(timezone.utc)
+                task.due_date = datetime.strptime(args["due_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
             except ValueError:
                 return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD.")]
 
