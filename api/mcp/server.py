@@ -901,13 +901,30 @@ async def _get_note_links(db, args: dict) -> list[TextContent]:
     else:
         lines.append("- No incoming note links")
 
-    # Incoming task links (tasks created from this note via source_note_id)
-    incoming_tasks_result = await db.execute(
+    # Incoming task links: tasks created from this note (source_note_id) AND
+    # tasks explicitly linked via TaskNote table (link_note_to_task)
+    source_tasks_result = await db.execute(
         select(Task).where(Task.source_note_id == note_id)
     )
-    incoming_tasks = incoming_tasks_result.scalars().all()
-    if incoming_tasks:
-        for t in incoming_tasks:
+    source_tasks = {t.id: t for t in source_tasks_result.scalars().all()}
+
+    # Also fetch tasks linked via TaskNote table
+    task_note_result = await db.execute(
+        select(TaskNote).where(TaskNote.note_id == note_id)
+    )
+    linked_task_ids = [link.task_id for link in task_note_result.scalars().all()]
+
+    linked_tasks = {}
+    if linked_task_ids:
+        linked_tasks_result = await db.execute(
+            select(Task).where(Task.id.in_(linked_task_ids))
+        )
+        linked_tasks = {t.id: t for t in linked_tasks_result.scalars().all()}
+
+    # Merge both sources (avoiding duplicates)
+    all_incoming_tasks = {**source_tasks, **linked_tasks}
+    if all_incoming_tasks:
+        for t in all_incoming_tasks.values():
             lines.append(f"- **Task:** {t.title} (id: {t.id}, status: {t.status})")
 
     return [TextContent(type="text", text="\n".join(lines))]
