@@ -296,7 +296,17 @@
 	function formatDateShort(iso: string): string {
 		return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+			if (selectedProject || isCreating) {
+				e.preventDefault();
+			}
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="absolute inset-0 flex overflow-hidden">
 	<!-- Main content -->

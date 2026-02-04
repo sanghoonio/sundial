@@ -168,13 +168,13 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 	<div
-		class="card border border-base-300 {selected ? 'bg-primary/5' : 'bg-base-100'} {onclick ? 'cursor-pointer hover:border-base-content/30' : ''} {isAiSuggested ? 'border-dashed border-primary/40' : ''} transition-colors"
+		class="rounded-lg {selected ? 'bg-primary/5' : 'bg-base-100'} {onclick ? 'cursor-pointer hover:bg-base-100/80' : ''} {isAiSuggested ? 'border border-dashed border-primary/40' : ''} transition-colors"
 		onclick={onclick}
 		onkeydown={(e) => { if (e.key === 'Enter' && onclick) onclick(); }}
 		role={onclick ? 'button' : undefined}
 		tabindex={onclick ? 0 : undefined}
 	>
-		<div class="card-body {compact ? 'p-3' : 'p-3 gap-1.5'}">
+		<div class="{compact ? 'p-3' : 'p-3 flex flex-col gap-1.5'}">
 			<div class="flex items-center gap-2">
 				{#if draggable}
 					<span class="text-base-content/30 shrink-0 hidden md:block" data-grab><GripVertical size={14} /></span>

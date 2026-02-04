@@ -1,13 +1,24 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { api } from '$lib/services/api';
-	import type { DashboardResponse, DailySuggestionsResponse, SettingsResponse } from '$lib/types';
-	import EventCard from '$lib/components/calendar/EventCard.svelte';
+	import type { DashboardResponse, DailySuggestionsResponse, SettingsResponse, DashboardEvent, DashboardTask } from '$lib/types';
 	import NoteCard from '$lib/components/notes/NoteCard.svelte';
-	import TaskCard from '$lib/components/tasks/TaskCard.svelte';
 	import FlipClock from '$lib/components/dashboard/FlipClock.svelte';
 	import { TypeWriter } from 'svelte-typewrite';
 	import { Plus, Calendar, StickyNote, CheckSquare } from 'lucide-svelte';
+
+	function formatEventTime(event: DashboardEvent): string {
+		if (event.all_day) return 'All day';
+		const start = new Date(event.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+		if (!event.end_time) return start;
+		const end = new Date(event.end_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+		return `${start} – ${end}`;
+	}
+
+	function formatTaskPriority(task: DashboardTask): string {
+		const priority = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
+		return priority === 'Medium' ? '' : priority;
+	}
 
 	let dashboard = $state<DashboardResponse | null>(null);
 	let suggestions = $state<DailySuggestionsResponse | null | 'disabled'>(null);
@@ -94,7 +105,7 @@
 						<div class="p-1.5 rounded-lg bg-primary/10 text-primary">
 							<Calendar size={16} />
 						</div>
-						<h2 class="font-semibold">Today's Events</h2>
+						<h2 class="text-sm font-semibold">Today's Events</h2>
 					</div>
 					<a href="{base}/calendar" class="text-xs text-base-content/50 hover:text-base-content transition-colors">
 						View all
@@ -109,9 +120,10 @@
 					<div class="flex-1 overflow-y-auto min-h-0">
 						<div class="flex flex-col gap-2">
 							{#each dashboard.calendar_events as event}
-								<div class="bg-base-100 rounded-lg p-3">
-									<EventCard {event} />
-								</div>
+								<a href="{base}/calendar" class="block p-3 rounded-lg bg-base-100 hover:bg-base-100/80 transition-colors">
+									<h3 class="text-sm font-medium truncate">{event.title}</h3>
+									<span class="text-xs text-base-content/40">{formatEventTime(event)}</span>
+								</a>
 							{/each}
 						</div>
 					</div>
@@ -125,11 +137,10 @@
 						<div class="p-1.5 rounded-lg bg-warning/10 text-warning">
 							<CheckSquare size={16} />
 						</div>
-						<h2 class="font-semibold">Tasks Due</h2>
+						<h2 class="text-sm font-semibold">Tasks Due</h2>
 					</div>
-					<a href="{base}/tasks" class="btn btn-ghost btn-xs gap-1">
+					<a href="{base}/tasks" class="btn btn-ghost btn-xs btn-square">
 						<Plus size={14} />
-						New
 					</a>
 				</div>
 				{#if dashboard.tasks_due.length === 0}
@@ -144,7 +155,10 @@
 					<div class="flex-1 overflow-y-auto min-h-0">
 						<div class="flex flex-col gap-2">
 							{#each dashboard.tasks_due as task}
-								<TaskCard {task} compact />
+								<a href="{base}/tasks?task={task.id}" class="block p-3 rounded-lg bg-base-100 hover:bg-base-100/80 transition-colors">
+									<h3 class="text-sm font-medium truncate">{task.title}</h3>
+									<span class="text-xs text-base-content/40">{formatTaskPriority(task)}{formatTaskPriority(task) ? ' priority' : 'Due today'}</span>
+								</a>
 							{/each}
 						</div>
 					</div>
@@ -158,11 +172,10 @@
 						<div class="p-1.5 rounded-lg bg-success/10 text-success">
 							<StickyNote size={16} />
 						</div>
-						<h2 class="font-semibold">Recent Notes</h2>
+						<h2 class="text-sm font-semibold">Recent Notes</h2>
 					</div>
-					<a href="{base}/notes/new" class="btn btn-ghost btn-xs gap-1">
+					<a href="{base}/notes/new" class="btn btn-ghost btn-xs btn-square">
 						<Plus size={14} />
-						New
 					</a>
 				</div>
 				{#if dashboard.recent_notes.length === 0}

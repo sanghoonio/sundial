@@ -255,7 +255,17 @@
 		panelOpen = false;
 		selectedEvent = null;
 	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+			if (panelOpen) {
+				e.preventDefault();
+			}
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="absolute inset-0 flex flex-col overflow-hidden">
 	<CalendarToolbar

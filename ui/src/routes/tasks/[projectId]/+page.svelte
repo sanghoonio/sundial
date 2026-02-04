@@ -151,6 +151,21 @@
 		}
 	});
 
+	// Auto-select task from URL query param (for linked task navigation)
+	$effect(() => {
+		const taskId = page.url.searchParams.get('task');
+		if (taskId && tasks.length > 0 && !loading) {
+			const task = tasks.find(t => t.id === taskId);
+			if (task) {
+				selectedTask = task;
+				// Clear the query param from URL to avoid re-selecting on navigation
+				const url = new URL(window.location.href);
+				url.searchParams.delete('task');
+				goto(url.pathname, { replaceState: true });
+			}
+		}
+	});
+
 	async function handleDrop(taskId: string, milestoneId: string | null, position: number) {
 		const movingTask = tasks.find((t) => t.id === taskId);
 		if (!movingTask) return;
@@ -291,6 +306,14 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
+		// Ctrl/Cmd+S: prevent browser save when task sidebar is open
+		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+			if (selectedTask) {
+				e.preventDefault();
+			}
+			return;
+		}
+
 		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
 		if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
 			e.preventDefault();

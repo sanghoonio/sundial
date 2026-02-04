@@ -2,6 +2,7 @@
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TaskCreate, TaskResponse, MilestoneResponse, ChecklistItemCreate, ProjectResponse } from '$lib/types';
+	import { toLocalISOString } from '$lib/utils/calendar';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
@@ -60,7 +61,7 @@
 			};
 			if (description.trim()) data.description = description.trim();
 			if (priority !== 'medium') data.priority = priority;
-			if (dueDate) data.due_date = new Date(dueDate).toISOString();
+			if (dueDate) data.due_date = toLocalISOString(dueDate);
 			if (checklist.length > 0) data.checklist = checklist;
 			if (initialNoteId) data.note_ids = [initialNoteId];
 			if (calendarEventId) data.calendar_event_id = calendarEventId;

@@ -3,6 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, ProjectResponse, NoteResponse, NoteList, EventResponse } from '$lib/types';
+	import { toLocalISOString } from '$lib/utils/calendar';
 	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X, Save, Check, Link, ArrowLeft } from 'lucide-svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 
@@ -164,7 +165,7 @@
 				description,
 				status,
 				priority,
-				due_date: dueDate ? new Date(dueDate).toISOString() : null,
+				due_date: dueDate ? toLocalISOString(dueDate) : null,
 				project_id: projectId,
 				milestone_id: milestoneId,
 				checklist,

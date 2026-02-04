@@ -2,6 +2,7 @@
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TaskCreate, TaskResponse, ChecklistItemCreate, ProjectResponse } from '$lib/types';
+	import { toLocalISOString } from '$lib/utils/calendar';
 	import { Plus, Trash2, Square, CheckSquare, StickyNote, X } from 'lucide-svelte';
 
 	interface Props {
@@ -42,7 +43,7 @@
 			};
 			if (description.trim()) data.description = description.trim();
 			if (priority !== 'medium') data.priority = priority;
-			if (dueDate) data.due_date = new Date(dueDate).toISOString();
+			if (dueDate) data.due_date = toLocalISOString(dueDate);
 			if (selectedMilestoneId) data.milestone_id = selectedMilestoneId;
 			if (checklist.length > 0) data.checklist = checklist;
 			if (initialNoteId) data.note_ids = [initialNoteId];
