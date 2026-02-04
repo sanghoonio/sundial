@@ -22,7 +22,7 @@
 	let creating = $state(false);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 	let showSavedText = $state(false);
-	let savedTextTimer: ReturnType<typeof setTimeout>;
+	let savedTextTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
 	function hasContent(): boolean {
 		return blocks.some((b) => {

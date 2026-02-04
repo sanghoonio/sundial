@@ -31,14 +31,14 @@
 			dashboard = await api.get<DashboardResponse>('/api/dashboard/today');
 			// Check settings then load AI suggestions
 			api.get<SettingsResponse>('/api/settings')
-				.then(settings => {
+				.then(async (settings) => {
 					const aiEnabled = settings.ai_enabled && settings.openrouter_api_key?.length > 4;
 					if (aiEnabled && settings.ai_daily_suggestions) {
-						return api.get<DailySuggestionsResponse>('/api/ai/suggestions/daily');
+						suggestions = await api.get<DailySuggestionsResponse>('/api/ai/suggestions/daily');
+					} else {
+						suggestions = 'disabled';
 					}
-					return 'disabled' as const;
 				})
-				.then(s => suggestions = s)
 				.catch(() => suggestions = 'disabled');
 		} catch (e) {
 			console.error('Failed to load dashboard', e);
