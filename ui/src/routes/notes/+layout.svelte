@@ -439,13 +439,13 @@
 		</div>
 
 		<!-- Filter row: Project + Tag + Sort dropdowns -->
-		<div class="flex items-center justify-between px-4 py-2 border-b border-base-300">
+		<div class="flex items-center justify-between px-4 py-2 border-b border-base-300 min-w-0">
 			<!-- Project filter dropdown -->
-			<div class="dropdown dropdown-start">
+			<div class="dropdown dropdown-start min-w-0">
 				<button tabindex="0" class="btn btn-ghost btn-xs gap-1 min-w-0 {selectedProject ? 'btn-active' : ''}">
 					{#if selectedProjectData}
 						<span class="w-2 h-2 rounded-full shrink-0" style:background-color={selectedProjectData.color}></span>
-						<span class="truncate max-w-20">{selectedProjectData.name}</span>
+						<span class="truncate max-w-12">{selectedProjectData.name}</span>
 					{:else}
 						<FolderKanban size={12} class="shrink-0" />
 						<span>Project</span>
@@ -474,12 +474,11 @@
 			</div>
 
 			<!-- Tag filter dropdown -->
-			<div class="dropdown dropdown-start">
+			<div class="dropdown dropdown-start min-w-0">
 				<button tabindex="0" class="btn btn-ghost btn-xs gap-1 min-w-0 {selectedTag ? 'btn-active' : ''}">
 					{#if selectedTagData}
 						<Tag size={12} class="shrink-0" />
-						<span class="truncate max-w-20">{selectedTagData.name}</span>
-						<span class="badge badge-xs badge-ghost">{selectedTagData.count}</span>
+						<span class="truncate max-w-12">{selectedTagData.name}</span>
 					{:else}
 						<Tag size={12} class="shrink-0" />
 						<span>Tag</span>
@@ -497,16 +496,16 @@
 							onclick={(e) => e.stopPropagation()}
 						/>
 					</div>
-					<ul class="menu p-1 max-h-48 overflow-y-auto overflow-x-hidden flex-nowrap">
+					<ul class="menu menu-sm p-1 max-h-48 overflow-y-auto overflow-x-hidden flex-nowrap w-full">
 						<li>
-							<button class={selectedTag === '' ? 'active' : ''} onclick={() => { selectedTag = ''; tagSearch = ''; }}>
+							<button class="w-full {selectedTag === '' ? 'active' : ''}" onclick={() => { selectedTag = ''; tagSearch = ''; }}>
 								All tags
 							</button>
 						</li>
 						{#each filteredTags as tag}
 							<li>
 								<button
-									class="justify-between {selectedTag === tag.name ? 'active' : ''}"
+									class="w-full justify-between {selectedTag === tag.name ? 'active' : ''}"
 									onclick={() => { selectedTag = selectedTag === tag.name ? '' : tag.name; tagSearch = ''; }}
 								>
 									<span class="truncate">{tag.name}</span>
@@ -522,7 +521,7 @@
 			</div>
 
 			<!-- Sort dropdown -->
-			<div class="dropdown dropdown-end">
+			<div class="dropdown dropdown-end min-w-0">
 				<button tabindex="0" class="btn btn-ghost btn-xs gap-1 min-w-0">
 					{#if sortBy === 'newest'}
 						<ArrowDownNarrowWide size={12} class="shrink-0" />
