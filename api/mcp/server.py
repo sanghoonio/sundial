@@ -204,6 +204,72 @@ def _tool_list() -> list[Tool]:
                 "required": ["task_id"],
             },
         ),
+        Tool(
+            name="delete_task",
+            description="Delete a task by ID. Returns success or failure.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "Task ID to delete"},
+                },
+                "required": ["task_id"],
+            },
+        ),
+        Tool(
+            name="delete_note",
+            description="Delete a note by ID. Removes the note file and cleans up orphaned tags.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "note_id": {"type": "string", "description": "Note ID to delete"},
+                },
+                "required": ["note_id"],
+            },
+        ),
+        Tool(
+            name="create_calendar_event",
+            description="Create a new calendar event.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Event title"},
+                    "description": {"type": "string", "description": "Event description"},
+                    "start_time": {"type": "string", "description": "Start time in ISO format (YYYY-MM-DDTHH:MM:SS)"},
+                    "end_time": {"type": "string", "description": "End time in ISO format (YYYY-MM-DDTHH:MM:SS)"},
+                    "all_day": {"type": "boolean", "description": "Whether this is an all-day event", "default": False},
+                    "location": {"type": "string", "description": "Event location"},
+                },
+                "required": ["title", "start_time"],
+            },
+        ),
+        Tool(
+            name="update_calendar_event",
+            description="Update an existing calendar event.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "event_id": {"type": "string", "description": "Event ID to update"},
+                    "title": {"type": "string", "description": "New title"},
+                    "description": {"type": "string", "description": "New description"},
+                    "start_time": {"type": "string", "description": "New start time in ISO format"},
+                    "end_time": {"type": "string", "description": "New end time in ISO format"},
+                    "all_day": {"type": "boolean", "description": "Whether this is an all-day event"},
+                    "location": {"type": "string", "description": "New location"},
+                },
+                "required": ["event_id"],
+            },
+        ),
+        Tool(
+            name="delete_calendar_event",
+            description="Delete a calendar event by ID.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "event_id": {"type": "string", "description": "Event ID to delete"},
+                },
+                "required": ["event_id"],
+            },
+        ),
     ]
 
 
@@ -245,6 +311,16 @@ async def handle_call_tool(name: str, arguments: dict) -> list[TextContent]:
             return await _get_note_links(db, arguments)
         elif name == "get_task_links":
             return await _get_task_links(db, arguments)
+        elif name == "delete_task":
+            return await _delete_task(db, arguments)
+        elif name == "delete_note":
+            return await _delete_note(db, arguments)
+        elif name == "create_calendar_event":
+            return await _create_calendar_event(db, arguments)
+        elif name == "update_calendar_event":
+            return await _update_calendar_event(db, arguments)
+        elif name == "delete_calendar_event":
+            return await _delete_calendar_event(db, arguments)
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
@@ -976,3 +1052,121 @@ async def _get_task_links(db, args: dict) -> list[TextContent]:
         lines.append("No notes linked to this task.")
 
     return [TextContent(type="text", text="\n".join(lines))]
+
+
+async def _delete_task(db, args: dict) -> list[TextContent]:
+    task_id = args.get("task_id", "")
+    if not task_id:
+        return [TextContent(type="text", text="task_id is required.")]
+
+    from api.services.task_service import delete_task
+    success = await delete_task(db, task_id)
+
+    if success:
+        return [TextContent(type="text", text=f"Task '{task_id}' deleted successfully.")]
+    return [TextContent(type="text", text=f"Task '{task_id}' not found.")]
+
+
+async def _delete_note(db, args: dict) -> list[TextContent]:
+    note_id = args.get("note_id", "")
+    if not note_id:
+        return [TextContent(type="text", text="note_id is required.")]
+
+    from api.services.note_service import delete_note
+    success = await delete_note(db, note_id)
+
+    if success:
+        return [TextContent(type="text", text=f"Note '{note_id}' deleted successfully.")]
+    return [TextContent(type="text", text=f"Note '{note_id}' not found.")]
+
+
+async def _create_calendar_event(db, args: dict) -> list[TextContent]:
+    title = args.get("title", "").strip()
+    if not title:
+        return [TextContent(type="text", text="Title is required.")]
+
+    start_time_str = args.get("start_time", "")
+    if not start_time_str:
+        return [TextContent(type="text", text="start_time is required.")]
+
+    try:
+        start_time = datetime.fromisoformat(start_time_str.replace("Z", "+00:00"))
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return [TextContent(type="text", text="Invalid start_time format. Use ISO format.")]
+
+    end_time = None
+    if args.get("end_time"):
+        try:
+            end_time = datetime.fromisoformat(args["end_time"].replace("Z", "+00:00"))
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=timezone.utc)
+        except ValueError:
+            return [TextContent(type="text", text="Invalid end_time format. Use ISO format.")]
+
+    event = CalendarEvent(
+        title=title,
+        description=args.get("description", ""),
+        start_time=start_time,
+        end_time=end_time,
+        all_day=args.get("all_day", False),
+        location=args.get("location", ""),
+        calendar_source="local",
+    )
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+
+    return [TextContent(type="text", text=f"Event created: **{event.title}** (id: {event.id})\nStart: {event.start_time}")]
+
+
+async def _update_calendar_event(db, args: dict) -> list[TextContent]:
+    event_id = args.get("event_id", "")
+    if not event_id:
+        return [TextContent(type="text", text="event_id is required.")]
+
+    event = await db.get(CalendarEvent, event_id)
+    if not event:
+        return [TextContent(type="text", text=f"Event '{event_id}' not found.")]
+
+    if "title" in args:
+        event.title = args["title"]
+    if "description" in args:
+        event.description = args["description"]
+    if "start_time" in args:
+        try:
+            start_time = datetime.fromisoformat(args["start_time"].replace("Z", "+00:00"))
+            event.start_time = start_time.replace(tzinfo=timezone.utc) if start_time.tzinfo is None else start_time
+        except ValueError:
+            return [TextContent(type="text", text="Invalid start_time format.")]
+    if "end_time" in args:
+        try:
+            end_time = datetime.fromisoformat(args["end_time"].replace("Z", "+00:00"))
+            event.end_time = end_time.replace(tzinfo=timezone.utc) if end_time.tzinfo is None else end_time
+        except ValueError:
+            return [TextContent(type="text", text="Invalid end_time format.")]
+    if "all_day" in args:
+        event.all_day = args["all_day"]
+    if "location" in args:
+        event.location = args["location"]
+
+    event.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return [TextContent(type="text", text=f"Event updated: **{event.title}** (id: {event.id})")]
+
+
+async def _delete_calendar_event(db, args: dict) -> list[TextContent]:
+    event_id = args.get("event_id", "")
+    if not event_id:
+        return [TextContent(type="text", text="event_id is required.")]
+
+    event = await db.get(CalendarEvent, event_id)
+    if not event:
+        return [TextContent(type="text", text=f"Event '{event_id}' not found.")]
+
+    await db.delete(event)
+    await db.commit()
+
+    return [TextContent(type="text", text=f"Event '{event_id}' deleted successfully.")]

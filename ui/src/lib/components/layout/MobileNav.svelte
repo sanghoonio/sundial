@@ -17,11 +17,11 @@
 	}
 </script>
 
-<nav class="btm-nav md:hidden z-50">
+<nav class="dock md:hidden">
 	{#each links as link}
-		<a href={link.href} class={isActive(link.href) ? 'active' : ''}>
+		<a href={link.href} class={isActive(link.href) ? 'dock-active' : ''}>
 			<link.icon size={20} />
-			<span class="btm-nav-label text-xs">{link.label}</span>
+			<span class="dock-label">{link.label}</span>
 		</a>
 	{/each}
 </nav>

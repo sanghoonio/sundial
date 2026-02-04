@@ -19,6 +19,8 @@
 	import AgendaView from '$lib/components/calendar/AgendaView.svelte';
 	import MiniCalendar from '$lib/components/calendar/MiniCalendar.svelte';
 	import EventPanel from '$lib/components/calendar/EventPanel.svelte';
+	import EventModal from '$lib/components/calendar/EventModal.svelte';
+	import { Calendar } from 'lucide-svelte';
 
 	type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
@@ -34,6 +36,18 @@
 	let selectedTime = $state('');
 	let syncing = $state(false);
 	let calSyncEnabled = $state(false);
+
+	// Mobile state
+	let isMobile = $state(false);
+	let showMobileMiniCal = $state(false);
+
+	$effect(() => {
+		const mq = window.matchMedia('(max-width: 1023px)');
+		isMobile = mq.matches;
+		const handler = (e: MediaQueryListEvent) => isMobile = e.matches;
+		mq.addEventListener('change', handler);
+		return () => mq.removeEventListener('change', handler);
+	});
 
 	function getDateRange(date: Date, v: CalendarView): { start: string; end: string } {
 		const fmt = (d: Date) =>
@@ -256,6 +270,19 @@
 		onsync={calSyncEnabled ? handleSync : undefined}
 	/>
 
+	<!-- Mobile mini-calendar toggle -->
+	<div class="lg:hidden px-4 py-2 border-b border-base-300">
+		<button class="btn btn-ghost btn-sm gap-1" onclick={() => showMobileMiniCal = !showMobileMiniCal}>
+			<Calendar size={16} />
+			{showMobileMiniCal ? 'Hide' : 'Show'} Mini Calendar
+		</button>
+		{#if showMobileMiniCal}
+			<div class="mt-2">
+				<MiniCalendar {currentDate} {itemDates} ondateclick={handleMiniCalendarClick} />
+			</div>
+		{/if}
+	</div>
+
 	{#if loading}
 		<div class="flex items-center justify-center py-20">
 			<span class="loading loading-spinner loading-lg"></span>
@@ -318,3 +345,17 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Mobile event modal -->
+{#if isMobile && panelOpen}
+	<EventModal
+		bind:open={panelOpen}
+		event={selectedEvent}
+		defaultDate={selectedDate}
+		defaultTime={selectedTime}
+		onsaved={handleEventSaved}
+		ondeleted={handleEventDeleted}
+		onseriesdeleted={handleSeriesDeleted}
+		onclose={handlePanelClose}
+	/>
+{/if}

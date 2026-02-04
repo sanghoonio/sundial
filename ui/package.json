@@ -33,6 +33,7 @@
 		"highlight.js": "^11.11.1",
 		"marked": "^17.0.1",
 		"mermaid": "^11.12.2",
-		"svelte-sonner": "^1.0.7"
+		"svelte-sonner": "^1.0.7",
+		"svelte-typewrite": "^3.0.0"
 	}
 }

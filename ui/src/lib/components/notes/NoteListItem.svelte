@@ -37,6 +37,11 @@
 	let settleTimeout: ReturnType<typeof setTimeout>;
 	let containerEl: HTMLDivElement;
 
+	// Touch swipe state
+	let touchStartX = 0;
+	let touchStartY = 0;
+	let isTouchSwiping = false;
+
 	const MAX_OFFSET = 64;
 
 	// Use non-passive listener to allow preventDefault
@@ -85,6 +90,44 @@
 		}, 10000);
 	}
 
+	function handleTouchStart(e: TouchEvent) {
+		const touch = e.touches[0];
+		touchStartX = touch.clientX;
+		touchStartY = touch.clientY;
+		isTouchSwiping = false;
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		const touch = e.touches[0];
+		const deltaX = touch.clientX - touchStartX;
+		const deltaY = touch.clientY - touchStartY;
+
+		// Only track horizontal swipes
+		if (!isTouchSwiping && Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY)) {
+			isTouchSwiping = true;
+		}
+
+		if (isTouchSwiping) {
+			e.preventDefault();
+			isSettling = false;
+			swipeOffset = Math.max(-MAX_OFFSET, Math.min(0, deltaX));
+		}
+	}
+
+	function handleTouchEnd() {
+		if (!isTouchSwiping) return;
+		isSettling = true;
+		if (swipeOffset < -MAX_OFFSET / 2) {
+			swipeRevealed = true;
+			swipeOffset = -MAX_OFFSET;
+			resetHideTimer();
+		} else {
+			swipeRevealed = false;
+			swipeOffset = 0;
+		}
+		isTouchSwiping = false;
+	}
+
 	function handleDelete(e: MouseEvent) {
 		e.preventDefault();
 		e.stopPropagation();
@@ -95,7 +138,14 @@
 	}
 </script>
 
-<div class="overflow-hidden" bind:this={containerEl} style="overscroll-behavior-x: contain; touch-action: pan-y;">
+<div
+	class="overflow-hidden"
+	bind:this={containerEl}
+	style="overscroll-behavior-x: contain; touch-action: pan-y;"
+	ontouchstart={handleTouchStart}
+	ontouchmove={handleTouchMove}
+	ontouchend={handleTouchEnd}
+>
 	<!-- Sliding wrapper containing content + trash -->
 	<div
 		class="flex {isSettling ? 'transition-transform duration-150' : ''}"

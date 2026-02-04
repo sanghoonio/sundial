@@ -3,7 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
 	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, ProjectResponse, NoteResponse, NoteList, EventResponse } from '$lib/types';
-	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X, Save, Check, Link } from 'lucide-svelte';
+	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X, Save, Check, Link, ArrowLeft } from 'lucide-svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	interface Props {
@@ -276,9 +276,15 @@
 	}
 </script>
 
-<aside class="w-96 shrink-0 border-l border-base-300 bg-base-100 flex flex-col overflow-hidden">
+<aside class="
+	fixed inset-0 z-50 bg-base-100 flex flex-col overflow-hidden
+	md:relative md:inset-auto md:z-auto md:w-96 md:shrink-0 md:border-l md:border-base-300
+">
 	<!-- Header -->
 	<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
+		<button class="btn btn-ghost btn-sm btn-square md:hidden" onclick={onclose} title="Back">
+			<ArrowLeft size={18} />
+		</button>
 		<input
 			type="text"
 			bind:value={title}
@@ -307,7 +313,7 @@
 		<button class="btn btn-ghost btn-sm text-error" onclick={handleDelete} title="Delete task">
 			<Trash2 size={16} />
 		</button>
-		<button class="btn btn-ghost btn-sm btn-square" onclick={onclose} title="Close">
+		<button class="btn btn-ghost btn-sm btn-square hidden md:flex" onclick={onclose} title="Close">
 			<X size={16} />
 		</button>
 	</div>

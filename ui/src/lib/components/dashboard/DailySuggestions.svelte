@@ -6,6 +6,12 @@
 	import Card from '$lib/components/ui/Card.svelte';
 	import { Sparkles, RefreshCw, Target, Link2, AlertCircle } from 'lucide-svelte';
 
+	interface Props {
+		class?: string;
+	}
+
+	let { class: className = '' }: Props = $props();
+
 	let loading = $state(true);
 	let settingsLoaded = $state(false);
 	let refreshing = $state(false);
@@ -65,7 +71,7 @@
 </script>
 
 {#if showWidget}
-	<Card>
+	<Card class={className}>
 		<div class="flex items-center justify-between mb-4">
 			<div class="flex items-center gap-2">
 				<div class="p-1.5 rounded-lg bg-secondary/10 text-secondary">

@@ -1,19 +1,24 @@
 <script lang="ts">
-	import type { TaskResponse, DashboardTask } from '$lib/types';
-	import { AlertCircle, GripVertical, StickyNote, CalendarDays, Check, X, Trash2 } from 'lucide-svelte';
+	import type { TaskResponse, DashboardTask, MilestoneResponse } from '$lib/types';
+	import { AlertCircle, GripVertical, StickyNote, CalendarDays, Check, X, Trash2, MoreVertical } from 'lucide-svelte';
 
 	interface Props {
 		task: TaskResponse | DashboardTask;
 		compact?: boolean;
 		draggable?: boolean;
 		selected?: boolean;
+		milestones?: MilestoneResponse[];
 		onclick?: () => void;
 		onaccept?: () => void;
 		ondismiss?: () => void;
 		ondelete?: () => void;
+		onmove?: (taskId: string, milestoneId: string | null) => void;
 	}
 
-	let { task, compact = false, draggable = false, selected = false, onclick, onaccept, ondismiss, ondelete }: Props = $props();
+	let { task, compact = false, draggable = false, selected = false, milestones = [], onclick, onaccept, ondismiss, ondelete, onmove }: Props = $props();
+
+	// Get current milestone ID for filtering
+	let currentMilestoneId = $derived('milestone_id' in task ? (task as TaskResponse).milestone_id : null);
 
 	// Swipe-to-delete state
 	let swipeRevealed = $state(false);
@@ -22,6 +27,11 @@
 	let hideTimeout: ReturnType<typeof setTimeout>;
 	let settleTimeout: ReturnType<typeof setTimeout>;
 	let containerEl: HTMLDivElement;
+
+	// Touch swipe state
+	let touchStartX = 0;
+	let touchStartY = 0;
+	let isTouchSwiping = false;
 
 	const MAX_OFFSET = 48;
 
@@ -63,6 +73,44 @@
 			swipeRevealed = false;
 			swipeOffset = 0;
 		}, 10000);
+	}
+
+	function handleTouchStart(e: TouchEvent) {
+		const touch = e.touches[0];
+		touchStartX = touch.clientX;
+		touchStartY = touch.clientY;
+		isTouchSwiping = false;
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		const touch = e.touches[0];
+		const deltaX = touch.clientX - touchStartX;
+		const deltaY = touch.clientY - touchStartY;
+
+		// Only track horizontal swipes
+		if (!isTouchSwiping && Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY)) {
+			isTouchSwiping = true;
+		}
+
+		if (isTouchSwiping) {
+			e.preventDefault();
+			isSettling = false;
+			swipeOffset = Math.max(-MAX_OFFSET, Math.min(0, deltaX));
+		}
+	}
+
+	function handleTouchEnd() {
+		if (!isTouchSwiping) return;
+		isSettling = true;
+		if (swipeOffset < -MAX_OFFSET / 2) {
+			swipeRevealed = true;
+			swipeOffset = -MAX_OFFSET;
+			resetHideTimer();
+		} else {
+			swipeRevealed = false;
+			swipeOffset = 0;
+		}
+		isTouchSwiping = false;
 	}
 
 	function handleDelete(e: MouseEvent) {
@@ -109,7 +157,14 @@
 	let hasPriorityIcon = $derived(task.priority === 'urgent' || task.priority === 'high');
 </script>
 
-<div class="relative overflow-hidden" bind:this={containerEl} style="overscroll-behavior-x: contain; touch-action: pan-y;">
+<div
+	class="relative overflow-hidden"
+	bind:this={containerEl}
+	style="overscroll-behavior-x: contain; touch-action: pan-y;"
+	ontouchstart={handleTouchStart}
+	ontouchmove={handleTouchMove}
+	ontouchend={handleTouchEnd}
+>
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 	<div
@@ -122,7 +177,7 @@
 		<div class="card-body {compact ? 'p-3' : 'p-3 gap-1.5'}">
 			<div class="flex items-center gap-2">
 				{#if draggable}
-					<span class="text-base-content/30 shrink-0" data-grab><GripVertical size={14} /></span>
+					<span class="text-base-content/30 shrink-0 hidden md:block" data-grab><GripVertical size={14} /></span>
 				{/if}
 				<span class="font-medium truncate text-sm flex-1 min-w-0">{task.title}</span>
 				{#if hasLinkedNote}
@@ -132,6 +187,25 @@
 					<span class="{priorityColors[task.priority]} shrink-0">
 						<AlertCircle size={14} />
 					</span>
+				{/if}
+				<!-- Mobile move menu -->
+				{#if onmove && milestones.length > 0}
+					<div class="dropdown dropdown-end md:hidden">
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<button tabindex="0" class="btn btn-ghost btn-xs btn-square" onclick={(e) => e.stopPropagation()}>
+							<MoreVertical size={14} />
+						</button>
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-40 p-1">
+							<li class="menu-title text-xs">Move to</li>
+							{#each milestones.filter(ms => ms.id !== currentMilestoneId) as ms}
+								<li><button onclick={(e) => { e.stopPropagation(); onmove(task.id, ms.id); }}>{ms.name}</button></li>
+							{/each}
+							{#if currentMilestoneId}
+								<li><button onclick={(e) => { e.stopPropagation(); onmove(task.id, null); }}>No milestone</button></li>
+							{/if}
+						</ul>
+					</div>
 				{/if}
 			</div>
 

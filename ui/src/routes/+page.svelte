@@ -1,20 +1,34 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { api } from '$lib/services/api';
-	import type { DashboardResponse } from '$lib/types';
-	import Card from '$lib/components/ui/Card.svelte';
+	import type { DashboardResponse, DailySuggestionsResponse, SettingsResponse } from '$lib/types';
 	import EventCard from '$lib/components/calendar/EventCard.svelte';
 	import NoteCard from '$lib/components/notes/NoteCard.svelte';
 	import TaskCard from '$lib/components/tasks/TaskCard.svelte';
-	import DailySuggestions from '$lib/components/dashboard/DailySuggestions.svelte';
-	import { Plus, Calendar, StickyNote, CheckSquare, Sun, Moon, Sunrise, Sunset } from 'lucide-svelte';
+	import FlipClock from '$lib/components/dashboard/FlipClock.svelte';
+	import { TypeWriter } from 'svelte-typewrite';
+	import { Plus, Calendar, StickyNote, CheckSquare } from 'lucide-svelte';
 
 	let dashboard = $state<DashboardResponse | null>(null);
+	let suggestions = $state<DailySuggestionsResponse | null | 'disabled'>(null);
 	let loading = $state(true);
+	let visiblePriorities = $state(0);
+	let showPriorities = $state(false);
 
 	async function load() {
 		try {
 			dashboard = await api.get<DashboardResponse>('/api/dashboard/today');
+			// Check settings then load AI suggestions
+			api.get<SettingsResponse>('/api/settings')
+				.then(settings => {
+					const aiEnabled = settings.ai_enabled && settings.openrouter_api_key?.length > 4;
+					if (aiEnabled && settings.ai_daily_suggestions) {
+						return api.get<DailySuggestionsResponse>('/api/ai/suggestions/daily');
+					}
+					return 'disabled' as const;
+				})
+				.then(s => suggestions = s)
+				.catch(() => suggestions = 'disabled');
 		} catch (e) {
 			console.error('Failed to load dashboard', e);
 		} finally {
@@ -22,48 +36,60 @@
 		}
 	}
 
+	function onSummaryEnd() {
+		showPriorities = true;
+		visiblePriorities = 1;
+	}
+
+	function onPriorityEnd() {
+		if (suggestions && suggestions !== 'disabled' && visiblePriorities < (suggestions.priorities?.length ?? 0)) {
+			visiblePriorities++;
+		}
+	}
+
 	$effect(() => {
 		load();
 	});
-
-	function getGreeting(): { text: string; icon: typeof Sun } {
-		const hour = new Date().getHours();
-		if (hour < 6) return { text: 'Good night', icon: Moon };
-		if (hour < 12) return { text: 'Good morning', icon: Sunrise };
-		if (hour < 18) return { text: 'Good afternoon', icon: Sun };
-		return { text: 'Good evening', icon: Sunset };
-	}
-
-	function formatDate(dateStr: string): string {
-		return new Date(dateStr + 'T00:00:00').toLocaleDateString([], {
-			weekday: 'long',
-			month: 'long',
-			day: 'numeric'
-		});
-	}
-
-	let greeting = $derived(getGreeting());
 </script>
 
-<div class="max-w-6xl mx-auto px-4 py-6">
+<div class="h-[calc(100vh-4rem)] flex flex-col px-3">
 	{#if loading}
-		<div class="flex items-center justify-center py-20">
+		<div class="flex items-center justify-center flex-1">
 			<span class="loading loading-spinner loading-lg"></span>
 		</div>
 	{:else if dashboard}
 		<!-- Header -->
-		<div class="mb-8">
-			<div class="flex items-center gap-3 mb-1">
-				<svelte:component this={greeting.icon} size={24} class="text-primary" />
-				<h1 class="text-2xl font-semibold">{greeting.text}</h1>
+		<div class="flex items-stretch gap-6 mb-6">
+			<FlipClock />
+			<div class="flex-1 relative">
+				<div class="ai-terminal">
+					{#if suggestions === null}
+						<span class="loading-dots">...</span>
+					{:else if suggestions === 'disabled'}
+						<span class="text-[#e8e8e8]/40">AI features not enabled</span>
+					{:else if suggestions?.summary || (suggestions?.priorities && suggestions.priorities.length > 0)}
+						{#if suggestions?.summary}
+							<p><TypeWriter texts={[suggestions.summary]} repeat={1} typeSpeed={33} endState={{ text: 'typed', caret: 'hidden' }} ontypeend={onSummaryEnd} /></p>
+						{/if}
+						{#if showPriorities && suggestions?.priorities && suggestions.priorities.length > 0}
+							<ul class="mt-2">
+								{#each suggestions.priorities.slice(0, visiblePriorities) as priority, i}
+									<li>→ <TypeWriter texts={[priority]} repeat={1} typeSpeed={33} endState={{ text: 'typed', caret: 'hidden' }} ontypeend={onPriorityEnd} /></li>
+								{/each}
+							</ul>
+						{/if}
+					{:else}
+						<span class="text-[#e8e8e8]/40">No suggestions yet</span>
+					{/if}
+				</div>
 			</div>
-			<p class="text-base-content/50">{formatDate(dashboard.date)}</p>
 		</div>
 
-		<div class="grid gap-6 md:grid-cols-2">
-			<!-- Calendar Events -->
-			<Card>
-				<div class="flex items-center justify-between mb-4">
+		<!-- Bottom row: 3 sections -->
+		<div class="grid grid-cols-3 gap-6 flex-1 min-h-0">
+			<!-- Today's Events -->
+			<div class="flex flex-col min-h-0 bg-base-200 rounded-lg px-4 pt-4">
+				<div class="flex items-center justify-between mb-3">
 					<div class="flex items-center gap-2">
 						<div class="p-1.5 rounded-lg bg-primary/10 text-primary">
 							<Calendar size={16} />
@@ -80,17 +106,21 @@
 						<p class="text-base-content/40 text-sm">No events scheduled</p>
 					</div>
 				{:else}
-					<div class="divide-y divide-base-200">
-						{#each dashboard.calendar_events as event}
-							<EventCard {event} />
-						{/each}
+					<div class="flex-1 overflow-y-auto min-h-0">
+						<div class="flex flex-col gap-2">
+							{#each dashboard.calendar_events as event}
+								<div class="bg-base-100 rounded-lg p-3">
+									<EventCard {event} />
+								</div>
+							{/each}
+						</div>
 					</div>
 				{/if}
-			</Card>
+			</div>
 
 			<!-- Tasks Due -->
-			<Card>
-				<div class="flex items-center justify-between mb-4">
+			<div class="flex flex-col min-h-0 bg-base-200 rounded-lg px-4 pt-4">
+				<div class="flex items-center justify-between mb-3">
 					<div class="flex items-center gap-2">
 						<div class="p-1.5 rounded-lg bg-warning/10 text-warning">
 							<CheckSquare size={16} />
@@ -111,17 +141,19 @@
 						</a>
 					</div>
 				{:else}
-					<div class="flex flex-col gap-2">
-						{#each dashboard.tasks_due as task}
-							<TaskCard {task} compact />
-						{/each}
+					<div class="flex-1 overflow-y-auto min-h-0">
+						<div class="flex flex-col gap-2">
+							{#each dashboard.tasks_due as task}
+								<TaskCard {task} compact />
+							{/each}
+						</div>
 					</div>
 				{/if}
-			</Card>
+			</div>
 
 			<!-- Recent Notes -->
-			<Card>
-				<div class="flex items-center justify-between mb-4">
+			<div class="flex flex-col min-h-0 bg-base-200 rounded-lg px-4 pt-4">
+				<div class="flex items-center justify-between mb-3">
 					<div class="flex items-center gap-2">
 						<div class="p-1.5 rounded-lg bg-success/10 text-success">
 							<StickyNote size={16} />
@@ -142,16 +174,52 @@
 						</a>
 					</div>
 				{:else}
-					<div class="flex flex-col gap-2">
-						{#each dashboard.recent_notes as note}
-							<NoteCard {note} compact />
-						{/each}
+					<div class="flex-1 overflow-y-auto min-h-0">
+						<div class="flex flex-col gap-2">
+							{#each dashboard.recent_notes as note}
+								<NoteCard {note} compact />
+							{/each}
+						</div>
 					</div>
 				{/if}
-			</Card>
-
-			<!-- AI Daily Suggestions -->
-			<DailySuggestions />
+			</div>
 		</div>
 	{/if}
 </div>
+
+<style>
+	.ai-terminal {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		min-height: 100%;
+		background: #1a1a1a;
+		color: #e8e8e8;
+		border-radius: 0.375rem;
+		padding: 0.75rem 1rem;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+		font-size: 0.85rem;
+		line-height: 1.5;
+		overflow: hidden;
+		max-height: 100%;
+		transition: max-height 0.3s ease-in-out;
+		z-index: 10;
+	}
+
+	.ai-terminal:hover {
+		max-height: 20rem;
+	}
+
+
+	.loading-dots {
+		display: inline-block;
+		animation: blink 1.4s infinite;
+	}
+
+	@keyframes blink {
+		0%, 20% { opacity: 0.2; }
+		50% { opacity: 1; }
+		80%, 100% { opacity: 0.2; }
+	}
+</style>
