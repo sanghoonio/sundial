@@ -25,6 +25,22 @@ from api.services.note_service import create_note as service_create_note, update
 mcp_server = Server("sundial")
 
 
+def _parse_due_date(date_str: str) -> datetime:
+    """Parse due date string, accepting ISO format with timezone or date-only.
+
+    For full ISO strings with timezone (e.g., 2025-02-05T00:00:00-05:00),
+    converts to UTC. For date-only strings (e.g., 2025-02-05), uses noon UTC
+    as a safe default to avoid off-by-one-day errors across timezones.
+    """
+    dt = datetime.fromisoformat(date_str)
+    if dt.tzinfo is not None:
+        # Has timezone - convert to UTC
+        return dt.astimezone(timezone.utc)
+    else:
+        # Date-only (naive) - use noon UTC as safe default
+        return dt.replace(hour=12, tzinfo=timezone.utc)
+
+
 def _tool_list() -> list[Tool]:
     return [
         Tool(
@@ -83,7 +99,7 @@ def _tool_list() -> list[Tool]:
                     "title": {"type": "string", "description": "Task title"},
                     "description": {"type": "string", "description": "Task description"},
                     "priority": {"type": "string", "description": "Priority: low/medium/high", "default": "medium"},
-                    "due_date": {"type": "string", "description": "Due date in ISO format (YYYY-MM-DD)"},
+                    "due_date": {"type": "string", "description": "Due date in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS±HH:MM with timezone)"},
                     "project_id": {"type": "string", "description": "Project ID (default: inbox)"},
                     "note_ids": {"type": "array", "items": {"type": "string"}, "description": "Note IDs to link to this task"},
                 },
@@ -100,7 +116,7 @@ def _tool_list() -> list[Tool]:
                     "title": {"type": "string", "description": "New title"},
                     "status": {"type": "string", "description": "New status (open/in_progress/done)", "enum": ["open", "in_progress", "done"]},
                     "priority": {"type": "string", "description": "New priority (low/medium/high)"},
-                    "due_date": {"type": "string", "description": "New due date in YYYY-MM-DD format (or null to clear)"},
+                    "due_date": {"type": "string", "description": "New due date in ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS±HH:MM (or null to clear)"},
                     "note_ids": {"type": "array", "items": {"type": "string"}, "description": "Note IDs to link (replaces all existing links)"},
                 },
                 "required": ["task_id"],
@@ -443,9 +459,9 @@ async def _create_task(db, args: dict) -> list[TextContent]:
     due_date = None
     if args.get("due_date"):
         try:
-            due_date = datetime.strptime(args["due_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            due_date = _parse_due_date(args["due_date"])
         except ValueError:
-            return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD.")]
+            return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD or full ISO 8601 with timezone.")]
 
     # Get next position
     pos_result = await db.execute(select(func.coalesce(func.max(Task.position), -1)))
@@ -507,9 +523,9 @@ async def _update_task(db, args: dict) -> list[TextContent]:
             task.due_date = None
         else:
             try:
-                task.due_date = datetime.strptime(args["due_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                task.due_date = _parse_due_date(args["due_date"])
             except ValueError:
-                return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD.")]
+                return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD or full ISO 8601 with timezone.")]
 
     # Handle note_ids: replace all linked notes
     linked_notes = []
