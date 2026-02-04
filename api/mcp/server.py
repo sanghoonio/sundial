@@ -429,7 +429,15 @@ async def _list_tasks(db, args: dict) -> list[TextContent]:
 
     lines = []
     for t in tasks:
-        due = f", due: {t.due_date.strftime('%Y-%m-%d')}" if t.due_date else ""
+        if t.due_date:
+            try:
+                local_tz = zoneinfo.ZoneInfo("localtime")
+            except Exception:
+                local_tz = timezone.utc
+            local_due = t.due_date.astimezone(local_tz)
+            due = f", due: {local_due.strftime('%Y-%m-%d')}"
+        else:
+            due = ""
         lines.append(f"- [{t.status}] **{t.title}** (id: {t.id}, priority: {t.priority}{due})")
 
     return [TextContent(type="text", text=f"Found {len(tasks)} tasks:\n\n" + "\n".join(lines))]
