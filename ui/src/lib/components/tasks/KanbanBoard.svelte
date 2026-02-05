@@ -34,6 +34,7 @@
 	}: Props = $props();
 
 	let columnDragOverId = $state<string | null>(null);
+	let boardDragEnterCount = 0;
 	let columnDragSide = $state<'left' | 'right'>('left');
 	let addingColumn = $state(false);
 	let newColumnName = $state('');
@@ -106,17 +107,25 @@
 		}
 	}
 
+	function handleBoardDragEnter(e: DragEvent) {
+		if (!e.dataTransfer?.types.includes('application/column-id')) return;
+		boardDragEnterCount++;
+	}
+
 	function handleBoardDragLeave(e: DragEvent) {
-		const related = e.relatedTarget as Node | null;
-		const board = e.currentTarget as HTMLElement;
-		if (related && board.contains(related)) return;
-		columnDragOverId = null;
+		if (!e.dataTransfer?.types.includes('application/column-id')) return;
+		boardDragEnterCount--;
+		if (boardDragEnterCount <= 0) {
+			boardDragEnterCount = 0;
+			columnDragOverId = null;
+		}
 	}
 
 	function handleBoardDrop(e: DragEvent) {
 		if (!e.dataTransfer?.types.includes('application/column-id')) return;
 		e.preventDefault();
 		const draggedId = e.dataTransfer.getData('application/column-id');
+		boardDragEnterCount = 0;
 		columnDragOverId = null;
 		draggingColumnId = null;
 
@@ -169,6 +178,7 @@
 
 <div
 	class="flex gap-4 overflow-x-auto p-4 scroll-pl-4 h-full snap-x snap-mandatory md:snap-none"
+	ondragenter={handleBoardDragEnter}
 	ondragover={handleBoardDragOver}
 	ondragleave={handleBoardDragLeave}
 	ondrop={handleBoardDrop}

@@ -26,6 +26,7 @@
 
 	let dragOver = $state(false);
 	let dropIndex = $state<number | null>(null);
+	let dragEnterCount = 0;
 	let draggingTaskId = $state<string | null>(null);
 	let editingName = $state(milestone.name);
 
@@ -120,19 +121,26 @@
 		}
 	}
 
+	function handleDragEnter(e: DragEvent) {
+		if (e.dataTransfer?.types.includes('application/column-id')) return;
+		dragEnterCount++;
+	}
+
 	function handleDragLeave(e: DragEvent) {
-		// Only leave if we're actually leaving the column
-		const related = e.relatedTarget as Node | null;
-		const col = e.currentTarget as HTMLElement;
-		if (related && col.contains(related)) return;
-		dragOver = false;
-		dropIndex = null;
+		if (e.dataTransfer?.types.includes('application/column-id')) return;
+		dragEnterCount--;
+		if (dragEnterCount <= 0) {
+			dragEnterCount = 0;
+			dragOver = false;
+			dropIndex = null;
+		}
 	}
 
 	function handleDrop(e: DragEvent) {
 		// Ignore column drops (handled at board level)
 		if (e.dataTransfer?.types.includes('application/column-id')) return;
 		e.preventDefault();
+		dragEnterCount = 0;
 		dragOver = false;
 		const taskId = e.dataTransfer?.getData('text/plain');
 		const position = dropIndex ?? tasks.length;
@@ -175,6 +183,7 @@
 <div
 	bind:this={columnEl}
 	class="flex flex-col bg-base-200 rounded-lg p-3 w-[calc(100vw-6rem)] sm:w-auto sm:min-w-72 sm:max-w-72 h-fit max-h-full {dragOver ? 'ring-2 ring-primary/50' : ''}"
+	ondragenter={handleDragEnter}
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
 	ondrop={handleDrop}

@@ -70,6 +70,7 @@
 	let draggedProjectWidth = $state(0);
 	let draggedProjectHeight = $state(0);
 	let projectDragOverIndex = $state<number | null>(null);
+	let gridDragEnterCount = 0;
 
 	let filteredProjects = $derived.by(() => {
 		let filtered = statusFilter === 'all' ? projects : projects.filter((p) => p.status === statusFilter);
@@ -358,7 +359,7 @@
 			const card = cards[i];
 			if (card.dataset.projectId === draggingProjectId) continue;
 			const rect = card.getBoundingClientRect();
-			const threshold = rect.left + rect.width * 0.75;
+			const threshold = rect.left + rect.width * 0.85;
 			if (e.clientX < threshold) {
 				// Find the index in filteredProjects
 				const proj = filteredProjects.find(p => p.id === card.dataset.projectId);
@@ -372,11 +373,18 @@
 		projectDragOverIndex = filteredProjects.length;
 	}
 
+	function handleGridDragEnter(e: DragEvent) {
+		if (!e.dataTransfer?.types.includes('application/project-id')) return;
+		gridDragEnterCount++;
+	}
+
 	function handleGridDragLeave(e: DragEvent) {
-		const related = e.relatedTarget as Node | null;
-		const grid = e.currentTarget as HTMLElement;
-		if (related && grid.contains(related)) return;
-		projectDragOverIndex = null;
+		if (!e.dataTransfer?.types.includes('application/project-id')) return;
+		gridDragEnterCount--;
+		if (gridDragEnterCount <= 0) {
+			gridDragEnterCount = 0;
+			projectDragOverIndex = null;
+		}
 	}
 
 	async function handleGridDrop(e: DragEvent) {
@@ -385,6 +393,7 @@
 
 		const draggedId = e.dataTransfer.getData('application/project-id');
 		const dropIdx = projectDragOverIndex;
+		gridDragEnterCount = 0;
 		projectDragOverIndex = null;
 		draggingProjectId = null;
 
@@ -454,6 +463,7 @@
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
 					class="grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fill,180px)]"
+					ondragenter={handleGridDragEnter}
 					ondragover={handleGridDragOver}
 					ondragleave={handleGridDragLeave}
 					ondrop={handleGridDrop}
