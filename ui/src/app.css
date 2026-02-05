@@ -22,6 +22,10 @@
 }
 
 @layer components {
+	.dock .dock-active::after {
+		display: none !important;
+	}
+
 	.mermaid-diagram {
 		@apply my-4 flex justify-center overflow-x-auto;
 	}

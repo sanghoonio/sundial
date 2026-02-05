@@ -174,7 +174,7 @@
 
 <div
 	bind:this={columnEl}
-	class="flex flex-col bg-base-200 rounded-lg p-3 w-[calc(100vw-3rem)] sm:w-auto sm:min-w-72 sm:max-w-72 h-fit max-h-full {dragOver ? 'ring-2 ring-primary/50' : ''}"
+	class="flex flex-col bg-base-200 rounded-lg p-3 w-[calc(100vw-6rem)] sm:w-auto sm:min-w-72 sm:max-w-72 h-fit max-h-full {dragOver ? 'ring-2 ring-primary/50' : ''}"
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
 	ondrop={handleDrop}

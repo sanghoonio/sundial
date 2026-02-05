@@ -12,7 +12,7 @@
 	import { notesList } from '$lib/stores/noteslist.svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 	import TaskCreatePanel from '$lib/components/tasks/TaskCreatePanel.svelte';
-	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays, ArrowUpLeft, X, Link } from 'lucide-svelte';
+	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays, ArrowUpLeft, X, Link, EllipsisVertical } from 'lucide-svelte';
 	import type { TaskResponse } from '$lib/types';
 
 	let note = $state<NoteResponse | null>(null);
@@ -351,7 +351,7 @@
 	<div class="flex h-full">
 	<div class="flex-1 flex flex-col min-w-0">
 		<!-- Top bar — matches left pane header height -->
-		<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
+		<div class="flex items-center gap-1 md:gap-2 px-4 py-3 border-b border-base-300 shrink-0">
 			<a href="{base}/notes" class="btn btn-ghost btn-sm btn-square md:hidden">
 				<ArrowLeft size={18} />
 			</a>
@@ -361,8 +361,38 @@
 				placeholder="Untitled"
 				class="flex-1 min-w-0 font-semibold bg-transparent border-none outline-none focus:bg-base-200 rounded px-2 py-0.5 truncate"
 			/>
+			<!-- Save status -->
 			<button
-				class="btn btn-ghost btn-sm"
+				class="btn btn-ghost btn-sm btn-square"
+				onclick={() => handleSave()}
+				disabled={saving}
+				title="Save"
+			>
+				{#if saveStatus === 'saving'}
+					<span class="loading loading-spinner loading-xs"></span>
+				{:else if saveStatus === 'saved'}
+					<Check size={16} class="text-success" />
+				{:else if saveStatus === 'error'}
+					<Save size={16} class="text-error" />
+				{:else}
+					<Save size={16} />
+				{/if}
+			</button>
+			<!-- Preview toggle -->
+			<button
+				class="btn btn-ghost btn-sm btn-square"
+				onclick={() => (preview = !preview)}
+				title={preview ? 'Edit (Ctrl+D)' : 'Preview (Ctrl+D)'}
+			>
+				{#if preview}
+					<Pencil size={16} />
+				{:else}
+					<Eye size={16} />
+				{/if}
+			</button>
+			<!-- Desktop-only buttons -->
+			<button
+				class="btn btn-ghost btn-sm btn-square hidden md:flex"
 				onclick={handleAnalyze}
 				disabled={analyzing}
 				title="Analyze with AI"
@@ -373,53 +403,56 @@
 					<Sparkles size={16} />
 				{/if}
 			</button>
+			<div class="hidden md:block">
+				<ProjectSelect bind:value={projectId} />
+			</div>
 			<button
-				class="btn btn-ghost btn-sm"
-				onclick={() => handleSave()}
-				disabled={saving}
-				title="Save"
-			>
-				{#if saveStatus === 'saving'}
-					<span class="loading loading-spinner loading-xs"></span>
-				{:else if saveStatus === 'saved'}
-					<Check size={16} class="text-success" />
-					{#if showSavedText}
-						<span class="text-xs">Saved!</span>
-					{/if}
-				{:else if saveStatus === 'error'}
-					<Save size={16} class="text-error" />
-				{:else}
-					<Save size={16} />
-				{/if}
-			</button>
-			<ProjectSelect bind:value={projectId} />
-			<button
-				class="btn btn-ghost btn-sm"
+				class="btn btn-ghost btn-sm btn-square hidden md:flex"
 				class:btn-active={showMeta}
 				onclick={() => (showMeta = !showMeta)}
 				title="Note info"
 			>
 				<Info size={16} />
 			</button>
-			<button
-				class="btn btn-ghost btn-sm gap-1.5"
-				onclick={() => (preview = !preview)}
-				title={preview ? 'Edit (Ctrl+D)' : 'Preview (Ctrl+D)'}
-			>
-				{#if preview}
-					<Pencil size={16} />
-					Edit
-				{:else}
-					<Eye size={16} />
-					Preview
-				{/if}
-			</button>
-			<button class="btn btn-ghost btn-sm" onclick={handleExport} title="Download as markdown">
+			<button class="btn btn-ghost btn-sm btn-square hidden md:flex" onclick={handleExport} title="Download as markdown">
 				<Download size={16} />
 			</button>
-			<button class="btn btn-ghost btn-sm text-error" onclick={handleDelete}>
+			<button class="btn btn-ghost btn-sm btn-square text-error hidden md:flex" onclick={handleDelete}>
 				<Trash2 size={16} />
 			</button>
+			<!-- Mobile overflow menu -->
+			<div class="dropdown dropdown-end md:hidden">
+				<button tabindex="0" class="btn btn-ghost btn-sm btn-square">
+					<EllipsisVertical size={16} />
+				</button>
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-48 p-1 border border-base-300 mt-1">
+					<li>
+						<button onclick={handleAnalyze} disabled={analyzing}>
+							<Sparkles size={14} />
+							Analyze with AI
+						</button>
+					</li>
+					<li>
+						<button onclick={() => (showMeta = !showMeta)}>
+							<Info size={14} />
+							{showMeta ? 'Hide info' : 'Show info'}
+						</button>
+					</li>
+					<li>
+						<button onclick={handleExport}>
+							<Download size={14} />
+							Export markdown
+						</button>
+					</li>
+					<li>
+						<button class="text-error" onclick={handleDelete}>
+							<Trash2 size={14} />
+							Delete note
+						</button>
+					</li>
+				</ul>
+			</div>
 		</div>
 
 		<!-- svelte-ignore a11y_no_static_element_interactions -->

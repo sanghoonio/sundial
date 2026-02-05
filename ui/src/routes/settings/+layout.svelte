@@ -21,7 +21,7 @@
 <div class="absolute inset-0 flex overflow-hidden">
 	<!-- LEFT PANE: Category list -->
 	<div
-		class="w-56 border-r border-base-300 flex-col bg-base-100
+		class="w-full md:w-56 border-r border-base-300 flex-col bg-base-100
 			{hasSelection ? 'hidden md:flex' : 'flex'}"
 	>
 		<div class="px-4 py-3 border-b border-base-300 shrink-0">

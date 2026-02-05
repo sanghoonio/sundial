@@ -65,16 +65,16 @@
 	});
 </script>
 
-<div class="h-[calc(100vh-4rem)] flex flex-col px-3">
+<div class="h-[calc(100vh-4rem)] flex flex-col px-3 overflow-y-auto">
 	{#if loading}
 		<div class="flex items-center justify-center flex-1">
 			<span class="loading loading-spinner loading-lg"></span>
 		</div>
 	{:else if dashboard}
 		<!-- Header -->
-		<div class="flex items-stretch gap-6 mb-6">
+		<div class="flex flex-col md:flex-row items-center md:items-stretch gap-4 md:gap-6 mb-4 md:mb-6 pt-4 md:pt-0">
 			<FlipClock />
-			<div class="flex-1 relative">
+			<div class="flex-1 relative w-full min-h-24">
 				<div class="ai-terminal">
 					{#if suggestions === null}
 						<span class="loading-dots">...</span>
@@ -99,9 +99,9 @@
 		</div>
 
 		<!-- Bottom row: 3 sections -->
-		<div class="grid grid-cols-3 gap-6 flex-1 min-h-0">
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 flex-1 min-h-0 pb-4 md:pb-0">
 			<!-- Today's Events -->
-			<div class="flex flex-col min-h-0 bg-base-200 rounded-lg px-4 pt-4">
+			<div class="flex flex-col min-h-0 bg-base-200 rounded-lg px-4 py-4">
 				<div class="flex items-center justify-between mb-3">
 					<div class="flex items-center gap-2">
 						<div class="p-1.5 rounded-lg bg-primary/10 text-primary">
@@ -133,7 +133,7 @@
 			</div>
 
 			<!-- Tasks Due -->
-			<div class="flex flex-col min-h-0 bg-base-200 rounded-lg px-4 pt-4">
+			<div class="flex flex-col min-h-0 bg-base-200 rounded-lg px-4 py-4">
 				<div class="flex items-center justify-between mb-3">
 					<div class="flex items-center gap-2">
 						<div class="p-1.5 rounded-lg bg-warning/10 text-warning">
@@ -168,7 +168,7 @@
 			</div>
 
 			<!-- Recent Notes -->
-			<div class="flex flex-col min-h-0 bg-base-200 rounded-lg px-4 pt-4">
+			<div class="flex flex-col min-h-0 bg-base-200 rounded-lg px-4 py-4">
 				<div class="flex items-center justify-between mb-3">
 					<div class="flex items-center gap-2">
 						<div class="p-1.5 rounded-lg bg-success/10 text-success">

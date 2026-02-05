@@ -423,29 +423,29 @@
 	<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 		<!-- Header toolbar -->
 		<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
-			<div class="flex items-center gap-2 flex-1 flex-wrap">
+			<div class="flex items-center gap-1 md:gap-2 flex-1 overflow-x-auto">
 				{#each statusFilters as filter}
 					<button
-						class="btn btn-ghost btn-sm {statusFilter === filter ? 'btn-active' : ''}"
+						class="btn btn-ghost btn-xs md:btn-sm shrink-0 {statusFilter === filter ? 'btn-active' : ''}"
 						onclick={() => (statusFilter = filter)}
 					>
 						{filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
 						{#if filter !== 'all'}
-							<span class="badge badge-xs badge-ghost">
+							<span class="badge badge-xs badge-ghost hidden md:inline-flex">
 								{projects.filter((p) => p.status === filter).length}
 							</span>
 						{/if}
 					</button>
 				{/each}
 			</div>
-			<button class="btn btn-primary btn-sm" onclick={openCreateSidebar}>
+			<button class="btn btn-primary btn-sm shrink-0" onclick={openCreateSidebar}>
 				<Plus size={16} />
-				New Project
+				<span class="hidden md:inline">New Project</span>
 			</button>
 		</div>
 
 		<!-- Scrollable content -->
-		<div class="flex-1 overflow-y-auto p-4">
+		<div class="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
 			{#if loading}
 				<div class="flex items-center justify-center py-20">
 					<span class="loading loading-spinner loading-lg"></span>
@@ -453,7 +453,7 @@
 			{:else if filteredProjects.length > 0}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
-					class="grid gap-3 grid-cols-[repeat(auto-fill,180px)]"
+					class="grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fill,180px)]"
 					ondragover={handleGridDragOver}
 					ondragleave={handleGridDragLeave}
 					ondrop={handleGridDrop}
@@ -488,12 +488,12 @@
 											<ProjectIcon name={project.icon || 'folder-kanban'} size={18} />
 										</div>
 										<h3 class="font-semibold text-sm line-clamp-2 flex-1 min-w-0">{project.name}</h3>
-										<span class="shrink-0 text-base-content/20 hover:text-base-content/40 cursor-grab">
+										<span class="shrink-0 text-base-content/20 hover:text-base-content/40 cursor-grab hidden md:inline">
 											<GripVertical size={14} />
 										</span>
 									</div>
 									{#if project.description}
-										<p class="text-xs text-base-content/50 line-clamp-5 mt-2">{project.description}</p>
+										<p class="text-xs text-base-content/50 line-clamp-3 md:line-clamp-5 mt-2">{project.description}</p>
 									{/if}
 								</div>
 								<div class="flex items-center justify-between mt-auto pt-3">
@@ -538,9 +538,15 @@
 
 	<!-- Right sidebar: project settings / new project -->
 	{#if selectedProject || isCreating}
-		<aside class="w-80 lg:w-96 shrink-0 border-l border-base-300 bg-base-100 flex flex-col overflow-hidden">
+		<aside class="
+			fixed inset-0 z-50 bg-base-100 flex flex-col overflow-hidden
+			md:relative md:inset-auto md:z-auto md:w-80 lg:w-96 md:shrink-0 md:border-l md:border-base-300
+		">
 			<!-- Sidebar header -->
 			<div class="flex items-center gap-2 px-4 py-3 border-b border-base-300 shrink-0">
+				<button class="btn btn-ghost btn-sm btn-square md:hidden" onclick={closeSidebar} title="Back">
+					<ArrowLeft size={18} />
+				</button>
 				{#if isCreating}
 					<h2 class="flex-1 font-semibold text-sm">New Project</h2>
 				{:else}
@@ -574,7 +580,7 @@
 						<Trash2 size={16} />
 					</button>
 				{/if}
-				<button class="btn btn-ghost btn-sm btn-square" onclick={closeSidebar} title="Close">
+				<button class="btn btn-ghost btn-sm btn-square hidden md:flex" onclick={closeSidebar} title="Close">
 					<X size={16} />
 				</button>
 			</div>

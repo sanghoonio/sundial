@@ -168,7 +168,7 @@
 </script>
 
 <div
-	class="flex gap-4 overflow-x-auto p-4 h-full snap-x snap-mandatory md:snap-none"
+	class="flex gap-4 overflow-x-auto p-4 scroll-pl-4 h-full snap-x snap-mandatory md:snap-none"
 	ondragover={handleBoardDragOver}
 	ondragleave={handleBoardDragLeave}
 	ondrop={handleBoardDrop}
@@ -231,7 +231,7 @@
 	{#if oncolumncreate}
 		<div class="snap-start shrink-0">
 			{#if addingColumn}
-				<div class="flex flex-col bg-base-200/50 border-2 border-dashed border-base-300 rounded-lg p-3 w-[calc(100vw-3rem)] sm:w-auto sm:min-w-72 sm:max-w-72">
+				<div class="flex flex-col bg-base-200/50 border-2 border-dashed border-base-300 rounded-lg p-3 w-[calc(100vw-6rem)] sm:w-auto sm:min-w-72 sm:max-w-72">
 					<div class="flex items-center gap-1">
 						<input
 							type="text"
@@ -258,7 +258,7 @@
 				</div>
 			{:else}
 				<button
-					class="flex flex-col items-center justify-center bg-base-200/30 border-2 border-dashed border-base-300 rounded-lg p-3 w-[calc(100vw-3rem)] sm:w-auto sm:min-w-72 sm:max-w-72 h-24 text-base-content/40 hover:text-base-content/60 hover:border-base-content/30 transition-colors cursor-pointer"
+					class="flex flex-col items-center justify-center bg-base-200/30 border-2 border-dashed border-base-300 rounded-lg p-3 w-[calc(100vw-6rem)] sm:w-auto sm:min-w-72 sm:max-w-72 h-24 text-base-content/40 hover:text-base-content/60 hover:border-base-content/30 transition-colors cursor-pointer"
 					onclick={() => (addingColumn = true)}
 				>
 					<Plus size={20} />
