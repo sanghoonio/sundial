@@ -82,7 +82,8 @@
 					<div class="border-l border-base-300/50 relative">
 						<!-- Hour dividers -->
 						{#each hours as hour}
-							<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<div
 								class="h-12 border-b border-base-300/30 hover:bg-base-200/50 cursor-pointer"
 								onclick={() => onslotclick?.(date, hour)}

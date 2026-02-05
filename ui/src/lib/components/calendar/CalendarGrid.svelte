@@ -119,7 +119,8 @@
 	<div class="grid grid-cols-7 flex-1 auto-rows-fr">
 		{#each calendarDays as { date, inMonth }}
 			{@const dayItems = itemsForDate(date)}
-			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				class="border border-base-300/50 p-1 min-h-20 text-left flex flex-col
 					{inMonth ? '' : 'bg-base-200/50 text-base-content/30'}

@@ -101,6 +101,7 @@
 	<!-- Scrollable body -->
 	<div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
 		<!-- Title -->
+		<!-- svelte-ignore a11y_autofocus -->
 		<input
 			type="text"
 			class="input input-bordered input-sm w-full"

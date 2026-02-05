@@ -10,6 +10,7 @@
 
 	let { currentDate, itemDates = new Set(), ondateclick }: Props = $props();
 
+	// svelte-ignore state_referenced_locally
 	let displayMonth = $state(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1));
 
 	// Sync display month when currentDate changes

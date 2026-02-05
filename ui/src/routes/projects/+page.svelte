@@ -611,6 +611,7 @@
 										class="w-4 h-4 rounded-full border-2 transition-transform {newColor === color ? 'border-base-content scale-110' : 'border-transparent'}"
 										style:background-color={color}
 										onclick={() => (newColor = color)}
+										aria-label="Select {color}"
 									></button>
 								{/each}
 							</div>
@@ -665,6 +666,7 @@
 										class="w-4 h-4 rounded-full border-2 transition-transform {editColor === color ? 'border-base-content scale-110' : 'border-transparent'}"
 										style:background-color={color}
 										onclick={() => (editColor = color)}
+										aria-label="Select {color}"
 									></button>
 								{/each}
 							</div>

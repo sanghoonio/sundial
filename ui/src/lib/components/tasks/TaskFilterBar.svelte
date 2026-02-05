@@ -159,7 +159,7 @@
 				onkeydown={(e) => { if (e.key === 'Escape') { search = ''; searchOpen = false; } }}
 			/>
 			{#if search}
-				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<span class="hover:bg-base-content/10 rounded-full p-0.5 shrink-0 cursor-pointer" onmousedown={clearSearch}>
 					<X size={12} />
 				</span>

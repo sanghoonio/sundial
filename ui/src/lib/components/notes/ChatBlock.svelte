@@ -16,6 +16,7 @@
 
 	let { noteId, messages, precedingContext = '', initialPrompt = '', onmessageschange, onpromptchange, onremove }: Props = $props();
 
+	// svelte-ignore state_referenced_locally
 	let promptText = $state(initialPrompt);
 	let loading = $state(false);
 

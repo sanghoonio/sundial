@@ -28,6 +28,7 @@
 	let dropIndex = $state<number | null>(null);
 	let dragLeaveTimer: ReturnType<typeof setTimeout>;
 	let draggingTaskId = $state<string | null>(null);
+	// svelte-ignore state_referenced_locally
 	let editingName = $state(milestone.name);
 
 	// Keep editingName in sync when milestone prop changes

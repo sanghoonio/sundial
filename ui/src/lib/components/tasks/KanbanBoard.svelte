@@ -171,6 +171,7 @@
 	}
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="flex gap-4 overflow-x-auto p-4 scroll-pl-4 h-full snap-x snap-mandatory md:snap-none"
 	ondragover={handleBoardDragOver}
@@ -237,7 +238,8 @@
 			{#if addingColumn}
 				<div class="flex flex-col bg-base-200/50 border-2 border-dashed border-base-300 rounded-lg p-3 w-[calc(100vw-6rem)] sm:w-auto sm:min-w-72 sm:max-w-72">
 					<div class="flex items-center gap-1">
-						<input
+						<!-- svelte-ignore a11y_autofocus -->
+					<input
 							type="text"
 							class="input input-bordered input-sm flex-1"
 							placeholder="Column name..."

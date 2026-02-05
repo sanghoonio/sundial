@@ -49,6 +49,7 @@
 
 {#if showForm}
 	<div class="flex items-center gap-1 mt-2">
+		<!-- svelte-ignore a11y_autofocus -->
 		<input
 			type="text"
 			class="input input-bordered input-sm flex-1"

@@ -157,6 +157,7 @@
 	let hasPriorityIcon = $derived(task.priority === 'urgent' || task.priority === 'high');
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="relative overflow-hidden"
 	bind:this={containerEl}

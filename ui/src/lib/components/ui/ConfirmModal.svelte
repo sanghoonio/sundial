@@ -36,7 +36,8 @@
 					class="w-12 h-12 rounded-full flex items-center justify-center
 					{confirmModal.variant === 'danger' ? 'bg-error/10 text-error' : 'bg-warning/10 text-warning'}"
 				>
-					<svelte:component this={style.icon} size={24} />
+					<!-- svelte-ignore svelte_component_deprecated -->
+				<svelte:component this={style.icon} size={24} />
 				</div>
 			</div>
 		{/if}
