@@ -70,7 +70,7 @@
 	let draggedProjectWidth = $state(0);
 	let draggedProjectHeight = $state(0);
 	let projectDragOverIndex = $state<number | null>(null);
-	let gridDragEnterCount = 0;
+	let gridDragLeaveTimer: ReturnType<typeof setTimeout>;
 
 	let filteredProjects = $derived.by(() => {
 		let filtered = statusFilter === 'all' ? projects : projects.filter((p) => p.status === statusFilter);
@@ -348,6 +348,7 @@
 
 	function handleGridDragOver(e: DragEvent) {
 		if (!e.dataTransfer?.types.includes('application/project-id')) return;
+		clearTimeout(gridDragLeaveTimer);
 		e.preventDefault();
 		e.dataTransfer.dropEffect = 'move';
 
@@ -373,18 +374,12 @@
 		projectDragOverIndex = filteredProjects.length;
 	}
 
-	function handleGridDragEnter(e: DragEvent) {
-		if (!e.dataTransfer?.types.includes('application/project-id')) return;
-		gridDragEnterCount++;
-	}
-
 	function handleGridDragLeave(e: DragEvent) {
 		if (!e.dataTransfer?.types.includes('application/project-id')) return;
-		gridDragEnterCount--;
-		if (gridDragEnterCount <= 0) {
-			gridDragEnterCount = 0;
+		clearTimeout(gridDragLeaveTimer);
+		gridDragLeaveTimer = setTimeout(() => {
 			projectDragOverIndex = null;
-		}
+		}, 50);
 	}
 
 	async function handleGridDrop(e: DragEvent) {
@@ -393,7 +388,7 @@
 
 		const draggedId = e.dataTransfer.getData('application/project-id');
 		const dropIdx = projectDragOverIndex;
-		gridDragEnterCount = 0;
+		clearTimeout(gridDragLeaveTimer);
 		projectDragOverIndex = null;
 		draggingProjectId = null;
 
@@ -463,7 +458,6 @@
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
 					class="grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fill,180px)]"
-					ondragenter={handleGridDragEnter}
 					ondragover={handleGridDragOver}
 					ondragleave={handleGridDragLeave}
 					ondrop={handleGridDrop}

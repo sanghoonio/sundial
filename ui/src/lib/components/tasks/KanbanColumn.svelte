@@ -26,7 +26,7 @@
 
 	let dragOver = $state(false);
 	let dropIndex = $state<number | null>(null);
-	let dragEnterCount = 0;
+	let dragLeaveTimer: ReturnType<typeof setTimeout>;
 	let draggingTaskId = $state<string | null>(null);
 	let editingName = $state(milestone.name);
 
@@ -76,12 +76,17 @@
 				const width = columnEl.offsetWidth;
 				const height = columnEl.offsetHeight;
 				const rect = columnEl.getBoundingClientRect();
-				// Clone column offscreen so drag image doesn't include clipped/overlapping elements
+				// Clone over the original: in-viewport so Safari paints it,
+				// isolated from siblings so Chrome doesn't capture surroundings.
+				// Explicit dimensions prevent flex layout collapse in the detached clone.
 				const clone = columnEl.cloneNode(true) as HTMLElement;
-				clone.style.position = 'absolute';
-				clone.style.top = '-9999px';
-				clone.style.left = '-9999px';
+				clone.style.position = 'fixed';
+				clone.style.top = rect.top + 'px';
+				clone.style.left = rect.left + 'px';
 				clone.style.width = width + 'px';
+				clone.style.height = height + 'px';
+				clone.style.overflow = 'hidden';
+				clone.style.pointerEvents = 'none';
 				document.body.appendChild(clone);
 				e.dataTransfer.setDragImage(clone, e.clientX - rect.left, e.clientY - rect.top);
 				requestAnimationFrame(() => clone.remove());
@@ -100,6 +105,7 @@
 	function handleDragOver(e: DragEvent) {
 		// Ignore column drags on the column itself (handled at board level)
 		if (e.dataTransfer?.types.includes('application/column-id')) return;
+		clearTimeout(dragLeaveTimer);
 		e.preventDefault();
 		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 		dragOver = true;
@@ -121,26 +127,20 @@
 		}
 	}
 
-	function handleDragEnter(e: DragEvent) {
-		if (e.dataTransfer?.types.includes('application/column-id')) return;
-		dragEnterCount++;
-	}
-
 	function handleDragLeave(e: DragEvent) {
 		if (e.dataTransfer?.types.includes('application/column-id')) return;
-		dragEnterCount--;
-		if (dragEnterCount <= 0) {
-			dragEnterCount = 0;
+		clearTimeout(dragLeaveTimer);
+		dragLeaveTimer = setTimeout(() => {
 			dragOver = false;
 			dropIndex = null;
-		}
+		}, 50);
 	}
 
 	function handleDrop(e: DragEvent) {
 		// Ignore column drops (handled at board level)
 		if (e.dataTransfer?.types.includes('application/column-id')) return;
 		e.preventDefault();
-		dragEnterCount = 0;
+		clearTimeout(dragLeaveTimer);
 		dragOver = false;
 		const taskId = e.dataTransfer?.getData('text/plain');
 		const position = dropIndex ?? tasks.length;
@@ -152,23 +152,20 @@
 
 	function handleDragStart(e: DragEvent, task: TaskResponse) {
 		const wrapper = e.currentTarget as HTMLElement;
-		const card = wrapper.querySelector('.card') as HTMLElement;
 		if (e.dataTransfer) {
 			e.dataTransfer.setData('text/plain', task.id);
 			e.dataTransfer.effectAllowed = 'move';
-			if (card) {
-				ontaskdragstart?.(card.offsetHeight);
-				// Clone card offscreen so the drag image has no surrounding background
-				const clone = card.cloneNode(true) as HTMLElement;
-				clone.style.position = 'absolute';
-				clone.style.top = '-9999px';
-				clone.style.left = '-9999px';
-				clone.style.width = card.offsetWidth + 'px';
-				document.body.appendChild(clone);
-				const rect = card.getBoundingClientRect();
-				e.dataTransfer.setDragImage(clone, e.clientX - rect.left, e.clientY - rect.top);
-				requestAnimationFrame(() => clone.remove());
-			}
+			ontaskdragstart?.(wrapper.offsetHeight);
+			// Clone wrapper offscreen so the drag image has no surrounding background
+			const clone = wrapper.cloneNode(true) as HTMLElement;
+			clone.style.position = 'absolute';
+			clone.style.top = '-9999px';
+			clone.style.left = '-9999px';
+			clone.style.width = wrapper.offsetWidth + 'px';
+			document.body.appendChild(clone);
+			const rect = wrapper.getBoundingClientRect();
+			e.dataTransfer.setDragImage(clone, e.clientX - rect.left, e.clientY - rect.top);
+			requestAnimationFrame(() => clone.remove());
 		}
 		requestAnimationFrame(() => {
 			draggingTaskId = task.id;
@@ -183,7 +180,6 @@
 <div
 	bind:this={columnEl}
 	class="flex flex-col bg-base-200 rounded-lg p-3 w-[calc(100vw-6rem)] sm:w-auto sm:min-w-72 sm:max-w-72 h-fit max-h-full {dragOver ? 'ring-2 ring-primary/50' : ''}"
-	ondragenter={handleDragEnter}
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
 	ondrop={handleDrop}
@@ -249,15 +245,16 @@
 				role="listitem"
 				data-task-card
 				data-dragging={draggingTaskId === task.id ? '' : undefined}
-				style={draggingTaskId === task.id ? 'opacity: 0; pointer-events: none;' : ''}
 			>
-				<TaskCard
-					{task}
-					draggable
-					selected={task.id === selectedTaskId}
-					onclick={() => ontaskclick?.(task)}
-					ondelete={() => ontaskdelete?.(task.id)}
-				/>
+				{#if draggingTaskId !== task.id}
+					<TaskCard
+						{task}
+						draggable
+						selected={task.id === selectedTaskId}
+						onclick={() => ontaskclick?.(task)}
+						ondelete={() => ontaskdelete?.(task.id)}
+					/>
+				{/if}
 			</div>
 		{/each}
 		{#if dragOver && dropIndex === tasks.length}
