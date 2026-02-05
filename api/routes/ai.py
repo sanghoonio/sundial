@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from api.models.task import Task
 from api.services import ai_service
 from api.services.block_parser import extract_markdown_text
 from api.utils.auth import get_current_user
+from api.utils.timezone import resolve_today
 
 router = APIRouter(prefix="/ai", tags=["ai"], dependencies=[Depends(get_current_user)])
 
@@ -114,10 +115,8 @@ async def analyze_note(
 
 
 @router.get("/suggestions/daily", response_model=DailySuggestionsResponse)
-async def daily_suggestions(db: AsyncSession = Depends(get_db)):
-    now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+async def daily_suggestions(db: AsyncSession = Depends(get_db), tz: str | None = Query(None)):
+    today_start, today_end, _ = resolve_today(tz)
     seven_days_ago = today_start - timedelta(days=7)
 
     # Today's events

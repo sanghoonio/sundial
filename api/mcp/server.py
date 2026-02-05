@@ -139,7 +139,9 @@ def _tool_list() -> list[Tool]:
             description="Get today's dashboard: events, due tasks, and recent notes.",
             inputSchema={
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "tz": {"type": "string", "description": "IANA timezone (e.g. America/New_York). If omitted, uses UTC."},
+                },
             },
         ),
         Tool(
@@ -673,9 +675,22 @@ async def _get_calendar_events(db, args: dict) -> list[TextContent]:
 
 
 async def _get_dashboard(db, args: dict) -> list[TextContent]:
-    now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+    tz_str = args.get("tz")
+    if tz_str:
+        try:
+            user_tz = zoneinfo.ZoneInfo(tz_str)
+        except (zoneinfo.ZoneInfoNotFoundError, KeyError):
+            return [TextContent(type="text", text=f"Invalid timezone: {tz_str}")]
+        now_local = datetime.now(user_tz)
+        local_midnight = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = local_midnight.astimezone(timezone.utc)
+        today_end = (local_midnight + timedelta(days=1)).astimezone(timezone.utc)
+        local_date = local_midnight.strftime("%Y-%m-%d")
+    else:
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+        local_date = today_start.strftime("%Y-%m-%d")
     seven_days_ago = today_start - timedelta(days=7)
 
     # Events - with proper recurring event expansion
@@ -777,7 +792,7 @@ async def _get_dashboard(db, args: dict) -> list[TextContent]:
     )
     notes = note_result.scalars().all()
 
-    parts = [f"# Dashboard for {today_start.strftime('%Y-%m-%d')}\n"]
+    parts = [f"# Dashboard for {local_date}\n"]
 
     if events_out:
         parts.append("## Today's Events")

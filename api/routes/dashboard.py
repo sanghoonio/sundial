@@ -2,7 +2,7 @@ import zoneinfo
 from datetime import datetime, timedelta, timezone
 
 from dateutil.rrule import rrulestr
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from api.models.calendar import CalendarEvent
 from api.models.note import Note
 from api.models.task import Task
 from api.utils.auth import get_current_user
+from api.utils.timezone import resolve_today
 
 
 class DashboardEvent(BaseModel):
@@ -74,10 +75,8 @@ def _ensure_utc(dt: datetime | None) -> datetime | None:
 
 
 @router.get("/today", response_model=DashboardResponse)
-async def get_today(db: AsyncSession = Depends(get_db)):
-    now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+async def get_today(db: AsyncSession = Depends(get_db), tz: str | None = Query(None)):
+    today_start, today_end, local_date = resolve_today(tz)
     seven_days_ago = today_start - timedelta(days=7)
 
     # Tasks due today or overdue
@@ -214,7 +213,7 @@ async def get_today(db: AsyncSession = Depends(get_db)):
     notes = list(note_result.scalars().all())
 
     return DashboardResponse(
-        date=today_start.strftime("%Y-%m-%d"),
+        date=local_date,
         calendar_events=[DashboardEvent(
             id=e.id, title=e.title, start_time=_ensure_utc(e.start_time), end_time=_ensure_utc(e.end_time), all_day=e.all_day,
         ) for e in events],
@@ -232,11 +231,9 @@ async def get_today(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/journal-data", response_model=JournalDataResponse)
-async def get_journal_data(db: AsyncSession = Depends(get_db)):
+async def get_journal_data(db: AsyncSession = Depends(get_db), tz: str | None = Query(None)):
     """Get activity data for generating a daily journal entry."""
-    now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+    today_start, today_end, local_date = resolve_today(tz)
 
     # Notes created today
     notes_created_result = await db.execute(
@@ -283,7 +280,7 @@ async def get_journal_data(db: AsyncSession = Depends(get_db)):
     events = list(events_result.scalars().all())
 
     return JournalDataResponse(
-        date=today_start.strftime("%Y-%m-%d"),
+        date=local_date,
         notes_created=[DashboardNote(id=n.id, title=n.title, updated_at=_ensure_utc(n.updated_at)) for n in notes_created],
         notes_updated=[DashboardNote(id=n.id, title=n.title, updated_at=_ensure_utc(n.updated_at)) for n in notes_updated],
         tasks_created=[DashboardTask(id=t.id, title=t.title, status=t.status, priority=t.priority, due_date=_ensure_utc(t.due_date), project_id=t.project_id) for t in tasks_created],

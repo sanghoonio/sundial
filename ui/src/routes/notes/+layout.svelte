@@ -228,7 +228,8 @@
 	async function createJournal() {
 		creatingJournal = true;
 		try {
-			const data = await api.get<JournalData>('/api/dashboard/journal-data');
+			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			const data = await api.get<JournalData>(`/api/dashboard/journal-data?tz=${encodeURIComponent(tz)}`);
 			const content = generateJournalTemplate(data);
 			const formattedDate = formatJournalDate(data.date);
 

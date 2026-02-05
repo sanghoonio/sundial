@@ -28,13 +28,15 @@
 
 	async function load() {
 		try {
-			dashboard = await api.get<DashboardResponse>('/api/dashboard/today');
+			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			const tzParam = `?tz=${encodeURIComponent(tz)}`;
+			dashboard = await api.get<DashboardResponse>(`/api/dashboard/today${tzParam}`);
 			// Check settings then load AI suggestions
 			api.get<SettingsResponse>('/api/settings')
 				.then(async (settings) => {
 					const aiEnabled = settings.ai_enabled && settings.openrouter_api_key?.length > 4;
 					if (aiEnabled && settings.ai_daily_suggestions) {
-						suggestions = await api.get<DailySuggestionsResponse>('/api/ai/suggestions/daily');
+						suggestions = await api.get<DailySuggestionsResponse>(`/api/ai/suggestions/daily${tzParam}`);
 					} else {
 						suggestions = 'disabled';
 					}
