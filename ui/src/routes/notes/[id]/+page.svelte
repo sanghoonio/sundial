@@ -639,7 +639,7 @@
 						<span class="text-xs text-base-content/40 uppercase tracking-wide block mb-1">Tasks</span>
 						{#each links.outgoing_tasks as task}
 							<div class="flex items-center gap-1 group">
-								<a href="{base}/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+								<a href="{base}/tasks/{task.project_id}?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
 									<span>{task.title}</span>
 									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
 								</a>
@@ -654,7 +654,7 @@
 						{/each}
 						{#each links.incoming_tasks as task}
 							<div class="flex items-center gap-1 group">
-								<a href="{base}/tasks?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+								<a href="{base}/tasks/{task.project_id}?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
 									<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
 									<span>{task.title}</span>
 									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>

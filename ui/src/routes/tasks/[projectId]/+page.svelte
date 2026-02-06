@@ -203,8 +203,13 @@
 	}
 
 	function handleTaskSaved(task: TaskResponse) {
-		tasks = tasks.map((t) => (t.id === task.id ? task : t));
-		selectedTask = task;
+		if (task.project_id !== selectedProjectId) {
+			tasks = tasks.filter((t) => t.id !== task.id);
+			selectedTask = null;
+		} else {
+			tasks = tasks.map((t) => (t.id === task.id ? task : t));
+			selectedTask = task;
+		}
 	}
 
 	function handleTaskDeleted(taskId: string) {

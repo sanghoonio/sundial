@@ -3,17 +3,23 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { api } from '$lib/services/api';
-	import type { ProjectList } from '$lib/types';
+	import type { ProjectList, TaskResponse } from '$lib/types';
 
 	async function redirect() {
 		try {
 			const res = await api.get<ProjectList>('/api/projects');
 			if (res.projects.length > 0) {
 				const taskParam = page.url.searchParams.get('task');
-				const url = taskParam
-					? `${base}/tasks/${res.projects[0].id}?task=${taskParam}`
-					: `${base}/tasks/${res.projects[0].id}`;
-				goto(url, { replaceState: true });
+				if (taskParam) {
+					try {
+						const task = await api.get<TaskResponse>(`/api/tasks/${taskParam}`);
+						goto(`${base}/tasks/${task.project_id}?task=${taskParam}`, { replaceState: true });
+						return;
+					} catch {
+						// Fall through to default project
+					}
+				}
+				goto(`${base}/tasks/${res.projects[0].id}`, { replaceState: true });
 			}
 		} catch (e) {
 			console.error('Failed to load projects', e);

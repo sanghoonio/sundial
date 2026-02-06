@@ -127,6 +127,7 @@ export interface BacklinkTaskItem {
 	id: string;
 	title: string;
 	status: string;
+	project_id: string;
 }
 
 export interface BacklinksResponse {

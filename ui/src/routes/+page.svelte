@@ -74,7 +74,7 @@
 	});
 </script>
 
-<div class="h-[calc(100vh-4rem)] flex flex-col px-3 overflow-y-auto">
+<div class="min-h-0 md:h-[calc(100vh-4rem)] flex flex-col px-3 overflow-y-auto">
 	{#if loading}
 		<div class="flex items-center justify-center flex-1">
 			<span class="loading loading-spinner loading-lg"></span>

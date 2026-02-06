@@ -82,6 +82,7 @@ class BacklinkTaskItem(BaseModel):
     id: str
     title: str
     status: str
+    project_id: str
 
 
 class BacklinksResponse(BaseModel):

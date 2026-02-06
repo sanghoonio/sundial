@@ -38,14 +38,10 @@
 	});
 	let darkMode = $state(false);
 
-	// Initialize theme from localStorage / system preference
+	// Initialize theme from localStorage (default to light)
 	$effect(() => {
 		const stored = localStorage.getItem('sundial_theme');
-		if (stored) {
-			darkMode = stored === 'dark';
-		} else {
-			darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		}
+		darkMode = stored === 'dark';
 		document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
 	});
 

@@ -131,7 +131,7 @@ async def get_backlinks(note_id: str, db: AsyncSession = Depends(get_db)):
 
     return BacklinksResponse(
         notes=[BacklinkItem(id=n.id, title=n.title, filepath=n.filepath) for n in backlink_notes],
-        tasks=[BacklinkTaskItem(id=t.id, title=t.title, status=t.status) for t in backlink_tasks],
+        tasks=[BacklinkTaskItem(id=t.id, title=t.title, status=t.status, project_id=t.project_id) for t in backlink_tasks],
     )
 
 
@@ -221,10 +221,10 @@ async def get_links(note_id: str, db: AsyncSession = Depends(get_db)):
 
     return LinksResponse(
         outgoing_notes=[BacklinkItem(id=n.id, title=n.title, filepath=n.filepath) for n in outgoing_notes],
-        outgoing_tasks=[BacklinkTaskItem(id=t.id, title=t.title, status=t.status) for t in outgoing_tasks],
+        outgoing_tasks=[BacklinkTaskItem(id=t.id, title=t.title, status=t.status, project_id=t.project_id) for t in outgoing_tasks],
         outgoing_events=[LinkEventItem(id=e.id, title=e.title, start_time=e.start_time, all_day=e.all_day) for e in outgoing_events],
         incoming_notes=[BacklinkItem(id=n.id, title=n.title, filepath=n.filepath) for n in incoming_notes],
-        incoming_tasks=[BacklinkTaskItem(id=t.id, title=t.title, status=t.status) for t in incoming_tasks],
+        incoming_tasks=[BacklinkTaskItem(id=t.id, title=t.title, status=t.status, project_id=t.project_id) for t in incoming_tasks],
     )
 
 
