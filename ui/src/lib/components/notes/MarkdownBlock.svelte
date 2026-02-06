@@ -25,7 +25,7 @@
 	let editorWrapperEl = $state<HTMLDivElement>();
 	let previewEl = $state<HTMLDivElement>();
 
-	let renderedHtml = $derived(renderMarkdown(content));
+	let renderedHtml = $derived(preview ? renderMarkdown(content) : '');
 
 	// Wiki-link autocomplete state
 	let suggestActive = $state(false);
@@ -300,50 +300,47 @@
 	});
 </script>
 
-{#if preview}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div bind:this={previewEl} class="prose prose-sm max-w-none min-h-8 py-1" onclick={handlePreviewClick}>
-		{#if content}
-			{@html renderedHtml}
-		{:else}
-			<p class="text-base-content/30 italic">Empty block</p>
-		{/if}
-	</div>
-{:else}
-	<div bind:this={editorWrapperEl} class="relative w-full">
-		<div
-			class="w-full overflow-hidden rounded-lg border border-base-content/20 {focused ? 'shadow-[0_0_8px_rgba(0,0,0,0.06)]' : ''}"
-		>
-			{#if focused}
-				<div class="px-2 py-1 bg-base-200/50 border-b border-base-content/20">
-					<MarkdownToolbar textarea={textareaEl} />
-				</div>
-			{/if}
-			<!-- svelte-ignore a11y_click_events_have_key_events -->
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<div onclick={onfocus}>
-				<textarea
-					bind:this={textareaEl}
-					class="textarea w-full font-mono text-sm border-none focus:outline-none focus:shadow-none rounded-none"
-					placeholder="Write markdown..."
-					value={content}
-					onfocus={onfocus}
-					oninput={handleInput}
-					onkeydown={handleKeydown}
-				></textarea>
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div bind:this={previewEl} class="prose prose-sm max-w-none min-h-8 py-1" class:hidden={!preview} onclick={handlePreviewClick}>
+	{#if content}
+		{@html renderedHtml}
+	{:else}
+		<p class="text-base-content/30 italic">Empty block</p>
+	{/if}
+</div>
+<div bind:this={editorWrapperEl} class="relative w-full" class:hidden={preview}>
+	<div
+		class="w-full overflow-hidden rounded-lg border border-base-content/20 {focused ? 'shadow-[0_0_8px_rgba(0,0,0,0.06)]' : ''}"
+	>
+		{#if focused}
+			<div class="px-2 py-1 bg-base-200/50 border-b border-base-content/20">
+				<MarkdownToolbar textarea={textareaEl} />
 			</div>
-		</div>
-
-		{#if suggestActive}
-			<WikiLinkSuggest
-				bind:this={suggestComponent}
-				query={suggestQuery}
-				top={suggestPosition.top}
-				left={suggestPosition.left}
-				onselect={handleSuggestSelect}
-				onclose={handleSuggestClose}
-			/>
 		{/if}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div onclick={onfocus}>
+			<textarea
+				bind:this={textareaEl}
+				class="textarea w-full font-mono text-sm border-none focus:outline-none focus:shadow-none rounded-none"
+				placeholder="Write markdown..."
+				value={content}
+				onfocus={onfocus}
+				oninput={handleInput}
+				onkeydown={handleKeydown}
+			></textarea>
+		</div>
 	</div>
-{/if}
+
+	{#if suggestActive}
+		<WikiLinkSuggest
+			bind:this={suggestComponent}
+			query={suggestQuery}
+			top={suggestPosition.top}
+			left={suggestPosition.left}
+			onselect={handleSuggestSelect}
+			onclose={handleSuggestClose}
+		/>
+	{/if}
+</div>

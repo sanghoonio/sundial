@@ -9,6 +9,24 @@ from api.services.file_service import build_filepath, delete_note_file, write_no
 from api.services.link_parser import parse_links
 
 
+import re
+
+
+def fts5_prefix_query(raw: str) -> str:
+    """Convert a user search string into an FTS5 prefix query.
+
+    Tokenizes on whitespace, strips non-alphanumeric characters,
+    appends * for prefix matching, and joins with AND (implicit in FTS5).
+    Case-insensitive by default in FTS5's unicode61 tokenizer.
+    """
+    tokens = raw.strip().split()
+    clean = [re.sub(r"[^\w]", "", t) for t in tokens]
+    clean = [t for t in clean if t]
+    if not clean:
+        return ""
+    return " ".join(f"{t}*" for t in clean)
+
+
 # --- FTS5 manual sync helpers ---
 
 async def _fts_insert(db: AsyncSession, note_id: str, title: str, content: str, tags: list[str]) -> None:
@@ -153,9 +171,12 @@ async def list_notes(
     # If search is provided, use FTS5 to get matching note IDs first
     fts_note_ids: list[str] | None = None
     if search:
+        fts_q = fts5_prefix_query(search)
+        if not fts_q:
+            return [], 0
         fts_result = await db.execute(
             text("SELECT id FROM notes_fts WHERE notes_fts MATCH :query ORDER BY rank LIMIT 500"),
-            {"query": search},
+            {"query": fts_q},
         )
         fts_note_ids = [row[0] for row in fts_result.fetchall()]
         if not fts_note_ids:

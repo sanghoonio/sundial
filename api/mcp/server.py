@@ -22,6 +22,54 @@ from api.models.task import Task, TaskNote
 from api.services.block_parser import extract_markdown_text
 from api.services.note_service import create_note as service_create_note, update_note as service_update_note
 
+
+async def _resolve_project(db, value: str) -> tuple[str | None, str | None]:
+    """Resolve a project by ID or fuzzy name match.
+
+    Returns (project_id, error_message). Exactly one will be non-None.
+    """
+    if not value or not value.strip():
+        return None, None
+
+    value = value.strip()
+
+    # 1. Exact ID match
+    project = await db.get(Project, value)
+    if project:
+        return project.id, None
+
+    # 2. Case-insensitive exact name match
+    result = await db.execute(
+        select(Project).where(func.lower(Project.name) == value.lower())
+    )
+    project = result.scalar_one_or_none()
+    if project:
+        return project.id, None
+
+    # 3. Substring match (name contains the query or query contains the name)
+    result = await db.execute(select(Project).order_by(Project.name))
+    all_projects = result.scalars().all()
+
+    query_lower = value.lower()
+    matches = []
+    for p in all_projects:
+        name_lower = p.name.lower()
+        if query_lower in name_lower or name_lower in query_lower:
+            matches.append(p)
+
+    if len(matches) == 1:
+        return matches[0].id, None
+
+    if len(matches) > 1:
+        options = ", ".join(f'"{p.name}" (id: {p.id})' for p in matches)
+        return None, f"Ambiguous project '{value}'. Did you mean one of: {options}?"
+
+    # 4. No match — list available projects
+    if all_projects:
+        options = ", ".join(f'"{p.name}" (id: {p.id})' for p in all_projects)
+        return None, f"No project matching '{value}'. Available projects: {options}"
+    return None, f"No project matching '{value}' and no projects exist yet."
+
 mcp_server = Server("sundial")
 
 
@@ -169,7 +217,7 @@ def _tool_list() -> list[Tool]:
                     "title": {"type": "string", "description": "Note title"},
                     "content": {"type": "string", "description": "Note content in markdown"},
                     "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags to apply"},
-                    "project_id": {"type": "string", "description": "Project ID (default: none)"},
+                    "project": {"type": "string", "description": "Project name or ID to file the note under. Accepts partial or full project names."},
                 },
                 "required": ["title"],
             },
@@ -184,7 +232,7 @@ def _tool_list() -> list[Tool]:
                     "title": {"type": "string", "description": "New title"},
                     "content": {"type": "string", "description": "New content in markdown"},
                     "tags": {"type": "array", "items": {"type": "string"}, "description": "Replace all tags with these"},
-                    "project_id": {"type": "string", "description": "New project ID (use empty string to unassign)"},
+                    "project": {"type": "string", "description": "Project name or ID to move the note to. Accepts partial or full project names. Use empty string to unassign from project."},
                 },
                 "required": ["note_id"],
             },
@@ -353,9 +401,14 @@ async def _search_notes(db, args: dict) -> list[TextContent]:
     if not query:
         return [TextContent(type="text", text="No query provided.")]
 
+    from api.services.note_service import fts5_prefix_query
+    fts_q = fts5_prefix_query(query)
+    if not fts_q:
+        return [TextContent(type="text", text=f"No notes found matching '{query}'.")]
+
     fts_result = await db.execute(
         text("SELECT id FROM notes_fts WHERE notes_fts MATCH :query ORDER BY rank LIMIT :limit"),
-        {"query": query, "limit": limit},
+        {"query": fts_q, "limit": limit},
     )
     note_ids = [row[0] for row in fts_result.fetchall()]
 
@@ -867,11 +920,19 @@ async def _create_note(db, args: dict) -> list[TextContent]:
 
     content = args.get("content", "")
     tags = args.get("tags", [])
-    project_id = args.get("project_id")
+
+    # Resolve project by name or ID
+    project_id = None
+    project_ref = args.get("project") or args.get("project_id")
+    if project_ref:
+        project_id, error = await _resolve_project(db, project_ref)
+        if error:
+            return [TextContent(type="text", text=error)]
 
     note = await service_create_note(db, title=title, content=content, tags=tags, project_id=project_id)
 
-    return [TextContent(type="text", text=f"Note created: **{note.title}** (id: {note.id})")]
+    project_str = f" in project {project_id}" if project_id else ""
+    return [TextContent(type="text", text=f"Note created: **{note.title}** (id: {note.id}){project_str}")]
 
 
 async def _update_note(db, args: dict) -> list[TextContent]:
@@ -889,12 +950,18 @@ async def _update_note(db, args: dict) -> list[TextContent]:
     content = args.get("content")
     tags = args.get("tags")
 
-    # Handle project_id - empty string means unassign (set to None)
-    project_id = args.get("project_id")
-    if project_id == "":
-        project_id = None
+    # Resolve project by name or ID; empty string means unassign
+    project_id = None
+    project_ref = args.get("project") if "project" in args else args.get("project_id")
+    if project_ref:
+        project_id, error = await _resolve_project(db, project_ref)
+        if error:
+            return [TextContent(type="text", text=error)]
 
-    note = await service_update_note(db, note_id=note_id, title=title, content=content, tags=tags, project_id=project_id)
+    note = await service_update_note(
+        db, note_id=note_id, title=title, content=content, tags=tags,
+        project_id=project_id,
+    )
     if note is None:
         return [TextContent(type="text", text=f"Failed to update note '{note_id}'.")]
 

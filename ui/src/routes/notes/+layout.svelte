@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { page } from '$app/state';
@@ -28,7 +29,7 @@
 	let offset = $state(0);
 
 	let selectedNoteId = $derived(page.params.id ?? null);
-	let isNewNote = $derived(page.url.pathname === `${base}/notes/new`);
+	let isNewNote = $derived(page.params.id === 'new');
 
 	// Debounce search to avoid hammering the API
 	let activeSearch = $state('');
@@ -100,6 +101,21 @@
 		load();
 		loadTags();
 		loadProjects();
+	});
+
+	// In-place patch: update a single note in the list without a full re-fetch
+	$effect(() => {
+		const patched = notesList.patchedNote;
+		if (!patched) return;
+		// untrack so reading/writing `notes` doesn't become a dependency (would cause infinite loop)
+		untrack(() => {
+			const idx = notes.findIndex((n) => n.id === patched.id);
+			if (idx !== -1) {
+				notes[idx] = patched;
+				notes = [...notes];
+			}
+			loadTags();
+		});
 	});
 
 	let filteredTags = $derived(
@@ -234,7 +250,7 @@
 			const formattedDate = formatJournalDate(data.date);
 
 			const noteData: NoteCreate = {
-				title: `Daily Journal - ${formattedDate}`,
+				title: `${data.date}: Daily Journal`,
 				content,
 				tags: ['journal', 'daily']
 			};
@@ -268,7 +284,7 @@
 		const lines: string[] = [];
 		const formattedDate = formatJournalDate(data.date);
 
-		lines.push(`# Daily Journal - ${formattedDate}`);
+		lines.push(`# ${data.date}: Daily Journal`);
 		lines.push('');
 		lines.push('## Today\'s Activity');
 		lines.push('');
@@ -456,7 +472,7 @@
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-48 p-1 border border-base-300 mt-1 max-h-60 overflow-y-auto flex-nowrap">
 					<li>
-						<button class={selectedProject === '' ? 'active' : ''} onclick={() => (selectedProject = '')}>
+						<button class={selectedProject === '' ? 'active' : ''} onclick={() => { selectedProject = ''; (document.activeElement as HTMLElement)?.blur(); }}>
 							All projects
 						</button>
 					</li>
@@ -464,7 +480,7 @@
 						<li>
 							<button
 								class={selectedProject === project.id ? 'active' : ''}
-								onclick={() => (selectedProject = selectedProject === project.id ? '' : project.id)}
+								onclick={() => { selectedProject = selectedProject === project.id ? '' : project.id; (document.activeElement as HTMLElement)?.blur(); }}
 							>
 								<span class="w-2 h-2 rounded-full shrink-0" style:background-color={project.color}></span>
 								<span class="truncate">{project.name}</span>

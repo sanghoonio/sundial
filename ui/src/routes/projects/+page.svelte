@@ -38,7 +38,11 @@
 	let creating = $state(false);
 
 	const statusFilters = ['all', 'active', 'paused', 'completed', 'archived'] as const;
-	const colorPresets = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6b7280'];
+	const colorPresets = [
+		'#3b82f6', '#6366f1', '#8b5cf6', '#ec4899',
+		'#ef4444', '#f97316', '#f59e0b', '#22c55e',
+		'#14b8a6', '#06b6d4', '#0ea5e9', '#6b7280',
+	];
 
 	// Selected project sidebar
 	let selectedProjectId = $state<string | null>(page.url.searchParams.get('id'));

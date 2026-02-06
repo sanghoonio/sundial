@@ -2,9 +2,10 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
+	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/services/api';
-	import type { NoteResponse, NoteUpdate, LinksResponse, NoteBlock, ProjectList, ProjectResponse, TaskList } from '$lib/types';
+	import type { NoteCreate, NoteResponse, NoteUpdate, LinksResponse, NoteBlock, NoteListItem, ProjectList, ProjectResponse, TaskList } from '$lib/types';
 	import { newBlockId } from '$lib/utils/blocks';
 	import TagInput from '$lib/components/notes/TagInput.svelte';
 	import ProjectSelect from '$lib/components/notes/ProjectSelect.svelte';
@@ -40,7 +41,10 @@
 	let loadingTasks = $state(false);
 
 	let noteId = $derived(page.params.id);
+	let isNew = $derived(noteId === 'new');
 	let loaded = $state(false);
+	let creating = $state(false);
+	let justCreated = $state(false);
 
 	async function load() {
 		loading = true;
@@ -86,15 +90,88 @@
 		}
 	}
 
+	function initCreateMode() {
+		note = null;
+		links = null;
+		loading = false;
+		loaded = true;
+		creating = false;
+		title = '';
+		blocks = [{ id: newBlockId(), type: 'md', content: '' }];
+		tags = [];
+		projectId = page.url.searchParams.get('project') ?? null;
+		lastSavedSnapshot = currentSnapshot();
+	}
+
 	$effect(() => {
-		noteId;
-		load();
+		noteId; // track — only noteId should trigger this effect
+		untrack(() => {
+			if (isNew) {
+				initCreateMode();
+			} else if (justCreated) {
+				// After auto-create goto, skip re-fetching — just load links in background
+				justCreated = false;
+				api.get<LinksResponse>(`/api/notes/${noteId}/links`).then((l) => (links = l)).catch(() => {});
+			} else {
+				load();
+			}
+		});
+	});
+
+	// --- Create-mode: auto-create after 1s when content exists ---
+	let autoCreateTimer: ReturnType<typeof setTimeout>;
+
+	function hasContent(): boolean {
+		return blocks.some((b) => {
+			if (b.type === 'md') return b.content.trim().length > 0;
+			if (b.type === 'chat') return (b.messages?.length ?? 0) > 0;
+			return false;
+		});
+	}
+
+	async function handleCreate() {
+		if (creating || !hasContent()) return;
+		creating = true;
+		saveStatus = 'saving';
+		try {
+			const data: NoteCreate = { title: title.trim() || 'Untitled', blocks, tags, project_id: projectId };
+			const created = await api.post<NoteResponse>('/api/notes', data);
+			note = created;
+			notesList.refresh();
+			saveStatus = 'saved';
+			showSavedText = true;
+			clearTimeout(savedTextTimer);
+			savedTextTimer = setTimeout(() => { showSavedText = false; saveStatus = 'idle'; }, 2000);
+			lastSavedSnapshot = currentSnapshot();
+			// Navigate to real ID — component stays mounted since both match [id] route
+			justCreated = true;
+			goto(`${base}/notes/${created.id}`, { replaceState: true });
+		} catch (e) {
+			console.error('Failed to create note', e);
+			toast.error('Failed to create note');
+			saveStatus = 'error';
+			creating = false;
+		}
+	}
+
+	$effect(() => {
+		if (!isNew || creating) return;
+		// Track reactive deps
+		title;
+		blocks;
+
+		clearTimeout(autoCreateTimer);
+		if (hasContent()) {
+			autoCreateTimer = setTimeout(() => handleCreate(), 1000);
+		}
+		return () => clearTimeout(autoCreateTimer);
 	});
 
 	let showSavedText = $state(false);
 	let savedTextTimer: ReturnType<typeof setTimeout>;
 
 	async function handleSave() {
+		if (isNew) { handleCreate(); return; }
 		if (!title.trim()) return;
 		clearTimeout(autoSaveTimer);
 		saving = true;
@@ -108,7 +185,23 @@
 			};
 			note = await api.put<NoteResponse>(`/api/notes/${noteId}`, update);
 			lastSavedSnapshot = currentSnapshot();
-			notesList.refresh();
+			// Patch the list item in-place (no full re-fetch / no spinner)
+			const firstMdBlock = blocks.find((b) => b.type === 'md');
+			const previewText = (firstMdBlock?.content || '').slice(0, 80);
+			notesList.patchNote({
+				id: note.id,
+				title: note.title,
+				filepath: note.filepath,
+				tags: note.tags,
+				project_id: note.project_id,
+				linked_tasks: note.linked_tasks,
+				linked_events: note.linked_events,
+				preview: previewText,
+				created_at: note.created_at,
+				updated_at: note.updated_at
+			} satisfies NoteListItem);
+			// Re-fetch links so wiki-link changes are reflected
+			links = await api.get<LinksResponse>(`/api/notes/${noteId}/links`);
 			saveStatus = 'saved';
 			showSavedText = true;
 			clearTimeout(savedTextTimer);
@@ -132,7 +225,7 @@
 	}
 
 	$effect(() => {
-		if (!loaded || !note) return;
+		if (!loaded || !note || isNew) return;
 		const snap = currentSnapshot();
 		if (snap === lastSavedSnapshot) return;
 
@@ -343,11 +436,11 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-{#if loading}
+{#if loading && !isNew}
 	<div class="flex items-center justify-center py-20">
 		<span class="loading loading-spinner loading-lg"></span>
 	</div>
-{:else if note}
+{:else if note || isNew}
 	<div class="flex h-full">
 	<div class="flex-1 flex flex-col min-w-0">
 		<!-- Top bar — matches left pane header height -->

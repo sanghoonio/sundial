@@ -20,6 +20,15 @@
 		return priority === 'Medium' ? '' : priority;
 	}
 
+	function isTaskOverdue(task: DashboardTask): boolean {
+		if (!task.due_date) return false;
+		const due = new Date(task.due_date);
+		const today = new Date();
+		due.setHours(0, 0, 0, 0);
+		today.setHours(0, 0, 0, 0);
+		return due < today;
+	}
+
 	let dashboard = $state<DashboardResponse | null>(null);
 	let suggestions = $state<DailySuggestionsResponse | null | 'disabled'>(null);
 	let loading = $state(true);
@@ -159,7 +168,16 @@
 							{#each dashboard.tasks_due as task}
 								<a href="{base}/tasks/{task.project_id}?task={task.id}" class="block p-3 rounded-lg bg-base-100 hover:bg-base-100/80 transition-colors">
 									<h3 class="text-sm font-medium truncate">{task.title}</h3>
-									<span class="text-xs text-base-content/40">{formatTaskPriority(task)}{formatTaskPriority(task) ? ' priority' : 'Due today'}</span>
+									<div class="flex items-center gap-2">
+										{#if isTaskOverdue(task)}
+											<span class="badge badge-xs badge-error">Overdue</span>
+										{:else}
+											<span class="text-xs text-base-content/40">Due today</span>
+										{/if}
+										{#if formatTaskPriority(task)}
+											<span class="badge badge-xs badge-ghost">{formatTaskPriority(task)} priority</span>
+										{/if}
+									</div>
 								</a>
 							{/each}
 						</div>

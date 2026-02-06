@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.database import get_db
 from api.models.task import Task
 from api.schemas.search import SearchResult, SearchResultItem, TaskSearchResultItem
+from api.services.note_service import fts5_prefix_query
 from api.utils.auth import get_current_user
 
 router = APIRouter(prefix="/search", tags=["search"], dependencies=[Depends(get_current_user)])
@@ -24,6 +25,7 @@ async def search(
 
     # Search notes via FTS5
     if type in ("all", "notes"):
+        fts_q = fts5_prefix_query(q)
         fts_query = text("""
             SELECT n.id, n.title, n.filepath, snippet(notes_fts, 2, '<mark>', '</mark>', '...', 32) as snippet, rank
             FROM notes_fts
@@ -38,9 +40,9 @@ async def search(
             WHERE notes_fts MATCH :query
         """)
         try:
-            count_result = await db.execute(count_query, {"query": q})
+            count_result = await db.execute(count_query, {"query": fts_q})
             total = count_result.scalar() or 0
-            result = await db.execute(fts_query, {"query": q, "limit": limit, "offset": offset})
+            result = await db.execute(fts_query, {"query": fts_q, "limit": limit, "offset": offset})
             rows = result.fetchall()
             note_items = [
                 SearchResultItem(
