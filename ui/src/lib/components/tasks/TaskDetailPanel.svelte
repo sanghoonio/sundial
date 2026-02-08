@@ -20,7 +20,7 @@
 
 	let title = $state('');
 	let description = $state('');
-	let status = $state('open');
+	let status = $state('in_progress');
 	let priority = $state('medium');
 	let dueDate = $state('');
 	let projectId = $state('');
@@ -345,11 +345,10 @@
 		<div class="grid grid-cols-2 gap-3">
 			<div>
 				<p class="text-xs text-base-content/60 mb-1">Status</p>
-				<select class="select select-bordered select-sm w-full" bind:value={status}>
-					<option value="open">Open</option>
-					<option value="in_progress">In Progress</option>
-					<option value="done">Done</option>
-				</select>
+				<label class="flex items-center gap-2 cursor-pointer h-8">
+					<input type="checkbox" class="checkbox checkbox-sm checkbox-success" checked={status === 'done'} onchange={(e) => status = (e.currentTarget as HTMLInputElement).checked ? 'done' : 'in_progress'} />
+					<span class="text-sm">{status === 'done' ? 'Completed' : 'In progress'}</span>
+				</label>
 			</div>
 			<div>
 				<p class="text-xs text-base-content/60 mb-1">Priority</p>

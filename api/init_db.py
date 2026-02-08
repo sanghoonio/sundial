@@ -99,6 +99,11 @@ async def init_database():
         except Exception:
             pass  # already migrated
 
+        # Migrate: collapse 'open' status to 'in_progress'
+        await conn.execute(text(
+            "UPDATE tasks SET status = 'in_progress' WHERE status = 'open'"
+        ))
+
     # Seed default data
     from api.database import async_session
     from api.models.project import Project, ProjectMilestone
@@ -112,7 +117,7 @@ async def init_database():
             session.add(inbox)
             await session.flush()
 
-            for i, name in enumerate(["To Do", "In Progress", "Done"]):
+            for i, name in enumerate(["To Do", "In Progress"]):
                 session.add(ProjectMilestone(project_id="proj_inbox", name=name, position=i))
 
         # Seed default user_settings

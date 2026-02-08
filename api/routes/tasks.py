@@ -78,17 +78,21 @@ async def get_task(task_id: str, db: AsyncSession = Depends(get_db)):
 @router.put("/{task_id}", response_model=TaskResponse)
 async def update_task(task_id: str, body: TaskUpdate, db: AsyncSession = Depends(get_db)):
     checklist = [item.model_dump() for item in body.checklist] if body.checklist is not None else None
+    # Only pass fields that were actually in the request body to distinguish
+    # "not provided" (keep current) from "explicitly set to null" (clear).
+    fields = body.model_fields_set
+    from api.services.task_service import _UNSET
     task = await task_service.update_task(
         db, task_id,
-        title=body.title,
-        description=body.description,
-        status=body.status,
-        priority=body.priority,
-        due_date=body.due_date,
-        project_id=body.project_id,
-        milestone_id=body.milestone_id,
-        checklist=checklist,
-        note_ids=body.note_ids,
+        title=body.title if "title" in fields else None,
+        description=body.description if "description" in fields else None,
+        status=body.status if "status" in fields else None,
+        priority=body.priority if "priority" in fields else None,
+        due_date=body.due_date if "due_date" in fields else _UNSET,
+        project_id=body.project_id if "project_id" in fields else None,
+        milestone_id=body.milestone_id if "milestone_id" in fields else _UNSET,
+        checklist=checklist if "checklist" in fields else None,
+        note_ids=body.note_ids if "note_ids" in fields else None,
     )
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")

@@ -21,7 +21,11 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
     if existing:
         raise HTTPException(status_code=400, detail="Project ID already exists")
 
-    project = Project(id=body.id, name=body.name, description=body.description, color=body.color, icon=body.icon)
+    # Place new project at the end of the list
+    max_pos_result = await db.execute(select(func.coalesce(func.max(Project.position), -1)))
+    next_position = max_pos_result.scalar() + 1
+
+    project = Project(id=body.id, name=body.name, description=body.description, color=body.color, icon=body.icon, position=next_position)
     db.add(project)
     await db.flush()
 
@@ -30,7 +34,7 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
 
     # If no milestones given, create defaults
     if not body.milestones:
-        for i, name in enumerate(["To Do", "In Progress", "Done"]):
+        for i, name in enumerate(["To Do", "In Progress"]):
             db.add(ProjectMilestone(project_id=project.id, name=name, position=i))
 
     await db.commit()

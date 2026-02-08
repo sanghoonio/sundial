@@ -636,7 +636,7 @@
 					<!-- Open Board link -->
 					<a
 						href="{base}/tasks/{selectedProjectId}"
-						class="btn btn-outline btn-sm w-full gap-1.5"
+						class="btn btn-sm w-full gap-1.5 bg-base-100 border hover:bg-base-200"
 					>
 						Open Board
 						<ExternalLink size={14} />
@@ -684,7 +684,7 @@
 					<!-- Task progress -->
 					<div>
 						<div class="flex items-center justify-between mb-1">
-							<p class="text-xs text-base-content/60">Tasks</p>
+							<p class="text-xs text-base-content/60">Task completions</p>
 							<span class="text-xs text-base-content/50 tabular-nums">{sidebarTasks.done}/{sidebarTasks.total}</span>
 						</div>
 						{#if sidebarTasks.total > 0}

@@ -133,7 +133,7 @@
 											{#if task.description}
 												<p class="text-sm text-base-content/60 mt-1 line-clamp-2">{task.description}</p>
 											{/if}
-											<span class="badge badge-xs badge-ghost mt-1">{task.status}</span>
+											<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : 'badge-ghost'} mt-1">{task.status === 'done' ? 'done' : 'in progress'}</span>
 										</div>
 									</div>
 								</Card>

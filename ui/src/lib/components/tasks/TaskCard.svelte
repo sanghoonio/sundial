@@ -13,9 +13,10 @@
 		ondismiss?: () => void;
 		ondelete?: () => void;
 		onmove?: (taskId: string, milestoneId: string | null) => void;
+		onstatustoggle?: (taskId: string, newStatus: string) => void;
 	}
 
-	let { task, compact = false, draggable = false, selected = false, milestones = [], onclick, onaccept, ondismiss, ondelete, onmove }: Props = $props();
+	let { task, compact = false, draggable = false, selected = false, milestones = [], onclick, onaccept, ondismiss, ondelete, onmove, onstatustoggle }: Props = $props();
 
 	// Get current milestone ID for filtering
 	let currentMilestoneId = $derived('milestone_id' in task ? (task as TaskResponse).milestone_id : null);
@@ -153,7 +154,8 @@
 	let isAiSuggested = $derived(fullTask?.ai_suggested ?? false);
 	let hasLinkedNote = $derived((fullTask?.note_ids?.length ?? 0) > 0);
 	let hasLinkedEvent = $derived(fullTask?.calendar_event_id != null);
-	let overdue = $derived(isOverdue(task.due_date));
+	let isDone = $derived(task.status === 'done');
+	let overdue = $derived(task.status !== 'done' && isOverdue(task.due_date));
 	let hasPriorityIcon = $derived(task.priority === 'urgent' || task.priority === 'high');
 </script>
 
@@ -180,7 +182,20 @@
 				{#if draggable}
 					<span class="text-base-content/30 shrink-0 hidden md:block" data-grab><GripVertical size={14} /></span>
 				{/if}
-				<span class="font-medium truncate text-sm flex-1 min-w-0">{task.title}</span>
+					<!-- Checkmark toggle (hidden — uncomment to re-enable)
+				{#if onstatustoggle}
+					<button
+						class="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors {isDone ? 'bg-success border-success' : 'border-base-content/30 hover:border-primary'}"
+						onclick={(e) => { e.stopPropagation(); onstatustoggle(task.id, isDone ? 'in_progress' : 'done'); }}
+						title={isDone ? 'Mark incomplete' : 'Mark complete'}
+					>
+						{#if isDone}
+							<Check size={12} class="text-success-content" />
+						{/if}
+					</button>
+				{/if}
+				-->
+				<span class="font-medium truncate text-sm flex-1 min-w-0 {isDone ? 'line-through text-base-content/40' : ''}">{task.title}</span>
 				{#if hasLinkedNote}
 					<span class="text-base-content/40 shrink-0" title="Linked note"><StickyNote size={12} /></span>
 				{/if}
@@ -212,10 +227,10 @@
 
 
 			{#if !compact}
-				{@const hasMetadata = task.due_date || hasLinkedEvent}
+				{@const hasMetadata = (task.due_date && !isDone) || hasLinkedEvent}
 				{#if hasMetadata}
 					<div class="flex items-center gap-2 flex-wrap">
-						{#if task.due_date}
+						{#if task.due_date && !isDone}
 							<span class="badge badge-xs {overdue ? 'badge-error' : 'badge-ghost'}">
 								{overdue ? 'Overdue' : 'Due'} {formatDate(task.due_date)}
 							</span>
@@ -227,6 +242,7 @@
 				{/if}
 			{/if}
 
+			<!-- Checklist progress (hidden — uncomment to re-enable)
 			{#if hasChecklist && !compact}
 				<div class="flex items-center gap-2">
 					<div class="flex-1 h-1.5 bg-base-300 rounded-full overflow-hidden">
@@ -238,6 +254,7 @@
 					<span class="text-xs text-base-content/50 tabular-nums">{checklistDone}/{checklistTotal}</span>
 				</div>
 			{/if}
+			-->
 
 			{#if isAiSuggested && (onaccept || ondismiss)}
 				<div class="flex items-center gap-1.5 pt-1.5 border-t border-base-200">

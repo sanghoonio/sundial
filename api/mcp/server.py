@@ -132,7 +132,7 @@ def _tool_list() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "status": {"type": "string", "description": "Filter by status (open/in_progress/done)", "enum": ["open", "in_progress", "done"]},
+                    "status": {"type": "string", "description": "Filter by status (in_progress/done)", "enum": ["in_progress", "done"]},
                     "project_id": {"type": "string", "description": "Filter by project ID"},
                     "limit": {"type": "integer", "description": "Max results (default 20)", "default": 20},
                 },
@@ -162,7 +162,7 @@ def _tool_list() -> list[Tool]:
                 "properties": {
                     "task_id": {"type": "string", "description": "Task ID"},
                     "title": {"type": "string", "description": "New title"},
-                    "status": {"type": "string", "description": "New status (open/in_progress/done)", "enum": ["open", "in_progress", "done"]},
+                    "status": {"type": "string", "description": "New status (in_progress/done)", "enum": ["in_progress", "done"]},
                     "priority": {"type": "string", "description": "New priority (low/medium/high)"},
                     "due_date": {"type": "string", "description": "New due date in ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS±HH:MM (or null to clear)"},
                     "note_ids": {"type": "array", "items": {"type": "string"}, "description": "Note IDs to link (replaces all existing links)"},

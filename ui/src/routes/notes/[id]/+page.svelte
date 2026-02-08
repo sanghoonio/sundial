@@ -695,7 +695,7 @@
 							<div class="flex items-center gap-1 group">
 								<a href="{base}/tasks/{task.project_id}?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
 									<span>{task.title}</span>
-									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
+									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : 'badge-ghost'}">{task.status === 'done' ? 'done' : 'in progress'}</span>
 								</a>
 								<button
 									class="opacity-0 group-hover:opacity-100 hover:text-error transition-all cursor-pointer shrink-0"
@@ -711,7 +711,7 @@
 								<a href="{base}/tasks/{task.project_id}?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
 									<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
 									<span>{task.title}</span>
-									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : task.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{task.status.replace('_', ' ')}</span>
+									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : 'badge-ghost'}">{task.status === 'done' ? 'done' : 'in progress'}</span>
 								</a>
 								<button
 									class="opacity-0 group-hover:opacity-100 hover:text-error transition-all cursor-pointer shrink-0"

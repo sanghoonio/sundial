@@ -1,13 +1,15 @@
 <script lang="ts">
 	import type { TaskResponse, MilestoneResponse } from '$lib/types';
 	import KanbanColumn from './KanbanColumn.svelte';
-	import { Plus, Check, X } from 'lucide-svelte';
+	import TaskCard from './TaskCard.svelte';
+	import { Plus, Check, X, CircleCheckBig } from 'lucide-svelte';
 
 	interface Props {
 		milestones: MilestoneResponse[];
 		tasks: TaskResponse[];
 		projectId: string;
 		selectedTaskId?: string | null;
+		showCompleted?: boolean;
 		ontaskclick?: (task: TaskResponse) => void;
 		ondrop?: (taskId: string, milestoneId: string | null, position: number) => void;
 		ontaskcreated?: (task: TaskResponse) => void;
@@ -16,6 +18,7 @@
 		oncolumncreate?: (name: string) => void;
 		oncolumnreorder?: (milestoneId: string, newPosition: number) => void;
 		ontaskdelete?: (taskId: string) => void;
+		onstatustoggle?: (taskId: string, newStatus: string) => void;
 	}
 
 	let {
@@ -23,6 +26,7 @@
 		tasks,
 		projectId,
 		selectedTaskId = null,
+		showCompleted = false,
 		ontaskclick,
 		ondrop,
 		ontaskcreated,
@@ -30,7 +34,8 @@
 		oncolumndelete,
 		oncolumncreate,
 		oncolumnreorder,
-		ontaskdelete
+		ontaskdelete,
+		onstatustoggle
 	}: Props = $props();
 
 	let columnDragOverId = $state<string | null>(null);
@@ -68,12 +73,20 @@
 
 	function tasksForMilestone(msId: string): TaskResponse[] {
 		return tasks
-			.filter((t) => t.milestone_id === msId)
+			.filter((t) => t.milestone_id === msId && t.status !== 'done')
 			.sort((a, b) => a.position - b.position);
 	}
 
 	let unsortedTasks = $derived(
-		tasks.filter((t) => !t.milestone_id).sort((a, b) => a.position - b.position)
+		tasks.filter((t) => !t.milestone_id && t.status !== 'done').sort((a, b) => a.position - b.position)
+	);
+
+	let doneTasks = $derived(
+		tasks.filter((t) => t.status === 'done').sort((a, b) => {
+			const aTime = a.completed_at ?? a.updated_at;
+			const bTime = b.completed_at ?? b.updated_at;
+			return bTime.localeCompare(aTime);
+		})
 	);
 
 	let sortedMilestones = $derived(milestones.toSorted((a, b) => a.position - b.position));
@@ -191,6 +204,7 @@
 				ondrop={handleUnsortedDrop}
 				{ontaskcreated}
 				{ontaskdelete}
+				{onstatustoggle}
 			/>
 		</div>
 	{/if}
@@ -222,6 +236,7 @@
 				oncolumndragstart={handleColumnDragStart}
 				oncolumndragend={handleColumnDragEnd}
 				{ontaskdelete}
+				{onstatustoggle}
 			/>
 		</div>
 		{#if columnDragOverId === ms.id && columnDragSide === 'right'}
@@ -231,6 +246,32 @@
 			></div>
 		{/if}
 	{/each}
+
+	<!-- Done column (virtual — collects all completed tasks) -->
+	{#if showCompleted && doneTasks.length > 0}
+		<div class="snap-start">
+			<div class="flex flex-col bg-base-200/60 rounded-lg p-3 w-[calc(100vw-6rem)] sm:w-auto sm:min-w-72 sm:max-w-72 h-fit max-h-full" role="group" aria-label="Done column">
+				<div class="flex items-center gap-2 mb-3">
+					<CircleCheckBig size={14} class="text-success" />
+					<span class="font-semibold text-sm text-base-content/60">Completed</span>
+					<span class="text-xs text-base-content/40 ml-auto">{doneTasks.length}</span>
+				</div>
+				<div class="flex flex-col gap-2 flex-1 overflow-auto">
+					{#each doneTasks as task (task.id)}
+						<div class="opacity-50">
+							<TaskCard
+								{task}
+								selected={task.id === selectedTaskId}
+								onclick={() => ontaskclick?.(task)}
+								ondelete={() => ontaskdelete?.(task.id)}
+								{onstatustoggle}
+							/>
+						</div>
+					{/each}
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Add column placeholder -->
 	{#if oncolumncreate}

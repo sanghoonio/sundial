@@ -348,7 +348,7 @@
 				<a href="{base}/tasks?task={lt.id}" class="flex items-center gap-1.5 text-xs py-0.5 hover:text-primary transition-colors">
 					<ListTodo size={12} class="shrink-0" />
 					<span class="truncate">{lt.title}</span>
-					<span class="badge badge-xs {lt.status === 'done' ? 'badge-success' : lt.status === 'in_progress' ? 'badge-info' : 'badge-ghost'}">{lt.status.replace('_', ' ')}</span>
+					<span class="badge badge-xs {lt.status === 'done' ? 'badge-success' : 'badge-ghost'}">{lt.status === 'done' ? 'done' : 'in progress'}</span>
 				</a>
 			{/each}
 		</div>

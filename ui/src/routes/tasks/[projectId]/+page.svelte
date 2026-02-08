@@ -10,7 +10,7 @@
 	import TaskCreateModal from '$lib/components/tasks/TaskCreateModal.svelte';
 	import TaskFilterBar from '$lib/components/tasks/TaskFilterBar.svelte';
 	import ProjectIcon from '$lib/components/ui/ProjectIcon.svelte';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight, CircleCheckBig } from 'lucide-svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	let projects = $state<ProjectResponse[]>([]);
@@ -34,6 +34,7 @@
 	let dueDateFilter = $state('all');
 	let sortBy = $state('position');
 	let sortDir = $state('asc');
+	let showCompleted = $state(false);
 
 	let filterBarRef = $state<ReturnType<typeof TaskFilterBar> | null>(null);
 
@@ -236,6 +237,20 @@
 		}
 	}
 
+	async function handleStatusToggle(taskId: string, newStatus: string) {
+		const oldTasks = [...tasks];
+		tasks = tasks.map((t) => t.id === taskId ? { ...t, status: newStatus } : t);
+		try {
+			const updated = await api.put<TaskResponse>(`/api/tasks/${taskId}`, { status: newStatus });
+			tasks = tasks.map((t) => (t.id === taskId ? updated : t));
+			if (selectedTask?.id === taskId) selectedTask = updated;
+		} catch (e) {
+			tasks = oldTasks;
+			console.error('Failed to update task status', e);
+			toast.error('Failed to update task status');
+		}
+	}
+
 	// Column operations
 
 	async function saveMilestones(milestones: MilestoneCreate[]) {
@@ -401,6 +416,14 @@
 					totalCount={tasks.length}
 				/>
 			</div>
+			<button
+				class="btn btn-sm {showCompleted ? 'btn-primary' : 'btn-ghost'}"
+				onclick={() => (showCompleted = !showCompleted)}
+				title={showCompleted ? 'Hide completed' : 'Show completed'}
+			>
+				<CircleCheckBig size={14} />
+				<span class="hidden sm:inline text-xs">Completed</span>
+			</button>
 		</div>
 
 		<!-- Kanban -->
@@ -416,6 +439,7 @@
 						tasks={hasActiveFilters ? filteredTasks : tasks}
 						projectId={selectedProjectId}
 						selectedTaskId={selectedTask?.id}
+						{showCompleted}
 						ontaskclick={handleTaskClick}
 						ondrop={handleDrop}
 						ontaskcreated={handleTaskCreated}
@@ -424,6 +448,7 @@
 						oncolumncreate={handleColumnCreate}
 						oncolumnreorder={handleColumnReorder}
 						ontaskdelete={handleTaskDeleteFromSwipe}
+						onstatustoggle={handleStatusToggle}
 					/>
 				</div>
 			{:else}

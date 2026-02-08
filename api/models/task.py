@@ -17,7 +17,7 @@ class Task(Base):
     id = Column(String, primary_key=True, default=generate_task_id)
     title = Column(String, nullable=False)
     description = Column(Text, default="")
-    status = Column(String, default="open")  # open, in_progress, done
+    status = Column(String, default="in_progress")  # in_progress, done
     priority = Column(String, default="medium")  # low, medium, high, urgent
     due_date = Column(DateTime, nullable=True)
     project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
