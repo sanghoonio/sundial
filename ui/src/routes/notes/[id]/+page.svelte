@@ -13,7 +13,8 @@
 	import { notesList } from '$lib/stores/noteslist.svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 	import TaskCreatePanel from '$lib/components/tasks/TaskCreatePanel.svelte';
-	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays, ArrowUpLeft, X, Link, EllipsisVertical } from 'lucide-svelte';
+	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays, ArrowUpLeft, X, Link, EllipsisVertical, Maximize, Minimize } from 'lucide-svelte';
+	import { fullscreen } from '$lib/stores/fullscreen.svelte';
 	import type { TaskResponse } from '$lib/types';
 
 	let note = $state<NoteResponse | null>(null);
@@ -39,6 +40,9 @@
 	let availableTasks = $state<{ id: string; title: string }[]>([]);
 	let taskSearchQuery = $state('');
 	let loadingTasks = $state(false);
+
+	// Reset fullscreen when navigating away
+	$effect(() => () => fullscreen.exit());
 
 	let noteId = $derived(page.params.id);
 	let isNew = $derived(noteId === 'new');
@@ -336,6 +340,11 @@
 		} else if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
 			e.preventDefault();
 			preview = !preview;
+		} else if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+			e.preventDefault();
+			fullscreen.toggle();
+		} else if (e.key === 'Escape' && fullscreen.active) {
+			fullscreen.exit();
 		}
 	}
 
@@ -481,6 +490,18 @@
 					<Pencil size={16} />
 				{:else}
 					<Eye size={16} />
+				{/if}
+			</button>
+			<!-- Fullscreen toggle (desktop only) -->
+			<button
+				class="btn btn-ghost btn-sm btn-square hidden md:flex"
+				onclick={() => fullscreen.toggle()}
+				title={fullscreen.active ? 'Exit fullscreen (Ctrl+E)' : 'Fullscreen (Ctrl+E)'}
+			>
+				{#if fullscreen.active}
+					<Minimize size={16} />
+				{:else}
+					<Maximize size={16} />
 				{/if}
 			</button>
 			<!-- Desktop-only buttons -->

@@ -10,6 +10,7 @@
 	import type { NoteCreate, NoteList, NoteListItem, NoteResponse, TagListResponse, TagWithCount, ProjectList, ProjectResponse } from '$lib/types';
 	import NoteListItemComponent from '$lib/components/notes/NoteListItem.svelte';
 	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA, ChevronDown, BookOpen, Upload, FolderKanban, Tag } from 'lucide-svelte';
+	import { fullscreen } from '$lib/stores/fullscreen.svelte';
 
 	let { children } = $props();
 
@@ -379,7 +380,7 @@
 	<!-- LEFT PANE: Note list -->
 	<div
 		class="w-full md:w-72 lg:w-80 border-r border-base-300 flex-col bg-base-100
-			{selectedNoteId || isNewNote ? 'hidden md:flex' : 'flex'}"
+			{fullscreen.active ? 'hidden' : selectedNoteId || isNewNote ? 'hidden md:flex' : 'flex'}"
 	>
 		<!-- Header: search + new -->
 		<div class="px-4 py-3 border-b border-base-300 shrink-0">

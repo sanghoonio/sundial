@@ -5,6 +5,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { ws } from '$lib/stores/websocket.svelte';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
+	import { fullscreen } from '$lib/stores/fullscreen.svelte';
 	import MobileNav from '$lib/components/layout/MobileNav.svelte';
 	import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
 	import { Toaster } from 'svelte-sonner';
@@ -50,7 +51,9 @@
 	{@render children()}
 {:else if auth.isAuthenticated}
 	<div class="flex h-screen overflow-hidden">
-		<Sidebar />
+		{#if !fullscreen.active}
+			<Sidebar />
+		{/if}
 		<div class="flex-1 flex flex-col min-w-0">
 			<main class="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6 relative">
 				{@render children()}

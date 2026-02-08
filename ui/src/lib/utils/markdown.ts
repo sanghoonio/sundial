@@ -1,4 +1,5 @@
 import { Marked } from 'marked';
+import markedKatex from 'marked-katex-extension';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -83,6 +84,7 @@ function parseCodeParams(paramString: string): Record<string, string> {
 
 const marked = new Marked();
 marked.use({ extensions: [wikiLinkExtension] });
+marked.use(markedKatex({ throwOnError: false }));
 
 // Custom renderer for code blocks with syntax highlighting
 marked.use({
@@ -116,8 +118,21 @@ export function renderMarkdown(content: string): string {
 	if (!content) return '';
 	const raw = marked.parse(content) as string;
 	return DOMPurify.sanitize(raw, {
-		ADD_ATTR: ['data-title', 'data-type', 'data-id', 'data-width'],
-		ADD_TAGS: []
+		ADD_ATTR: [
+			'data-title', 'data-type', 'data-id', 'data-width',
+			// KaTeX needs inline styles, aria attrs, and SVG attrs
+			'style', 'aria-hidden', 'xmlns', 'encoding',
+			'd', 'viewBox', 'preserveAspectRatio', 'width', 'height',
+			'x1', 'x2', 'y1', 'y2', 'stroke', 'fill', 'stroke-width', 'fill-rule', 'clip-rule'
+		],
+		ADD_TAGS: [
+			// MathML elements
+			'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'mfrac', 'msup', 'msub',
+			'msubsup', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd', 'mtext', 'mspace',
+			'annotation', 'munder', 'mover', 'munderover', 'mpadded', 'mphantom',
+			// SVG elements for stretchy delimiters
+			'svg', 'line', 'path', 'rect', 'g'
+		]
 	});
 }
 
@@ -128,6 +143,8 @@ export function markdownPreview(content: string, maxLength = 200): string {
 	if (!content) return '';
 	// Strip markdown syntax for a clean preview
 	const text = content
+		.replace(/\$\$[\s\S]*?\$\$/g, '[math]') // display math
+		.replace(/\$([^$\n]+?)\$/g, '$1') // inline math — keep inner text
 		.replace(/#{1,6}\s+/g, '') // headings
 		.replace(/\*\*(.+?)\*\*/g, '$1') // bold
 		.replace(/\*(.+?)\*/g, '$1') // italic

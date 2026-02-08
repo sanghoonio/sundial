@@ -1,3 +1,4 @@
+@import 'katex/dist/katex.min.css';
 @import 'tailwindcss';
 
 @plugin "@tailwindcss/typography";
@@ -34,6 +35,11 @@
 	}
 	.mermaid-error {
 		@apply my-4 p-3 rounded-lg bg-error/10 border border-error/20;
+	}
+
+	/* KaTeX display math — vertical spacing + horizontal scroll for wide equations */
+	.prose .katex-display {
+		@apply my-4 overflow-x-auto;
 	}
 
 	/* Syntax highlighting - GitHub-inspired colors adapted for DaisyUI */
