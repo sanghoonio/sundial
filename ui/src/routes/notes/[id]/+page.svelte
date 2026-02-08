@@ -15,6 +15,8 @@
 	import TaskCreatePanel from '$lib/components/tasks/TaskCreatePanel.svelte';
 	import { ArrowLeft, Trash2, Eye, Pencil, Sparkles, Save, Check, Info, Download, Plus, CalendarDays, ArrowUpLeft, X, Link, EllipsisVertical, Maximize, Minimize } from 'lucide-svelte';
 	import { fullscreen } from '$lib/stores/fullscreen.svelte';
+	import { notesSearch } from '$lib/stores/notesSearch.svelte';
+	import FindBar from '$lib/components/notes/FindBar.svelte';
 	import type { TaskResponse } from '$lib/types';
 
 	let note = $state<NoteResponse | null>(null);
@@ -34,6 +36,11 @@
 	let createTaskOpen = $state(false);
 	let createTaskProjectId = $state('');
 	let createTaskProjects = $state<ProjectResponse[]>([]);
+
+	// Find bar
+	let findOpen = $state(false);
+	let editorContentEl = $state<HTMLElement | null>(null);
+	let findBar = $state<ReturnType<typeof FindBar> | null>(null);
 
 	// Link existing task
 	let showTaskSelector = $state(false);
@@ -110,6 +117,7 @@
 	$effect(() => {
 		noteId; // track — only noteId should trigger this effect
 		untrack(() => {
+			findOpen = false;
 			if (isNew) {
 				initCreateMode();
 			} else if (justCreated) {
@@ -334,15 +342,30 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+		if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
+			e.preventDefault();
+			notesSearch.requestFocus();
+			return;
+		} else if ((e.metaKey || e.ctrlKey) && e.key === 's') {
 			e.preventDefault();
 			handleSave();
+		} else if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+			e.preventDefault();
+			if (findOpen) {
+				findBar?.focus();
+			} else {
+				findOpen = true;
+				requestAnimationFrame(() => findBar?.focus());
+			}
 		} else if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
 			e.preventDefault();
 			preview = !preview;
 		} else if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
 			e.preventDefault();
 			fullscreen.toggle();
+		} else if (e.key === 'Escape' && findOpen) {
+			e.preventDefault();
+			findOpen = false;
 		} else if (e.key === 'Escape' && fullscreen.active) {
 			fullscreen.exit();
 		}
@@ -571,7 +594,17 @@
 
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<!-- Scrollable content -->
-		<div class="flex-1 overflow-y-auto p-4 md:p-6" ondblclick={handleContentDblClick}>
+		<div class="flex-1 min-h-0 relative">
+		{#if findOpen}
+			<FindBar
+				bind:this={findBar}
+				{blocks}
+				{preview}
+				containerEl={editorContentEl!}
+				onclose={() => (findOpen = false)}
+			/>
+		{/if}
+		<div class="h-full overflow-y-auto p-4 md:p-6" ondblclick={handleContentDblClick} bind:this={editorContentEl}>
 		<!-- Metadata section -->
 		{#if showMeta}
 			<div class="mb-4 md:mb-6 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col gap-3">
@@ -724,6 +757,7 @@
 			{:else}
 				<p class="text-sm text-base-content/40">No links yet</p>
 			{/if}
+		</div>
 		</div>
 		</div>
 	</div>

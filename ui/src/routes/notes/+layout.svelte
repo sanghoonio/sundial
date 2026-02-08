@@ -11,6 +11,7 @@
 	import NoteListItemComponent from '$lib/components/notes/NoteListItem.svelte';
 	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA, ChevronDown, BookOpen, Upload, FolderKanban, Tag } from 'lucide-svelte';
 	import { fullscreen } from '$lib/stores/fullscreen.svelte';
+	import { notesSearch } from '$lib/stores/notesSearch.svelte';
 
 	let { children } = $props();
 
@@ -153,6 +154,12 @@
 		searchOpen = true;
 		requestAnimationFrame(() => searchInput?.focus());
 	}
+
+	$effect(() => {
+		if (notesSearch.requestKey > 0) {
+			openSearch();
+		}
+	});
 
 	function closeSearch() {
 		if (!search) {

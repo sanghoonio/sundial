@@ -6,6 +6,7 @@
 	import type { NoteList } from '$lib/types';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import { renderMermaidInContainer } from '$lib/utils/mermaid';
+	import { notesSearch } from '$lib/stores/notesSearch.svelte';
 	import MarkdownToolbar from './MarkdownToolbar.svelte';
 	import WikiLinkSuggest from './WikiLinkSuggest.svelte';
 
@@ -13,11 +14,12 @@
 		content: string;
 		preview: boolean;
 		focused: boolean;
+		blockIndex: number;
 		onfocus: () => void;
 		onupdate: (content: string) => void;
 	}
 
-	let { content, preview, focused, onfocus, onupdate }: Props = $props();
+	let { content, preview, focused, blockIndex, onfocus, onupdate }: Props = $props();
 
 	let textareaEl = $state<HTMLTextAreaElement>();
 	let userMinHeight = $state<number | null>(null);
@@ -26,6 +28,57 @@
 	let previewEl = $state<HTMLDivElement>();
 
 	let renderedHtml = $derived(preview ? renderMarkdown(content) : '');
+
+	// Find-in-note highlight backdrop
+	let backdropEl = $state<HTMLDivElement>();
+
+	function escapeHtml(text: string): string {
+		return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+
+	let highlightedHtml = $derived.by(() => {
+		const q = notesSearch.findQuery;
+		if (!q || preview) return '';
+		const cur = notesSearch.currentMatch;
+		const text = content;
+		const lowerText = text.toLowerCase();
+		const lowerQ = q.toLowerCase();
+		let result = '';
+		let pos = 0;
+		let found = false;
+		while (pos < text.length) {
+			const idx = lowerText.indexOf(lowerQ, pos);
+			if (idx === -1) {
+				result += escapeHtml(text.slice(pos));
+				break;
+			}
+			found = true;
+			const isCurrent = cur && cur.blockIndex === blockIndex && cur.start === idx;
+			result += escapeHtml(text.slice(pos, idx));
+			result += `<mark${isCurrent ? ' class="current"' : ''}>${escapeHtml(text.slice(idx, idx + q.length))}</mark>`;
+			pos = idx + q.length;
+		}
+		// Trailing newline so the backdrop height matches textarea (textareas always have an implicit trailing line)
+		return found ? result + '\n' : '';
+	});
+
+	let findActive = $derived(!!notesSearch.findQuery && !preview);
+
+	// Sync backdrop text-rendering styles with textarea so word-wrap matches
+	$effect(() => {
+		if (!textareaEl || !backdropEl || !findActive) return;
+		const s = getComputedStyle(textareaEl);
+		const b = backdropEl.style;
+		b.padding = s.padding;
+		b.fontSize = s.fontSize;
+		b.fontFamily = s.fontFamily;
+		b.lineHeight = s.lineHeight;
+		b.letterSpacing = s.letterSpacing;
+		b.wordSpacing = s.wordSpacing;
+		b.overflowWrap = s.overflowWrap;
+		b.wordBreak = s.wordBreak;
+		b.tabSize = s.tabSize;
+	});
 
 	// Wiki-link autocomplete state
 	let suggestActive = $state(false);
@@ -43,13 +96,29 @@
 
 	const MIN_H = 144; // ~6 lines at text-sm
 
+	function getScrollParent(el: HTMLElement): HTMLElement | null {
+		let p = el.parentElement;
+		while (p) {
+			if (p.scrollHeight > p.clientHeight) {
+				const { overflowY } = getComputedStyle(p);
+				if (overflowY === 'auto' || overflowY === 'scroll') return p;
+			}
+			p = p.parentElement;
+		}
+		return null;
+	}
+
 	function autoResize() {
 		if (!textareaEl) return;
+		// Save scroll position — collapsing height to 0 causes the browser to clamp scrollTop
+		const scrollParent = getScrollParent(textareaEl);
+		const savedScrollTop = scrollParent?.scrollTop ?? 0;
 		textareaEl.style.height = '0';
 		const floor = userMinHeight ?? MIN_H;
 		const h = Math.max(textareaEl.scrollHeight, floor);
 		textareaEl.style.height = h + 'px';
 		lastAutoHeight = h;
+		if (scrollParent) scrollParent.scrollTop = savedScrollTop;
 	}
 
 	function checkForWikiLink() {
@@ -320,10 +389,19 @@
 		{/if}
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div onclick={onfocus}>
+		<div onclick={onfocus} class="relative">
+			<div
+				bind:this={backdropEl}
+				class="absolute inset-0 pointer-events-none overflow-hidden whitespace-pre-wrap break-words text-transparent [&_mark]:text-transparent [&_mark]:bg-warning/20 [&_mark]:rounded [&_mark]:py-[2px] [&_mark]:pl-[3.5px] [&_mark]:pr-[1.5px] [&_mark]:-ml-[3.5px] [&_mark]:-mr-[1.5px] [&_mark.current]:bg-warning/50"
+				class:hidden={!findActive}
+				aria-hidden="true"
+			>{@html highlightedHtml}</div>
 			<textarea
 				bind:this={textareaEl}
 				class="textarea w-full font-mono text-sm border-none focus:outline-none focus:shadow-none rounded-none"
+				class:!bg-transparent={findActive}
+				class:relative={findActive}
+				class:!overflow-hidden={findActive}
 				placeholder="Write markdown..."
 				value={content}
 				onfocus={onfocus}

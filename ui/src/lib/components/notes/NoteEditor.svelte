@@ -123,6 +123,7 @@
 						content={block.content}
 						{preview}
 						focused={focusedBlockId === block.id}
+						blockIndex={i}
 						onfocus={() => (focusedBlockId = block.id)}
 						onupdate={(c) => updateBlock(i, { content: c })}
 					/>
