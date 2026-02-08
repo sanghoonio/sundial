@@ -64,6 +64,74 @@
 
 	let findActive = $derived(!!notesSearch.findQuery && !preview);
 
+	// Which ordinal within this block is the current match?
+	let currentMatchOrdinal = $derived.by(() => {
+		const cur = notesSearch.currentMatch;
+		const q = notesSearch.findQuery;
+		if (!cur || !q || cur.blockIndex !== blockIndex) return -1;
+		const lowerText = content.toLowerCase();
+		const lowerQ = q.toLowerCase();
+		let count = 0;
+		let pos = 0;
+		while (pos < cur.start) {
+			const idx = lowerText.indexOf(lowerQ, pos);
+			if (idx === -1 || idx >= cur.start) break;
+			count++;
+			pos = idx + q.length;
+		}
+		return count;
+	});
+
+	// Preview-mode find highlighting via pure string manipulation (no DOM APIs)
+	let previewHtmlWithHighlights = $derived.by(() => {
+		if (!preview) return renderedHtml;
+		const q = notesSearch.findQuery;
+		if (!q || !renderedHtml) return renderedHtml;
+
+		const ordinal = currentMatchOrdinal;
+		const lowerQ = q.toLowerCase();
+		let result = '';
+		let matchCount = 0;
+		let i = 0;
+
+		while (i < renderedHtml.length) {
+			if (renderedHtml[i] === '<') {
+				// Copy entire tag verbatim
+				const end = renderedHtml.indexOf('>', i);
+				if (end === -1) {
+					result += renderedHtml.slice(i);
+					break;
+				}
+				result += renderedHtml.slice(i, end + 1);
+				i = end + 1;
+			} else {
+				// Collect text run until next tag
+				const textStart = i;
+				while (i < renderedHtml.length && renderedHtml[i] !== '<') i++;
+				const text = renderedHtml.slice(textStart, i);
+
+				// Search and highlight within this text run
+				const lowerText = text.toLowerCase();
+				let pos = 0;
+				while (pos < text.length) {
+					const idx = lowerText.indexOf(lowerQ, pos);
+					if (idx === -1) {
+						result += text.slice(pos);
+						break;
+					}
+					result += text.slice(pos, idx);
+					const isCurrent = matchCount === ordinal;
+					const bg = isCurrent ? 'rgba(234,179,8,.45)' : 'rgba(234,179,8,.2)';
+					result += `<mark class="find-match${isCurrent ? ' current' : ''}" style="background:${bg};border-radius:.25rem;color:inherit">${text.slice(idx, idx + q.length)}</mark>`;
+					matchCount++;
+					pos = idx + q.length;
+				}
+			}
+		}
+
+		return result;
+	});
+
 	// Sync backdrop text-rendering styles with textarea so word-wrap matches
 	$effect(() => {
 		if (!textareaEl || !backdropEl || !findActive) return;
@@ -337,10 +405,10 @@
 	}
 
 	$effect(() => {
-		// Auto-resize on mount and when content changes
+		// Auto-resize on mount, when content changes, and when toggling back from preview
 		if (textareaEl) {
 			content; // track reactivity
-			// Use a microtask to ensure DOM is updated
+			preview; // re-run when switching back to edit so hidden textarea gets resized
 			queueMicrotask(autoResize);
 		}
 	});
@@ -373,7 +441,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div bind:this={previewEl} class="prose prose-sm max-w-none min-h-8 py-1" class:hidden={!preview} onclick={handlePreviewClick}>
 	{#if content}
-		{@html renderedHtml}
+		{@html previewHtmlWithHighlights}
 	{:else}
 		<p class="text-base-content/30 italic">Empty block</p>
 	{/if}

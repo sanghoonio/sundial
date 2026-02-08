@@ -72,9 +72,18 @@
 		if (!match || !containerEl) return;
 
 		if (preview) {
-			const sel = window.getSelection();
-			sel?.removeAllRanges();
-			(window as any).find(query, false, false, true);
+			// Wait for $effect to inject <mark> elements, then scroll to current
+			queueMicrotask(() => {
+				const current = containerEl.querySelector('mark.find-match.current');
+				if (current) {
+					current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+				}
+			});
+
+			// Flash highlight on the block
+			clearTimeout(highlightTimer);
+			highlightedBlockIndex = match.blockIndex;
+			highlightTimer = setTimeout(() => { highlightedBlockIndex = null; }, 1500);
 		} else {
 			const blockEls = containerEl.querySelectorAll('[data-note-block]');
 			const blockEl = blockEls[match.blockIndex] as HTMLElement | undefined;
