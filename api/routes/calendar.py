@@ -188,7 +188,7 @@ async def list_events(
     if start:
         query = query.where(CalendarEvent.start_time >= start)
     if end:
-        query = query.where(CalendarEvent.start_time <= end)
+        query = query.where(CalendarEvent.start_time < end + timedelta(days=1))
 
     result = await db.execute(query)
     non_recurring = list(result.scalars().all())
@@ -209,7 +209,7 @@ async def list_events(
     if start:
         exc_query = exc_query.where(CalendarEvent.start_time >= start)
     if end:
-        exc_query = exc_query.where(CalendarEvent.start_time <= end)
+        exc_query = exc_query.where(CalendarEvent.start_time < end + timedelta(days=1))
     exc_result = await db.execute(exc_query)
     exceptions = list(exc_result.scalars().all())
 
@@ -225,7 +225,7 @@ async def list_events(
     # 4. Expand each master's RRULE into virtual instances
     # Ensure range bounds are timezone-aware (query params may be naive)
     range_start = start or datetime(2000, 1, 1)
-    range_end = end or datetime(2100, 1, 1)
+    range_end = (end + timedelta(days=1)) if end else datetime(2100, 1, 1)
     if range_start.tzinfo is None:
         range_start = range_start.replace(tzinfo=timezone.utc)
     if range_end.tzinfo is None:

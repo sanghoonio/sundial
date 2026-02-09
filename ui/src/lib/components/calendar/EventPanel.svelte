@@ -32,6 +32,7 @@
 	let location = $state('');
 	let rrule = $state<string | null>(null);
 
+	let endTouched = $state(false);
 	let saving = $state(false);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 	let showSavedText = $state(false);
@@ -106,6 +107,7 @@
 				endDate = '';
 				endTime = '';
 			}
+			endTouched = true;
 			liveEventId = event.id;
 		} else {
 			title = '';
@@ -114,9 +116,11 @@
 			allDay = false;
 			rrule = null;
 			startDate = defaultDate || formatLocalDate(new Date());
-			startTime = defaultTime || '';
-			endDate = '';
-			endTime = '';
+			startTime = defaultTime || '12:00';
+			endDate = startDate;
+			const [h, m] = startTime.split(':').map(Number);
+			endTime = h >= 23 ? '23:59' : `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+			endTouched = false;
 			liveEventId = null;
 		}
 		setTimeout(() => {
@@ -152,12 +156,34 @@
 		return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 	}
 
+	function plusOneHour(time: string): string {
+		const [h, m] = time.split(':').map(Number);
+		return h >= 23 ? '23:59' : `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+	}
+
+	function handleStartChange() {
+		if (!startDate || !startTime) return;
+		const endStamp = `${endDate}T${endTime}`;
+		const startStamp = `${startDate}T${startTime}`;
+		if (!endTouched || endStamp <= startStamp) {
+			endDate = startDate;
+			endTime = plusOneHour(startTime);
+		}
+	}
+
+	let endBeforeStart = $derived.by(() => {
+		if (!endDate) return false;
+		const s = `${startDate}T${startTime || '00:00'}`;
+		const e = `${endDate}T${endTime || '00:00'}`;
+		return e <= s;
+	});
+
 	function buildISOString(date: string, time: string): string {
 		return toLocalISOString(date, time || undefined);
 	}
 
 	async function handleSave() {
-		if (!title.trim() || !startDate) return;
+		if (!title.trim() || !startDate || endBeforeStart) return;
 		saving = true;
 		saveStatus = 'saving';
 
@@ -263,7 +289,7 @@
 	<div class="grid gap-1.5" class:grid-cols-2={!allDay}>
 		<div>
 			<label class="label py-0"><span class="label-text text-xs">Start</span></label>
-			<input type="date" class="input input-bordered input-xs w-full" bind:value={startDate} />
+			<input type="date" class="input input-bordered input-xs w-full" bind:value={startDate} oninput={handleStartChange} />
 		</div>
 		{#if !allDay}
 			<div>
@@ -272,6 +298,7 @@
 					type="time"
 					class="input input-bordered input-xs w-full"
 					bind:value={startTime}
+					oninput={handleStartChange}
 				/>
 			</div>
 		{/if}
@@ -281,7 +308,7 @@
 	<div class="grid gap-1.5" class:grid-cols-2={!allDay}>
 		<div>
 			<label class="label py-0"><span class="label-text text-xs">End</span></label>
-			<input type="date" class="input input-bordered input-xs w-full" bind:value={endDate} />
+			<input type="date" class="input input-bordered input-xs w-full" class:input-error={endBeforeStart} bind:value={endDate} onchange={() => endTouched = true} />
 		</div>
 		{#if !allDay}
 			<div>
@@ -289,11 +316,16 @@
 				<input
 					type="time"
 					class="input input-bordered input-xs w-full"
+					class:input-error={endBeforeStart}
 					bind:value={endTime}
+					onchange={() => endTouched = true}
 				/>
 			</div>
 		{/if}
 	</div>
+	{#if endBeforeStart}
+		<p class="text-error text-xs -mt-1">End must be after start</p>
+	{/if}
 
 	<Input placeholder="Location" bind:value={location} />
 

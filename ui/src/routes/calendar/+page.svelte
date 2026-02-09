@@ -70,7 +70,9 @@
 			return { start: fmt(start), end: fmt(end) };
 		}
 		if (v === 'day') {
-			return { start: fmt(date), end: fmt(date) };
+			const nextDay = new Date(date);
+			nextDay.setDate(nextDay.getDate() + 1);
+			return { start: fmt(date), end: fmt(nextDay) };
 		}
 		// agenda: 30 days forward
 		const end = new Date(date);
@@ -179,7 +181,9 @@
 	}
 
 	function handleEventSaved(evt: EventResponse, isNew: boolean) {
-		if (isNew) {
+		if (evt.rrule) {
+			loadData();
+		} else if (isNew) {
 			events = [...events, evt];
 		} else {
 			events = events.map((e) => (e.id === evt.id ? evt : e));

@@ -84,7 +84,7 @@
 	</select>
 
 	{#if frequency}
-		<div class="flex flex-col gap-1.5 pl-2">
+		<div class="flex flex-col gap-1.5">
 			<!-- svelte-ignore a11y_label_has_associated_control -->
 			<label class="label py-0"><span class="label-text text-xs">Ends</span></label>
 			<select

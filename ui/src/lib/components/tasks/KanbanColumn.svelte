@@ -116,7 +116,7 @@
 		const target = e.currentTarget as HTMLElement;
 		const listEl = target.querySelector('[data-task-list]') as HTMLElement;
 		if (listEl) {
-			const cards = Array.from(listEl.querySelectorAll('[data-task-card]:not([data-dragging])'));
+			const cards = Array.from(listEl.querySelectorAll('[data-task-card]'));
 			let idx = cards.length;
 			for (let i = 0; i < cards.length; i++) {
 				const rect = cards[i].getBoundingClientRect();
@@ -247,19 +247,18 @@
 				role="listitem"
 				data-task-card
 				data-dragging={draggingTaskId === task.id ? '' : undefined}
+				class:hidden={draggingTaskId === task.id}
 			>
-				{#if draggingTaskId !== task.id}
-					<div class={task.status === 'done' ? 'opacity-50' : ''}>
-						<TaskCard
-							{task}
-							draggable
-							selected={task.id === selectedTaskId}
-							onclick={() => ontaskclick?.(task)}
-							ondelete={() => ontaskdelete?.(task.id)}
-							{onstatustoggle}
-						/>
-					</div>
-				{/if}
+				<div class={task.status === 'done' ? 'opacity-50' : ''}>
+					<TaskCard
+						{task}
+						draggable
+						selected={task.id === selectedTaskId}
+						onclick={() => ontaskclick?.(task)}
+						ondelete={() => ontaskdelete?.(task.id)}
+						{onstatustoggle}
+					/>
+				</div>
 			</div>
 		{/each}
 		{#if dragOver && dropIndex === tasks.length}
