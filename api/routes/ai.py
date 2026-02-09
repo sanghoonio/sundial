@@ -1,3 +1,4 @@
+import zoneinfo
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -116,10 +117,13 @@ async def analyze_note(
 
 @router.get("/suggestions/daily", response_model=DailySuggestionsResponse)
 async def daily_suggestions(db: AsyncSession = Depends(get_db), tz: str | None = Query(None)):
-    today_start, today_end, _ = resolve_today(tz)
+    today_start, today_end, local_date = resolve_today(tz)
     seven_days_ago = today_start - timedelta(days=7)
 
-    # Today's events
+    # Resolve user timezone for display conversion
+    user_tz = zoneinfo.ZoneInfo(tz) if tz else timezone.utc
+
+    # Today's events — convert times to user's local timezone
     event_result = await db.execute(
         select(CalendarEvent)
         .where(CalendarEvent.start_time.between(today_start, today_end))
@@ -127,11 +131,16 @@ async def daily_suggestions(db: AsyncSession = Depends(get_db), tz: str | None =
         .limit(20)
     )
     events = [
-        {"id": e.id, "title": e.title, "start_time": str(e.start_time), "end_time": str(e.end_time)}
+        {
+            "id": e.id,
+            "title": e.title,
+            "start_time": e.start_time.replace(tzinfo=timezone.utc).astimezone(user_tz).isoformat(),
+            "end_time": e.end_time.replace(tzinfo=timezone.utc).astimezone(user_tz).isoformat() if e.end_time else None,
+        }
         for e in event_result.scalars().all()
     ]
 
-    # Pending tasks
+    # Pending tasks — convert due_date to user's local timezone
     task_result = await db.execute(
         select(Task)
         .where(Task.status != "done")
@@ -139,7 +148,12 @@ async def daily_suggestions(db: AsyncSession = Depends(get_db), tz: str | None =
         .limit(20)
     )
     tasks = [
-        {"id": t.id, "title": t.title, "priority": t.priority, "due_date": str(t.due_date) if t.due_date else None}
+        {
+            "id": t.id,
+            "title": t.title,
+            "priority": t.priority,
+            "due_date": t.due_date.replace(tzinfo=timezone.utc).astimezone(user_tz).isoformat() if t.due_date else None,
+        }
         for t in task_result.scalars().all()
     ]
 
@@ -155,5 +169,5 @@ async def daily_suggestions(db: AsyncSession = Depends(get_db), tz: str | None =
         for n in note_result.scalars().all()
     ]
 
-    result = await ai_service.daily_suggestions(events, tasks, notes, db)
+    result = await ai_service.daily_suggestions(events, tasks, notes, db, tz=tz, local_date=local_date)
     return DailySuggestionsResponse(**result)

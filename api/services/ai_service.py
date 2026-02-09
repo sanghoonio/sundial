@@ -291,6 +291,8 @@ async def daily_suggestions(
     tasks: list[dict],
     notes: list[dict],
     db: AsyncSession,
+    tz: str | None = None,
+    local_date: str | None = None,
 ) -> dict:
     """Generate daily overview. Returns {summary, priorities, connections}."""
     config = await _get_config(db)
@@ -298,6 +300,9 @@ async def daily_suggestions(
         return {"summary": "", "priorities": [], "connections": []}
 
     context_parts = []
+    if local_date:
+        tz_label = tz or "UTC"
+        context_parts.append(f"Today is {local_date} ({tz_label}).")
     if events:
         context_parts.append(f"Today's events:\n{json.dumps(events, default=str)}")
     if tasks:

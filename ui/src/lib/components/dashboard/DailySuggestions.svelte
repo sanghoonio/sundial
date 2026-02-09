@@ -40,7 +40,10 @@
 		}
 
 		try {
-			suggestions = await api.get<DailySuggestionsResponse>('/api/ai/suggestions/daily');
+			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			suggestions = await api.get<DailySuggestionsResponse>(
+				`/api/ai/suggestions/daily?tz=${encodeURIComponent(tz)}`
+			);
 			error = null;
 		} catch (e) {
 			console.error('Failed to load daily suggestions', e);

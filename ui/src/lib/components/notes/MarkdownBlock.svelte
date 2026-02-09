@@ -460,7 +460,7 @@
 		<div onclick={onfocus} class="relative">
 			<div
 				bind:this={backdropEl}
-				class="absolute inset-0 pointer-events-none overflow-hidden whitespace-pre-wrap break-words text-transparent [&_mark]:text-transparent [&_mark]:bg-warning/20 [&_mark]:rounded [&_mark]:py-[2px] [&_mark]:pl-[3.5px] [&_mark]:pr-[1.5px] [&_mark]:-ml-[3.5px] [&_mark]:-mr-[1.5px] [&_mark.current]:bg-warning/50"
+				class="absolute inset-0 pointer-events-none overflow-hidden whitespace-pre-wrap break-words text-transparent [&_mark]:text-transparent [&_mark]:bg-warning/20 [&_mark]:rounded [&_mark]:py-[2px] [&_mark]:pl-[3px] [&_mark]:pr-[3px] [&_mark]:-ml-[3px] [&_mark]:-mr-[3px] [&_mark.current]:bg-warning/50"
 				class:hidden={!findActive}
 				aria-hidden="true"
 			>{@html highlightedHtml}</div>
