@@ -85,7 +85,7 @@ async def get_today(db: AsyncSession = Depends(get_db), tz: str | None = Query(N
         .where(
             (Task.status != "done") &
             (Task.due_date.isnot(None)) &
-            (Task.due_date <= today_end)
+            (Task.due_date < today_end)
         )
         .order_by(Task.priority.desc(), Task.created_at)
         .limit(20)

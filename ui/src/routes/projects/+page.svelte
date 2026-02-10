@@ -459,7 +459,7 @@
 				{/each}
 			</div>
 			<button
-				class="btn btn-sm shrink-0 {viewMode === 'timeline' ? 'btn-primary' : 'btn-ghost'}"
+				class="btn btn-ghost btn-sm shrink-0 {viewMode === 'timeline' ? 'btn-active' : ''}"
 				onclick={() => {
 					viewMode = viewMode === 'timeline' ? 'grid' : 'timeline';
 					const url = new URL(window.location.href);
@@ -691,30 +691,29 @@
 						bind:value={editDescription}
 					></textarea>
 
-					<!-- Status + Color + Icon -->
-					<div class="grid grid-cols-2 gap-3">
-						<div>
-							<p class="text-xs text-base-content/60 mb-1">Status</p>
-							<select class="select select-bordered select-sm w-full" bind:value={editStatus}>
-								<option value="active">Active</option>
-								<option value="paused">Paused</option>
-								<option value="completed">Completed</option>
-								<option value="archived">Archived</option>
-							</select>
-						</div>
-						<div>
-							<p class="text-xs text-base-content/60 mb-1">Color</p>
-							<div class="flex items-center gap-1.5 flex-wrap">
-								<input type="color" class="w-7 h-7 rounded cursor-pointer border-0" bind:value={editColor} />
-								{#each colorPresets as color}
-									<button
-										class="w-4 h-4 rounded-full border-2 transition-transform {editColor === color ? 'border-base-content scale-110' : 'border-transparent'}"
-										style:background-color={color}
-										onclick={() => (editColor = color)}
-										aria-label="Select {color}"
-									></button>
-								{/each}
-							</div>
+					<!-- Status -->
+					<div>
+						<p class="text-xs text-base-content/60 mb-1">Status</p>
+						<select class="select select-bordered select-sm w-full" bind:value={editStatus}>
+							<option value="active">Active</option>
+							<option value="paused">Paused</option>
+							<option value="completed">Completed</option>
+							<option value="archived">Archived</option>
+						</select>
+					</div>
+					<!-- Color -->
+					<div>
+						<p class="text-xs text-base-content/60 mb-1">Color</p>
+						<div class="flex items-center gap-1.5 flex-wrap">
+							<input type="color" class="w-7 h-7 rounded cursor-pointer border-0" bind:value={editColor} />
+							{#each colorPresets as color}
+								<button
+									class="w-4 h-4 rounded-full border-2 transition-transform {editColor === color ? 'border-base-content scale-110' : 'border-transparent'}"
+									style:background-color={color}
+									onclick={() => (editColor = color)}
+									aria-label="Select {color}"
+								></button>
+							{/each}
 						</div>
 					</div>
 					<div>

@@ -391,6 +391,9 @@
 		} else if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
 			e.preventDefault();
 			preview = !preview;
+		} else if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+			e.preventDefault();
+			showMeta = !showMeta;
 		} else if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
 			e.preventDefault();
 			fullscreen.toggle();
@@ -578,7 +581,7 @@
 				class="btn btn-ghost btn-sm btn-square hidden md:flex"
 				class:btn-active={showMeta}
 				onclick={() => (showMeta = !showMeta)}
-				title="Note info"
+				title="Note info (Ctrl+I)"
 			>
 				<Info size={16} />
 			</button>
@@ -638,13 +641,143 @@
 		<div class="h-full overflow-y-auto p-4 md:p-6" ondblclick={handleContentDblClick} bind:this={editorContentEl}>
 		<!-- Metadata section -->
 		{#if showMeta}
-			<div class="mb-4 md:mb-6 rounded-lg border border-base-content/10 bg-base-200/30 p-3 flex flex-col gap-3">
-				<div>
-					<span class="text-xs font-medium text-base-content/50 mb-1 block">Tags</span>
+			<div class="mb-4 md:mb-6 rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 flex flex-col">
+				<div class="pb-3">
+					<span class="text-xs font-medium text-base-content/50 mb-2 block">Tags</span>
 					<TagInput bind:tags />
 				</div>
+				<!-- Links -->
+				<div class="border-t border-base-content/5 -mx-3 px-3 pt-1">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-xs font-medium text-base-content/50">Links</span>
+						<div class="flex items-center gap-1">
+							{#if createTaskProjectId}
+								<button class="btn btn-ghost btn-xs gap-1" onclick={() => (createTaskOpen = true)}>
+									<Plus size={14} />
+									Create task
+								</button>
+							{/if}
+							<button class="btn btn-ghost btn-xs gap-1" onclick={openTaskSelector}>
+								<Link size={14} />
+								Link task
+							</button>
+						</div>
+					</div>
+
+					<!-- Task selector dropdown -->
+					{#if showTaskSelector}
+						<div class="mb-3 p-2 border border-base-300 rounded-lg bg-base-200">
+							<input
+								type="text"
+								class="input input-bordered input-xs w-full mb-2"
+								placeholder="Search tasks..."
+								bind:value={taskSearchQuery}
+							/>
+							{#if loadingTasks}
+								<div class="flex justify-center py-2">
+									<span class="loading loading-spinner loading-xs"></span>
+								</div>
+							{:else}
+								{@const filteredTasks = availableTasks.filter((t) =>
+									!linkedTaskIds.includes(t.id) &&
+									(!taskSearchQuery || t.title.toLowerCase().includes(taskSearchQuery.toLowerCase()))
+								)}
+								{#if filteredTasks.length > 0}
+									<div class="max-h-32 overflow-y-auto flex flex-col gap-0.5">
+										{#each filteredTasks as task}
+											<button
+												class="text-left text-xs px-2 py-1 rounded hover:bg-base-300 truncate"
+												onclick={() => linkTask(task.id)}
+											>
+												{task.title}
+											</button>
+										{/each}
+									</div>
+								{:else}
+									<p class="text-xs text-base-content/50 text-center py-2">No tasks found</p>
+								{/if}
+							{/if}
+							<button class="btn btn-ghost btn-xs w-full mt-1" onclick={() => (showTaskSelector = false)}>
+								Cancel
+							</button>
+						</div>
+					{/if}
+
+					{#if hasAnyLinks && links}
+						<!-- Tasks -->
+						{#if hasTasks}
+							<div class="mb-3">
+								<span class="text-xs text-base-content/40 uppercase tracking-wide block mb-1">Tasks</span>
+								{#each links.outgoing_tasks as task}
+									<div class="flex items-center gap-1 group">
+										<a href="{base}/tasks/{task.project_id}?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+											<span>{task.title}</span>
+											<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : 'badge-ghost'}">{task.status === 'done' ? 'done' : 'in progress'}</span>
+										</a>
+										<button
+											class="opacity-0 group-hover:opacity-100 hover:text-error transition-all cursor-pointer shrink-0"
+											onclick={() => unlinkTask(task.id)}
+											title="Unlink task"
+										>
+											<X size={12} />
+										</button>
+									</div>
+								{/each}
+								{#each links.incoming_tasks as task}
+									<div class="flex items-center gap-1 group">
+										<a href="{base}/tasks/{task.project_id}?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
+											<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
+											<span>{task.title}</span>
+											<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : 'badge-ghost'}">{task.status === 'done' ? 'done' : 'in progress'}</span>
+										</a>
+										<button
+											class="opacity-0 group-hover:opacity-100 hover:text-error transition-all cursor-pointer shrink-0"
+											onclick={() => unlinkTask(task.id)}
+											title="Unlink task"
+										>
+											<X size={12} />
+										</button>
+									</div>
+								{/each}
+							</div>
+						{/if}
+
+						<!-- Events -->
+						{#if hasEvents}
+							<div class="mb-3 leading-tight">
+								<span class="text-xs text-base-content/40 uppercase tracking-wide block">Events</span>
+								{#each links.outgoing_events as ev}
+									<a href="{base}/calendar" class="inline-flex items-center gap-1.5 text-xs">
+										<CalendarDays size={12} class="shrink-0 text-base-content/50" />
+										<span>{ev.title}</span>
+										<span class="text-base-content/40">{new Date(ev.start_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+									</a><br>
+								{/each}
+							</div>
+						{/if}
+
+						<!-- Notes -->
+						{#if hasNotes}
+							<div class="mb-3 leading-tight">
+								<span class="text-xs text-base-content/40 uppercase tracking-wide block">Notes</span>
+								{#each links.outgoing_notes as n}
+									<a href="{base}/notes/{n.id}" class="link link-primary text-xs">{n.title}</a><br>
+								{/each}
+								{#each links.incoming_notes as n}
+									<a href="{base}/notes/{n.id}" class="inline-flex items-center gap-1 text-xs link link-primary">
+										<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
+										{n.title}
+									</a><br>
+								{/each}
+							</div>
+						{/if}
+					{:else}
+						<p class="text-xs text-base-content/40 pb-3">No links yet</p>
+					{/if}
+				</div>
+
 				{#if note}
-					<div class="flex gap-6 text-xs text-base-content/40">
+					<div class="flex gap-6 text-xs text-base-content/40 border-t border-base-content/5 -mx-3 px-3 pt-2">
 						<span>Created {new Date(note.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
 						<span>Updated {new Date(note.updated_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
 					</div>
@@ -659,136 +792,6 @@
 			{preview}
 			onchange={(b) => (blocks = b)}
 		/>
-
-		<!-- Links -->
-		<div class="mt-8 border-t border-base-300 pt-4">
-			<div class="flex items-center justify-between mb-2">
-				<h3 class="font-semibold text-sm text-base-content/60">Links</h3>
-				<div class="flex items-center gap-1">
-					{#if createTaskProjectId}
-						<button class="btn btn-ghost btn-xs gap-1" onclick={() => (createTaskOpen = true)}>
-							<Plus size={14} />
-							Create task
-						</button>
-					{/if}
-					<button class="btn btn-ghost btn-xs gap-1" onclick={openTaskSelector}>
-						<Link size={14} />
-						Link task
-					</button>
-				</div>
-			</div>
-
-			<!-- Task selector dropdown -->
-			{#if showTaskSelector}
-				<div class="mb-3 p-2 border border-base-300 rounded-lg bg-base-200">
-					<input
-						type="text"
-						class="input input-bordered input-xs w-full mb-2"
-						placeholder="Search tasks..."
-						bind:value={taskSearchQuery}
-					/>
-					{#if loadingTasks}
-						<div class="flex justify-center py-2">
-							<span class="loading loading-spinner loading-xs"></span>
-						</div>
-					{:else}
-						{@const filteredTasks = availableTasks.filter((t) =>
-							!linkedTaskIds.includes(t.id) &&
-							(!taskSearchQuery || t.title.toLowerCase().includes(taskSearchQuery.toLowerCase()))
-						)}
-						{#if filteredTasks.length > 0}
-							<div class="max-h-32 overflow-y-auto flex flex-col gap-0.5">
-								{#each filteredTasks as task}
-									<button
-										class="text-left text-xs px-2 py-1 rounded hover:bg-base-300 truncate"
-										onclick={() => linkTask(task.id)}
-									>
-										{task.title}
-									</button>
-								{/each}
-							</div>
-						{:else}
-							<p class="text-xs text-base-content/50 text-center py-2">No tasks found</p>
-						{/if}
-					{/if}
-					<button class="btn btn-ghost btn-xs w-full mt-1" onclick={() => (showTaskSelector = false)}>
-						Cancel
-					</button>
-				</div>
-			{/if}
-
-			{#if hasAnyLinks && links}
-				<!-- Tasks -->
-				{#if hasTasks}
-					<div class="mb-3">
-						<span class="text-xs text-base-content/40 uppercase tracking-wide block mb-1">Tasks</span>
-						{#each links.outgoing_tasks as task}
-							<div class="flex items-center gap-1 group">
-								<a href="{base}/tasks/{task.project_id}?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
-									<span>{task.title}</span>
-									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : 'badge-ghost'}">{task.status === 'done' ? 'done' : 'in progress'}</span>
-								</a>
-								<button
-									class="opacity-0 group-hover:opacity-100 hover:text-error transition-all cursor-pointer shrink-0"
-									onclick={() => unlinkTask(task.id)}
-									title="Unlink task"
-								>
-									<X size={12} />
-								</button>
-							</div>
-						{/each}
-						{#each links.incoming_tasks as task}
-							<div class="flex items-center gap-1 group">
-								<a href="{base}/tasks/{task.project_id}?task={task.id}" class="inline-flex items-center gap-1.5 text-xs">
-									<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
-									<span>{task.title}</span>
-									<span class="badge badge-xs {task.status === 'done' ? 'badge-success' : 'badge-ghost'}">{task.status === 'done' ? 'done' : 'in progress'}</span>
-								</a>
-								<button
-									class="opacity-0 group-hover:opacity-100 hover:text-error transition-all cursor-pointer shrink-0"
-									onclick={() => unlinkTask(task.id)}
-									title="Unlink task"
-								>
-									<X size={12} />
-								</button>
-							</div>
-						{/each}
-					</div>
-				{/if}
-
-				<!-- Events -->
-				{#if hasEvents}
-					<div class="mb-3 leading-tight">
-						<span class="text-xs text-base-content/40 uppercase tracking-wide block">Events</span>
-						{#each links.outgoing_events as ev}
-							<a href="{base}/calendar" class="inline-flex items-center gap-1.5 text-xs">
-								<CalendarDays size={12} class="shrink-0 text-base-content/50" />
-								<span>{ev.title}</span>
-								<span class="text-base-content/40">{new Date(ev.start_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-							</a><br>
-						{/each}
-					</div>
-				{/if}
-
-				<!-- Notes -->
-				{#if hasNotes}
-					<div class="mb-3 leading-tight">
-						<span class="text-xs text-base-content/40 uppercase tracking-wide block">Notes</span>
-						{#each links.outgoing_notes as n}
-							<a href="{base}/notes/{n.id}" class="link link-primary text-xs">{n.title}</a><br>
-						{/each}
-						{#each links.incoming_notes as n}
-							<a href="{base}/notes/{n.id}" class="inline-flex items-center gap-1 text-xs link link-primary">
-								<ArrowUpLeft size={10} class="shrink-0 text-base-content/40" />
-								{n.title}
-							</a><br>
-						{/each}
-					</div>
-				{/if}
-			{:else}
-				<p class="text-sm text-base-content/40">No links yet</p>
-			{/if}
-		</div>
 		</div>
 		</div>
 	</div>
