@@ -39,11 +39,14 @@ Add `on(eventTypes, callback, debounceMs)` method to `ui/src/lib/stores/websocke
    - Last event data forwarding
    - Unsubscribe function that clears timers
 
-3. **Page subscriptions added:**
-   - `ui/src/routes/notes/+layout.svelte` — sidebar refresh (500ms)
+3. **Page subscriptions added (all silent — no loading spinners, targeted updates):**
+   - `ui/src/routes/notes/+layout.svelte` — split by event type:
+     - `note_deleted`: filter from local array + refresh tags (0ms, no API call for list)
+     - `note_updated`/`ai_tags_suggested`: fetch single note → patch in-place + refresh tags (500ms)
+     - `note_created`: silent list re-fetch without loading spinner (500ms)
    - `ui/src/routes/notes/[id]/+page.svelte` — note reload with unsaved-changes guard (1000ms) + deletion redirect (0ms)
-   - `ui/src/routes/tasks/[projectId]/+page.svelte` — tasks + projects refresh (500ms)
-   - `ui/src/routes/calendar/+page.svelte` — calendar data refresh (500ms)
-   - `ui/src/routes/+page.svelte` — dashboard refresh (2000ms)
+   - `ui/src/routes/tasks/[projectId]/+page.svelte` — silent tasks + projects re-fetch, updates `selectedTask` in-place (500ms)
+   - `ui/src/routes/calendar/+page.svelte` — silent data re-fetch, preserves view/date/panel state (500ms)
+   - `ui/src/routes/+page.svelte` — silent dashboard data re-fetch, skips AI suggestions (2000ms)
 
 4. **Verification**: `svelte-check` passes with 0 errors.

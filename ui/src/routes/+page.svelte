@@ -74,7 +74,7 @@
 		load();
 	});
 
-	// WebSocket: refresh dashboard when any data changes externally
+	// WebSocket: silently refresh dashboard data (no loading spinner, no AI re-fetch)
 	$effect(() => {
 		return ws.on(
 			[
@@ -83,7 +83,13 @@
 				'event_created', 'event_updated', 'event_deleted',
 				'project_updated'
 			],
-			() => { load(); },
+			async () => {
+				try {
+					const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+					const tzParam = `?tz=${encodeURIComponent(tz)}`;
+					dashboard = await api.get<DashboardResponse>(`/api/dashboard/today${tzParam}`);
+				} catch { /* ignore */ }
+			},
 			2000
 		);
 	});

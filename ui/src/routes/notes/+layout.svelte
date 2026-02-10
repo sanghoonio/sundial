@@ -121,13 +121,66 @@
 		});
 	});
 
-	// WebSocket: refresh sidebar when notes change externally
+	// WebSocket: targeted sidebar updates when notes change externally
 	$effect(() => {
-		return ws.on(
-			['note_created', 'note_updated', 'note_deleted', 'ai_tags_suggested'],
-			() => { notesList.refresh(); },
-			500
-		);
+		const unsubDelete = ws.on(['note_deleted'], (data) => {
+			const id = data.id as string;
+			if (!id) return;
+			untrack(() => {
+				notes = notes.filter((n) => n.id !== id);
+				total = Math.max(0, total - 1);
+				loadTags();
+			});
+		}, 0);
+
+		const unsubUpdate = ws.on(['note_updated', 'ai_tags_suggested'], async (data) => {
+			const id = data.id as string;
+			if (!id) return;
+			try {
+				const n = await api.get<NoteResponse>(`/api/notes/${id}`);
+				const firstBlock = n.blocks?.[0];
+				const preview = firstBlock?.type === 'md' ? (firstBlock.content || '').slice(0, 80) : '';
+				untrack(() => {
+					const idx = notes.findIndex((x) => x.id === id);
+					if (idx !== -1) {
+						notes[idx] = {
+							id: n.id, title: n.title, filepath: n.filepath,
+							tags: n.tags, project_id: n.project_id,
+							linked_tasks: n.linked_tasks, linked_events: n.linked_events,
+							preview, created_at: n.created_at, updated_at: n.updated_at
+						};
+						notes = [...notes];
+					}
+					loadTags();
+				});
+			} catch { /* note may have been deleted */ }
+		}, 500);
+
+		const unsubCreate = ws.on(['note_created'], async () => {
+			// Silent re-fetch — no loading spinner
+			try {
+				const params = new URLSearchParams();
+				const tag = untrack(() => selectedTag);
+				const proj = untrack(() => selectedProject);
+				const q = untrack(() => activeSearch);
+				if (tag) params.set('tag', tag);
+				if (proj) params.set('project_id', proj);
+				if (q) params.set('search', q);
+				params.set('limit', String(PAGE_SIZE));
+				params.set('offset', '0');
+				const qs = params.toString();
+				const res = await api.get<NoteList>(`/api/notes${qs ? '?' + qs : ''}`);
+				untrack(() => {
+					notes = res.notes;
+					total = res.total;
+					offset = notes.length;
+				});
+			} catch { /* ignore */ }
+			loadTags();
+			loadProjects();
+		}, 500);
+
+		return () => { unsubDelete(); unsubUpdate(); unsubCreate(); };
 	});
 
 	let filteredTags = $derived(

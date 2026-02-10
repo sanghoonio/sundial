@@ -198,6 +198,7 @@
 			};
 			note = await api.put<NoteResponse>(`/api/notes/${noteId}`, update);
 			lastSavedSnapshot = currentSnapshot();
+			lastSaveTime = Date.now();
 			// Patch the list item in-place (no full re-fetch / no spinner)
 			const firstMdBlock = blocks.find((b) => b.type === 'md');
 			const previewText = (firstMdBlock?.content || '').slice(0, 80);
@@ -232,6 +233,7 @@
 	// Auto-save: debounce 500ms after any actual change
 	let autoSaveTimer: ReturnType<typeof setTimeout>;
 	let lastSavedSnapshot = $state('');
+	let lastSaveTime = 0;
 
 	function currentSnapshot(): string {
 		return JSON.stringify({ title, blocks, tags, projectId });
@@ -256,6 +258,8 @@
 			['note_updated', 'ai_tags_suggested'],
 			(data) => {
 				if (data.id !== id || isNew) return;
+				// Skip our own save's broadcast bouncing back
+				if (Date.now() - lastSaveTime < 2000) return;
 				if (currentSnapshot() !== lastSavedSnapshot) return;
 				load();
 			},

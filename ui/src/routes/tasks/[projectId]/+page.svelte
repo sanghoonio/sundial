@@ -153,14 +153,27 @@
 		}
 	});
 
-	// WebSocket: refresh tasks when modified externally
+	// WebSocket: silently refresh tasks when modified externally (no loading spinner)
 	$effect(() => {
 		const projectId = selectedProjectId;
 		return ws.on(
 			['task_created', 'task_updated', 'task_deleted', 'project_updated'],
-			() => {
-				if (projectId) loadTasks(projectId);
-				loadProjects();
+			async () => {
+				if (projectId) {
+					try {
+						const res = await api.get<TaskList>(`/api/tasks?project_id=${projectId}&limit=200`);
+						tasks = res.tasks;
+						// Update selectedTask in-place if it's still present
+						if (selectedTask) {
+							const updated = res.tasks.find((t) => t.id === selectedTask!.id);
+							if (updated) selectedTask = updated;
+						}
+					} catch { /* ignore */ }
+				}
+				try {
+					const res = await api.get<ProjectList>('/api/projects');
+					projects = res.projects;
+				} catch { /* ignore */ }
 			},
 			500
 		);

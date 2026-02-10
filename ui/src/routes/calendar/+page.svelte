@@ -118,11 +118,21 @@
 		loadData();
 	});
 
-	// WebSocket: refresh calendar when events or tasks change externally
+	// WebSocket: silently refresh calendar when events or tasks change externally
 	$effect(() => {
 		return ws.on(
 			['event_created', 'event_updated', 'event_deleted', 'event_series_deleted', 'task_created', 'task_updated', 'task_deleted'],
-			() => { loadData(); },
+			async () => {
+				try {
+					const { start, end } = getDateRange(currentDate, view);
+					const [eventRes, taskRes] = await Promise.all([
+						api.get<EventList>(`/api/calendar/events?start=${start}&end=${end}`),
+						api.get<TaskList>(`/api/tasks?due_after=${start}&due_before=${end}&limit=200`)
+					]);
+					events = eventRes.events;
+					tasks = taskRes.tasks;
+				} catch { /* ignore */ }
+			},
 			500
 		);
 	});
