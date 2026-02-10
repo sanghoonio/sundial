@@ -648,25 +648,23 @@
 						placeholder="Description (optional)"
 						bind:value={newDescription}
 					></textarea>
-					<div class="grid grid-cols-2 gap-3">
-						<div>
-							<p class="text-xs text-base-content/60 mb-1">Color</p>
-							<div class="flex items-center gap-1.5 flex-wrap">
-								<input type="color" class="w-7 h-7 rounded cursor-pointer border-0" bind:value={newColor} />
-								{#each colorPresets as color}
-									<button
-										class="w-4 h-4 rounded-full border-2 transition-transform {newColor === color ? 'border-base-content scale-110' : 'border-transparent'}"
-										style:background-color={color}
-										onclick={() => (newColor = color)}
-										aria-label="Select {color}"
-									></button>
-								{/each}
-							</div>
+					<div>
+						<p class="text-xs text-base-content/60 mb-1">Color</p>
+						<div class="flex items-center gap-1.5 flex-wrap">
+							<input type="color" class="w-7 h-7 rounded cursor-pointer border-0" bind:value={newColor} />
+							{#each colorPresets as color}
+								<button
+									class="w-4 h-4 rounded-full border-2 transition-transform {newColor === color ? 'border-base-content scale-110' : 'border-transparent'}"
+									style:background-color={color}
+									onclick={() => (newColor = color)}
+									aria-label="Select {color}"
+								></button>
+							{/each}
 						</div>
-						<div>
-							<p class="text-xs text-base-content/60 mb-1">Icon</p>
-							<IconPicker bind:value={newIcon} />
-						</div>
+					</div>
+					<div>
+						<p class="text-xs text-base-content/60 mb-1">Icon</p>
+						<IconPicker bind:value={newIcon} />
 					</div>
 					<Button variant="primary" loading={creating} onclick={handleCreate}>
 						Create Project
@@ -679,7 +677,7 @@
 					<!-- Open Board link -->
 					<a
 						href="{base}/tasks/{selectedProjectId}"
-						class="btn btn-sm w-full gap-1.5 bg-base-100 border hover:bg-base-200"
+						class="btn btn-sm w-full gap-1.5 bg-base-100 border border-base-300 hover:bg-base-200"
 					>
 						Open Board
 						<ExternalLink size={14} />
@@ -749,7 +747,7 @@
 					{#if sidebarNotes.length > 0}
 						<div>
 							<p class="text-xs text-base-content/60 mb-1">Linked Notes</p>
-							<div class="flex flex-col divide-y divide-base-200">
+							<div class="flex flex-col divide-y divide-base-300">
 								{#each sidebarNotes as note}
 									<a
 										href="{base}/notes/{note.id}"
@@ -765,7 +763,7 @@
 
 					<!-- Timestamps -->
 					{#if selectedProject}
-						<div class="flex flex-col gap-1 text-xs text-base-content/40 pt-2 border-t border-base-200">
+						<div class="flex flex-col gap-1 text-xs text-base-content/40 pt-2 border-t border-base-300">
 							<span class="flex items-center gap-1">
 								<Clock size={11} />
 								Created {formatTimestamp(selectedProject.created_at)}
