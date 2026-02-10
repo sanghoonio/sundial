@@ -15,6 +15,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from api.database import async_session
+from api.utils.websocket import manager
 from api.models.calendar import CalendarEvent
 from api.models.note import Note, NoteLink, NoteTag, Tag
 from api.models.project import Project
@@ -559,6 +560,7 @@ async def _create_task(db, args: dict) -> list[TextContent]:
 
     await db.commit()
     await db.refresh(task)
+    await manager.broadcast("task_created", {"id": task.id, "title": task.title})
 
     result_text = f"Task created: **{task.title}** (id: {task.id})"
     if recurrence_rule:
@@ -682,6 +684,7 @@ async def _update_task(db, args: dict) -> list[TextContent]:
                 ))
 
     await db.commit()
+    await manager.broadcast("task_updated", {"id": task.id, "title": task.title})
 
     result_text = f"Task updated: **{task.title}** (status: {task.status}, priority: {task.priority})"
     if task.recurrence_rule:
@@ -1017,6 +1020,7 @@ async def _create_note(db, args: dict) -> list[TextContent]:
             return [TextContent(type="text", text=error)]
 
     note = await service_create_note(db, title=title, content=content, tags=tags, project_id=project_id)
+    await manager.broadcast("note_created", {"id": note.id, "title": note.title})
 
     project_str = f" in project {project_id}" if project_id else ""
     return [TextContent(type="text", text=f"Note created: **{note.title}** (id: {note.id}){project_str}")]
@@ -1052,6 +1056,7 @@ async def _update_note(db, args: dict) -> list[TextContent]:
     if note is None:
         return [TextContent(type="text", text=f"Failed to update note '{note_id}'.")]
 
+    await manager.broadcast("note_updated", {"id": note.id, "title": note.title})
     tag_str = ", ".join(t.name for t in note.tags) if note.tags else "none"
     project_str = f"\nProject: {note.project_id}" if note.project_id else ""
     return [TextContent(type="text", text=f"Note updated: **{note.title}** (id: {note.id})\nTags: {tag_str}{project_str}")]
@@ -1086,6 +1091,7 @@ async def _link_note_to_task(db, args: dict) -> list[TextContent]:
     # Create the link
     db.add(TaskNote(task_id=task_id, note_id=note_id))
     await db.commit()
+    await manager.broadcast("task_updated", {"id": task_id})
 
     return [TextContent(type="text", text=f"Linked note **{note.title}** to task **{task.title}**.")]
 
@@ -1257,6 +1263,7 @@ async def _delete_task(db, args: dict) -> list[TextContent]:
     success = await delete_task(db, task_id)
 
     if success:
+        await manager.broadcast("task_deleted", {"id": task_id})
         return [TextContent(type="text", text=f"Task '{task_id}' deleted successfully.")]
     return [TextContent(type="text", text=f"Task '{task_id}' not found.")]
 
@@ -1270,6 +1277,7 @@ async def _delete_note(db, args: dict) -> list[TextContent]:
     success = await delete_note(db, note_id)
 
     if success:
+        await manager.broadcast("note_deleted", {"id": note_id})
         return [TextContent(type="text", text=f"Note '{note_id}' deleted successfully.")]
     return [TextContent(type="text", text=f"Note '{note_id}' not found.")]
 
@@ -1311,6 +1319,7 @@ async def _create_calendar_event(db, args: dict) -> list[TextContent]:
     db.add(event)
     await db.commit()
     await db.refresh(event)
+    await manager.broadcast("event_created", {"id": event.id, "title": event.title})
 
     return [TextContent(type="text", text=f"Event created: **{event.title}** (id: {event.id})\nStart: {event.start_time}")]
 
@@ -1347,6 +1356,7 @@ async def _update_calendar_event(db, args: dict) -> list[TextContent]:
 
     event.updated_at = datetime.now(timezone.utc)
     await db.commit()
+    await manager.broadcast("event_updated", {"id": event.id, "title": event.title})
 
     return [TextContent(type="text", text=f"Event updated: **{event.title}** (id: {event.id})")]
 
@@ -1362,5 +1372,6 @@ async def _delete_calendar_event(db, args: dict) -> list[TextContent]:
 
     await db.delete(event)
     await db.commit()
+    await manager.broadcast("event_deleted", {"id": event_id})
 
     return [TextContent(type="text", text=f"Event '{event_id}' deleted successfully.")]

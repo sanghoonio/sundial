@@ -12,6 +12,7 @@
 	import ProjectIcon from '$lib/components/ui/ProjectIcon.svelte';
 	import { ChevronLeft, ChevronRight, CircleCheckBig } from 'lucide-svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
+	import { ws } from '$lib/stores/websocket.svelte';
 
 	let projects = $state<ProjectResponse[]>([]);
 	let sidebarExpanded = $state(false);
@@ -150,6 +151,19 @@
 		if (projectId) {
 			loadTasks(projectId);
 		}
+	});
+
+	// WebSocket: refresh tasks when modified externally
+	$effect(() => {
+		const projectId = selectedProjectId;
+		return ws.on(
+			['task_created', 'task_updated', 'task_deleted', 'project_updated'],
+			() => {
+				if (projectId) loadTasks(projectId);
+				loadProjects();
+			},
+			500
+		);
 	});
 
 	// Auto-select task from URL query param (for linked task navigation)

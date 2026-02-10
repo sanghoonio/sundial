@@ -21,6 +21,7 @@
 	import EventPanel from '$lib/components/calendar/EventPanel.svelte';
 	import EventModal from '$lib/components/calendar/EventModal.svelte';
 	import { Calendar } from 'lucide-svelte';
+	import { ws } from '$lib/stores/websocket.svelte';
 
 	type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
@@ -115,6 +116,15 @@
 		currentDate;
 		view;
 		loadData();
+	});
+
+	// WebSocket: refresh calendar when events or tasks change externally
+	$effect(() => {
+		return ws.on(
+			['event_created', 'event_updated', 'event_deleted', 'event_series_deleted', 'task_created', 'task_updated', 'task_deleted'],
+			() => { loadData(); },
+			500
+		);
 	});
 
 	function navigate(direction: -1 | 1) {

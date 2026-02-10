@@ -6,6 +6,7 @@
 	import FlipClock from '$lib/components/dashboard/FlipClock.svelte';
 	import { TypeWriter } from 'svelte-typewrite';
 	import { Plus, Calendar, StickyNote, CheckSquare } from 'lucide-svelte';
+	import { ws } from '$lib/stores/websocket.svelte';
 
 	function formatEventTime(event: DashboardEvent): string {
 		if (event.all_day) return 'All day';
@@ -71,6 +72,20 @@
 
 	$effect(() => {
 		load();
+	});
+
+	// WebSocket: refresh dashboard when any data changes externally
+	$effect(() => {
+		return ws.on(
+			[
+				'note_created', 'note_updated', 'note_deleted',
+				'task_created', 'task_updated', 'task_deleted',
+				'event_created', 'event_updated', 'event_deleted',
+				'project_updated'
+			],
+			() => { load(); },
+			2000
+		);
 	});
 </script>
 

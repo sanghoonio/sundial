@@ -12,6 +12,7 @@
 	import { Plus, Search, X, ArrowDownNarrowWide, ArrowUpNarrowWide, ArrowDownAZ, ArrowDownZA, ChevronDown, BookOpen, Upload, FolderKanban, Tag } from 'lucide-svelte';
 	import { fullscreen } from '$lib/stores/fullscreen.svelte';
 	import { notesSearch } from '$lib/stores/notesSearch.svelte';
+	import { ws } from '$lib/stores/websocket.svelte';
 
 	let { children } = $props();
 
@@ -118,6 +119,15 @@
 			}
 			loadTags();
 		});
+	});
+
+	// WebSocket: refresh sidebar when notes change externally
+	$effect(() => {
+		return ws.on(
+			['note_created', 'note_updated', 'note_deleted', 'ai_tags_suggested'],
+			() => { notesList.refresh(); },
+			500
+		);
 	});
 
 	let filteredTags = $derived(

@@ -18,6 +18,7 @@
 	import { notesSearch } from '$lib/stores/notesSearch.svelte';
 	import FindBar from '$lib/components/notes/FindBar.svelte';
 	import type { TaskResponse } from '$lib/types';
+	import { ws } from '$lib/stores/websocket.svelte';
 
 	let note = $state<NoteResponse | null>(null);
 	let links = $state<LinksResponse | null>(null);
@@ -246,6 +247,36 @@
 		clearTimeout(autoSaveTimer);
 		autoSaveTimer = setTimeout(() => handleSave(), 500);
 		return () => clearTimeout(autoSaveTimer);
+	});
+
+	// WebSocket: reload note if updated externally (only when no unsaved changes)
+	$effect(() => {
+		const id = noteId;
+		const unsub = ws.on(
+			['note_updated', 'ai_tags_suggested'],
+			(data) => {
+				if (data.id !== id || isNew) return;
+				if (currentSnapshot() !== lastSavedSnapshot) return;
+				load();
+			},
+			1000
+		);
+		return unsub;
+	});
+
+	// WebSocket: navigate away if this note is deleted externally
+	$effect(() => {
+		const id = noteId;
+		const unsub = ws.on(
+			['note_deleted'],
+			(data) => {
+				if (data.id !== id) return;
+				toast.info('This note was deleted');
+				goto(`${base}/notes`);
+			},
+			0
+		);
+		return unsub;
 	});
 
 	async function handleDelete() {

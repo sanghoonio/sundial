@@ -9,6 +9,15 @@ let lastMessage = $state<WSMessage | null>(null);
 
 const refreshCallbacks = new Set<() => void>();
 
+interface Sub {
+	cb: (data: Record<string, unknown>) => void;
+	debounceMs: number;
+	timer: ReturnType<typeof setTimeout> | null;
+	lastData: Record<string, unknown>;
+}
+
+const subscriptions = new Map<string, Set<Sub>>();
+
 client.onMessage((msg) => {
 	lastMessage = msg;
 	connected = true;
@@ -31,6 +40,23 @@ client.onMessage((msg) => {
 		}
 	}
 
+	// Dispatch to typed subscriptions
+	const subs = subscriptions.get(msg.type);
+	if (subs) {
+		for (const sub of subs) {
+			sub.lastData = msg.data;
+			if (sub.timer) clearTimeout(sub.timer);
+			if (sub.debounceMs <= 0) {
+				sub.cb(sub.lastData);
+			} else {
+				sub.timer = setTimeout(() => {
+					sub.timer = null;
+					sub.cb(sub.lastData);
+				}, sub.debounceMs);
+			}
+		}
+	}
+
 	refreshCallbacks.forEach((cb) => cb());
 });
 
@@ -50,5 +76,23 @@ export const ws = {
 	onRefresh(cb: () => void): () => void {
 		refreshCallbacks.add(cb);
 		return () => refreshCallbacks.delete(cb);
+	},
+
+	on(eventTypes: string[], cb: (data: Record<string, unknown>) => void, debounceMs = 300): () => void {
+		const sub: Sub = { cb, debounceMs, timer: null, lastData: {} };
+		for (const type of eventTypes) {
+			let set = subscriptions.get(type);
+			if (!set) {
+				set = new Set();
+				subscriptions.set(type, set);
+			}
+			set.add(sub);
+		}
+		return () => {
+			if (sub.timer) clearTimeout(sub.timer);
+			for (const type of eventTypes) {
+				subscriptions.get(type)?.delete(sub);
+			}
+		};
 	}
 };
