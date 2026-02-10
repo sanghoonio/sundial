@@ -20,13 +20,15 @@
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 	import {
 		Plus, FolderKanban, CheckSquare, ExternalLink,
-		Trash2, Save, Check, Clock, X, ArrowLeft, GripVertical
+		Trash2, Save, Check, Clock, X, ArrowLeft, GripVertical, GanttChart
 	} from 'lucide-svelte';
+	import ProjectTimeline from '$lib/components/projects/ProjectTimeline.svelte';
 
 	let projects = $state<ProjectResponse[]>([]);
 	let loading = $state(true);
 
 	let statusFilter = $state('all');
+	let viewMode = $state<'grid' | 'timeline'>(page.url.searchParams.get('view') === 'timeline' ? 'timeline' : 'grid');
 
 	// Create state (sidebar)
 	let isCreating = $state(false);
@@ -446,6 +448,20 @@
 					</button>
 				{/each}
 			</div>
+			<button
+				class="btn btn-sm shrink-0 {viewMode === 'timeline' ? 'btn-primary' : 'btn-ghost'}"
+				onclick={() => {
+					viewMode = viewMode === 'timeline' ? 'grid' : 'timeline';
+					const url = new URL(window.location.href);
+					if (viewMode === 'timeline') url.searchParams.set('view', 'timeline');
+					else url.searchParams.delete('view');
+					goto(url.pathname + url.search, { replaceState: true });
+				}}
+				title={viewMode === 'timeline' ? 'Grid view' : 'Timeline view'}
+			>
+				<GanttChart size={14} />
+				<span class="hidden sm:inline text-xs">Timeline</span>
+			</button>
 			<button class="btn btn-primary btn-sm shrink-0" onclick={openCreateSidebar}>
 				<Plus size={16} />
 				<span class="hidden md:inline">New Project</span>
@@ -453,11 +469,28 @@
 		</div>
 
 		<!-- Scrollable content -->
-		<div class="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
+		<div class="flex-1 overflow-y-auto {viewMode === 'timeline' ? 'pb-20 md:pb-4' : 'p-4 pb-20 md:pb-4'}">
 			{#if loading}
 				<div class="flex items-center justify-center py-20">
 					<span class="loading loading-spinner loading-lg"></span>
 				</div>
+			{:else if viewMode === 'timeline'}
+				{#if filteredProjects.length > 0}
+					<ProjectTimeline projects={filteredProjects} />
+				{:else if projects.length > 0}
+					<div class="text-center py-20">
+						<p class="text-base-content/40">No {statusFilter} projects</p>
+					</div>
+				{:else}
+					<div class="text-center py-20">
+						<FolderKanban size={40} class="mx-auto text-base-content/20 mb-3" />
+						<p class="text-base-content/40 mb-4">No projects yet</p>
+						<button class="btn btn-primary btn-sm" onclick={openCreateSidebar}>
+							<Plus size={16} />
+							Create your first project
+						</button>
+					</div>
+				{/if}
 			{:else if filteredProjects.length > 0}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
@@ -544,8 +577,8 @@
 		</div>
 	</div>
 
-	<!-- Right sidebar: project settings / new project -->
-	{#if selectedProject || isCreating}
+	<!-- Right sidebar: project settings / new project (hidden in timeline mode) -->
+	{#if (selectedProject || isCreating) && viewMode === 'grid'}
 		<aside class="
 			fixed inset-0 z-50 bg-base-100 flex flex-col overflow-hidden
 			md:relative md:inset-auto md:z-auto md:w-80 lg:w-96 md:shrink-0 md:border-l md:border-base-300
