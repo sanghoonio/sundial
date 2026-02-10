@@ -5,6 +5,7 @@
 	import type { TaskResponse, TaskUpdate, ChecklistItemCreate, MilestoneResponse, ProjectResponse, NoteResponse, NoteList, EventResponse } from '$lib/types';
 	import { toLocalISOString } from '$lib/utils/calendar';
 	import { Trash2, Plus, Square, CheckSquare, StickyNote, CalendarDays, Clock, X, Save, Check, Link, ArrowLeft } from 'lucide-svelte';
+	import RecurrenceInput from '$lib/components/calendar/RecurrenceInput.svelte';
 	import { confirmModal } from '$lib/stores/confirm.svelte';
 
 	interface Props {
@@ -27,6 +28,7 @@
 	let milestoneId = $state<string | null>(null);
 	let checklist = $state<ChecklistItemCreate[]>([]);
 	let noteIds = $state<string[]>([]);
+	let recurrenceRule = $state<string | null>(null);
 
 	let currentProject = $derived(projects.find((p) => p.id === projectId));
 	let availableMilestones = $derived(currentProject?.milestones ?? milestones);
@@ -130,6 +132,7 @@
 		milestoneId = t.milestone_id;
 		checklist = t.checklist.map((c) => ({ text: c.text, is_checked: c.is_checked }));
 		noteIds = t.note_ids ?? [];
+		recurrenceRule = t.recurrence_rule ?? null;
 		linkedNoteTitles = {};
 		fetchedNoteIds.clear();
 		editingCheckIndex = null;
@@ -152,7 +155,7 @@
 	});
 
 	function currentSnapshot(): string {
-		return JSON.stringify({ title, description, status, priority, dueDate, projectId, milestoneId, checklist, noteIds });
+		return JSON.stringify({ title, description, status, priority, dueDate, projectId, milestoneId, checklist, noteIds, recurrenceRule });
 	}
 
 	async function handleSave() {
@@ -169,7 +172,8 @@
 				project_id: projectId,
 				milestone_id: milestoneId,
 				checklist,
-				note_ids: noteIds
+				note_ids: noteIds,
+				recurrence_rule: recurrenceRule
 			};
 			const updated = await api.put<TaskResponse>(`/api/tasks/${task.id}`, update);
 			lastSavedSnapshot = currentSnapshot();
@@ -382,6 +386,9 @@
 				</div>
 			{/if}
 		</div>
+
+		<!-- Recurrence -->
+		<RecurrenceInput bind:value={recurrenceRule} />
 
 		<!-- Linked items -->
 		<div>

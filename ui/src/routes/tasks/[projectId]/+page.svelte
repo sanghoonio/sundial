@@ -204,12 +204,17 @@
 	}
 
 	function handleTaskSaved(task: TaskResponse) {
+		const oldTask = tasks.find((t) => t.id === task.id);
 		if (task.project_id !== selectedProjectId) {
 			tasks = tasks.filter((t) => t.id !== task.id);
 			selectedTask = null;
 		} else {
 			tasks = tasks.map((t) => (t.id === task.id ? task : t));
 			selectedTask = task;
+		}
+		// Recurring task just completed → refetch to pick up spawned next instance
+		if (task.status === 'done' && task.recurrence_rule && oldTask?.status !== 'done') {
+			loadTasks(selectedProjectId);
 		}
 	}
 
@@ -239,11 +244,16 @@
 
 	async function handleStatusToggle(taskId: string, newStatus: string) {
 		const oldTasks = [...tasks];
+		const oldTask = tasks.find((t) => t.id === taskId);
 		tasks = tasks.map((t) => t.id === taskId ? { ...t, status: newStatus } : t);
 		try {
 			const updated = await api.put<TaskResponse>(`/api/tasks/${taskId}`, { status: newStatus });
 			tasks = tasks.map((t) => (t.id === taskId ? updated : t));
 			if (selectedTask?.id === taskId) selectedTask = updated;
+			// Recurring task completed → refetch to pick up the spawned next instance
+			if (newStatus === 'done' && oldTask?.recurrence_rule) {
+				await loadTasks(selectedProjectId);
+			}
 		} catch (e) {
 			tasks = oldTasks;
 			console.error('Failed to update task status', e);

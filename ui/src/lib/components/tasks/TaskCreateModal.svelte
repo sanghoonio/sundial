@@ -7,6 +7,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import { Plus, Trash2, Square, CheckSquare, StickyNote, CalendarDays } from 'lucide-svelte';
+	import RecurrenceInput from '$lib/components/calendar/RecurrenceInput.svelte';
 
 	interface Props {
 		open: boolean;
@@ -29,6 +30,7 @@
 	let selectedProjectId = $state('');
 	let selectedMilestoneId = $state<string | null>(null);
 	let checklist = $state<ChecklistItemCreate[]>([]);
+	let recurrenceRule = $state<string | null>(null);
 	let newCheckItem = $state('');
 	let creating = $state(false);
 
@@ -46,6 +48,7 @@
 			selectedProjectId = projectId;
 			selectedMilestoneId = milestoneId ?? null;
 			checklist = [];
+			recurrenceRule = null;
 			newCheckItem = '';
 		}
 	});
@@ -63,6 +66,7 @@
 			if (priority !== 'medium') data.priority = priority;
 			if (dueDate) data.due_date = toLocalISOString(dueDate);
 			if (checklist.length > 0) data.checklist = checklist;
+			if (recurrenceRule) data.recurrence_rule = recurrenceRule;
 			if (initialNoteId) data.note_ids = [initialNoteId];
 			if (calendarEventId) data.calendar_event_id = calendarEventId;
 
@@ -151,6 +155,9 @@
 				</div>
 			{/if}
 		</div>
+
+		<!-- Recurrence -->
+		<RecurrenceInput bind:value={recurrenceRule} />
 
 		<!-- Checklist -->
 		<div>

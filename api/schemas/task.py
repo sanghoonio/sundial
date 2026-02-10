@@ -27,6 +27,7 @@ class TaskCreate(BaseModel):
     calendar_event_id: str | None = None
     checklist: list[ChecklistItemCreate] = []
     note_ids: list[str] = []
+    recurrence_rule: str | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -39,6 +40,7 @@ class TaskUpdate(BaseModel):
     milestone_id: str | None = None
     checklist: list[ChecklistItemCreate] | None = None
     note_ids: list[str] | None = None
+    recurrence_rule: str | None = None
 
 
 class TaskMove(BaseModel):
@@ -58,6 +60,8 @@ class TaskResponse(BaseModel):
     calendar_event_id: str | None = None
     ai_suggested: bool = False
     position: int
+    recurrence_rule: str | None = None
+    recurring_series_id: str | None = None
     completed_at: datetime | None
     checklist: list[ChecklistItemResponse]
     note_ids: list[str] = []

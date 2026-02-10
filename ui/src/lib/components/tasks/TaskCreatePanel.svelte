@@ -4,6 +4,7 @@
 	import type { TaskCreate, TaskResponse, ChecklistItemCreate, ProjectResponse } from '$lib/types';
 	import { toLocalISOString } from '$lib/utils/calendar';
 	import { Plus, Trash2, Square, CheckSquare, StickyNote, X } from 'lucide-svelte';
+	import RecurrenceInput from '$lib/components/calendar/RecurrenceInput.svelte';
 
 	interface Props {
 		projectId: string;
@@ -22,6 +23,7 @@
 	let selectedProjectId = $state('');
 	let selectedMilestoneId = $state<string | null>(null);
 	let checklist = $state<ChecklistItemCreate[]>([]);
+	let recurrenceRule = $state<string | null>(null);
 	let newCheckItem = $state('');
 	let creating = $state(false);
 
@@ -46,6 +48,7 @@
 			if (dueDate) data.due_date = toLocalISOString(dueDate);
 			if (selectedMilestoneId) data.milestone_id = selectedMilestoneId;
 			if (checklist.length > 0) data.checklist = checklist;
+			if (recurrenceRule) data.recurrence_rule = recurrenceRule;
 			if (initialNoteId) data.note_ids = [initialNoteId];
 
 			const task = await api.post<TaskResponse>('/api/tasks', data);
@@ -157,6 +160,9 @@
 				</div>
 			{/if}
 		</div>
+
+		<!-- Recurrence -->
+		<RecurrenceInput bind:value={recurrenceRule} />
 
 		<!-- Initial note badge -->
 		{#if initialNoteId}

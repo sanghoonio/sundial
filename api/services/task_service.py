@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from api.models.task import Task, TaskChecklist, TaskNote
+from api.utils.recurrence import generate_series_id, next_occurrence
 
 # Sentinel to distinguish "not provided" from explicit None
 _UNSET: Any = object()
@@ -31,6 +32,7 @@ async def create_task(
     calendar_event_id: str | None = None,
     checklist: list[dict] | None = None,
     note_ids: list[str] | None = None,
+    recurrence_rule: str | None = None,
 ) -> Task:
     # Get next position in milestone
     pos_result = await db.execute(
@@ -47,6 +49,8 @@ async def create_task(
         project_id=project_id,
         milestone_id=milestone_id,
         calendar_event_id=calendar_event_id,
+        recurrence_rule=recurrence_rule,
+        recurring_series_id=generate_series_id() if recurrence_rule else None,
         position=next_pos,
     )
     db.add(task)
@@ -138,10 +142,16 @@ async def update_task(
     milestone_id: str | None = _UNSET,
     checklist: list[dict] | None = None,
     note_ids: list[str] | None = None,
-) -> Task | None:
+    recurrence_rule: str | None = _UNSET,
+) -> tuple[Task | None, Task | None]:
+    """Update a task and optionally spawn the next recurring instance.
+
+    Returns (updated_task, spawned_task). spawned_task is non-None only when
+    a recurring task is marked done and a next occurrence exists.
+    """
     task = await get_task(db, task_id)
     if task is None:
-        return None
+        return None, None
 
     if title is not None:
         task.title = title
@@ -157,6 +167,26 @@ async def update_task(
         task.priority = priority
     if due_date is not _UNSET:
         task.due_date = _ensure_utc(due_date)
+    if recurrence_rule is not _UNSET:
+        old_series_id = task.recurring_series_id
+        task.recurrence_rule = recurrence_rule
+        # Assign a series id when setting a rule for the first time
+        if recurrence_rule and not task.recurring_series_id:
+            task.recurring_series_id = generate_series_id()
+        elif not recurrence_rule:
+            task.recurring_series_id = None
+
+        # Propagate recurrence change to all tasks in the same series
+        if old_series_id:
+            from sqlalchemy import update as sql_update
+            await db.execute(
+                sql_update(Task)
+                .where(Task.recurring_series_id == old_series_id, Task.id != task.id)
+                .values(
+                    recurrence_rule=recurrence_rule,
+                    recurring_series_id=task.recurring_series_id,
+                )
+            )
     project_changed = False
     if project_id is not None:
         project_changed = project_id != task.project_id
@@ -201,9 +231,59 @@ async def update_task(
             db.add(TaskNote(task_id=task.id, note_id=note_id))
 
     task.updated_at = datetime.now(timezone.utc)
+
+    # Spawn next recurring instance when completing a recurring task with a due date
+    spawned: Task | None = None
+    if (
+        status == "done"
+        and task.recurrence_rule
+        and task.due_date
+    ):
+        next_due = next_occurrence(task.recurrence_rule, task.due_date)
+        if next_due is not None:
+            spawned = await _spawn_recurring_task(db, task, next_due)
+
     await db.commit()
     await db.refresh(task, attribute_names=["checklist", "notes"])
-    return task
+    if spawned is not None:
+        await db.refresh(spawned, attribute_names=["checklist", "notes"])
+    return task, spawned
+
+
+async def _spawn_recurring_task(
+    db: AsyncSession, source: Task, next_due: datetime
+) -> Task:
+    """Create the next instance of a recurring task series."""
+    pos_result = await db.execute(
+        select(func.coalesce(func.max(Task.position), -1))
+        .where(Task.milestone_id == source.milestone_id)
+    )
+    next_pos = pos_result.scalar() + 1
+
+    new_task = Task(
+        title=source.title,
+        description=source.description,
+        priority=source.priority,
+        due_date=_ensure_utc(next_due),
+        project_id=source.project_id,
+        milestone_id=source.milestone_id,
+        recurrence_rule=source.recurrence_rule,
+        recurring_series_id=source.recurring_series_id,
+        position=next_pos,
+    )
+    db.add(new_task)
+    await db.flush()
+
+    # Copy checklist items (all unchecked)
+    for item in source.checklist:
+        db.add(TaskChecklist(
+            task_id=new_task.id,
+            text=item.text,
+            is_checked=False,
+            position=item.position,
+        ))
+
+    return new_task
 
 
 async def move_task(db: AsyncSession, task_id: str, milestone_id: str | None, position: int = 0) -> Task | None:

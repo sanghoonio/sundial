@@ -88,6 +88,18 @@ async def init_database():
             )
         """))
 
+        # Migrate: add recurrence columns to tasks
+        for col, coltype in [
+            ("recurrence_rule", "TEXT"),
+            ("recurring_series_id", "VARCHAR"),
+        ]:
+            try:
+                await conn.execute(text(
+                    f"ALTER TABLE tasks ADD COLUMN {col} {coltype}"
+                ))
+            except Exception:
+                pass  # column already exists
+
         # Migrate: copy existing source_note_id values to task_notes
         try:
             await conn.execute(text("""

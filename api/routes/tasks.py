@@ -35,6 +35,7 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)):
         calendar_event_id=body.calendar_event_id,
         checklist=checklist,
         note_ids=body.note_ids if body.note_ids else None,
+        recurrence_rule=body.recurrence_rule,
     )
     resp = _task_to_response(task)
     await manager.broadcast("task_created", {"id": task.id, "title": task.title})
@@ -82,7 +83,7 @@ async def update_task(task_id: str, body: TaskUpdate, db: AsyncSession = Depends
     # "not provided" (keep current) from "explicitly set to null" (clear).
     fields = body.model_fields_set
     from api.services.task_service import _UNSET
-    task = await task_service.update_task(
+    task, spawned = await task_service.update_task(
         db, task_id,
         title=body.title if "title" in fields else None,
         description=body.description if "description" in fields else None,
@@ -93,11 +94,14 @@ async def update_task(task_id: str, body: TaskUpdate, db: AsyncSession = Depends
         milestone_id=body.milestone_id if "milestone_id" in fields else _UNSET,
         checklist=checklist if "checklist" in fields else None,
         note_ids=body.note_ids if "note_ids" in fields else None,
+        recurrence_rule=body.recurrence_rule if "recurrence_rule" in fields else _UNSET,
     )
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     resp = _task_to_response(task)
     await manager.broadcast("task_updated", {"id": task.id, "title": task.title})
+    if spawned is not None:
+        await manager.broadcast("task_created", {"id": spawned.id, "title": spawned.title})
     return resp
 
 
@@ -114,7 +118,7 @@ async def move_task(task_id: str, body: TaskMove, db: AsyncSession = Depends(get
 @router.post("/{task_id}/checklist", response_model=TaskResponse)
 async def update_checklist(task_id: str, items: list[ChecklistItemCreate], db: AsyncSession = Depends(get_db)):
     checklist = [item.model_dump() for item in items]
-    task = await task_service.update_task(db, task_id, checklist=checklist)
+    task, _ = await task_service.update_task(db, task_id, checklist=checklist)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     resp = _task_to_response(task)
@@ -156,6 +160,8 @@ def _task_to_response(task) -> TaskResponse:
         calendar_event_id=task.calendar_event_id,
         ai_suggested=task.ai_suggested or False,
         position=task.position,
+        recurrence_rule=task.recurrence_rule,
+        recurring_series_id=task.recurring_series_id,
         completed_at=_ensure_utc(task.completed_at),
         checklist=[
             {"id": c.id, "text": c.text, "is_checked": c.is_checked, "position": c.position}

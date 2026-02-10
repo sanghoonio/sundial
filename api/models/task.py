@@ -25,6 +25,8 @@ class Task(Base):
     calendar_event_id = Column(String, ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True)
     ai_suggested = Column(Boolean, default=False)
     position = Column(Integer, default=0)
+    recurrence_rule = Column(Text, nullable=True)
+    recurring_series_id = Column(String, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

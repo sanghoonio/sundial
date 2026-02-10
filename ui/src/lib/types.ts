@@ -175,6 +175,7 @@ export interface TaskCreate {
 	calendar_event_id?: string | null;
 	checklist?: ChecklistItemCreate[];
 	note_ids?: string[];
+	recurrence_rule?: string | null;
 }
 
 export interface TaskUpdate {
@@ -187,6 +188,7 @@ export interface TaskUpdate {
 	milestone_id?: string | null;
 	checklist?: ChecklistItemCreate[];
 	note_ids?: string[];
+	recurrence_rule?: string | null;
 }
 
 export interface TaskMove {
@@ -206,6 +208,8 @@ export interface TaskResponse {
 	calendar_event_id: string | null;
 	ai_suggested: boolean;
 	position: number;
+	recurrence_rule: string | null;
+	recurring_series_id: string | null;
 	completed_at: string | null;
 	checklist: ChecklistItemResponse[];
 	note_ids: string[];

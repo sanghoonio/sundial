@@ -150,6 +150,7 @@ def _tool_list() -> list[Tool]:
                     "due_date": {"type": "string", "description": "Due date in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS±HH:MM with timezone)"},
                     "project_id": {"type": "string", "description": "Project ID (default: inbox)"},
                     "note_ids": {"type": "array", "items": {"type": "string"}, "description": "Note IDs to link to this task"},
+                    "recurrence_rule": {"type": "string", "description": "Recurrence rule: 'daily', 'weekly', 'monthly', 'yearly', or a full RRULE string (e.g. FREQ=WEEKLY;COUNT=10)"},
                 },
                 "required": ["title"],
             },
@@ -166,6 +167,7 @@ def _tool_list() -> list[Tool]:
                     "priority": {"type": "string", "description": "New priority (low/medium/high)"},
                     "due_date": {"type": "string", "description": "New due date in ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS±HH:MM (or null to clear)"},
                     "note_ids": {"type": "array", "items": {"type": "string"}, "description": "Note IDs to link (replaces all existing links)"},
+                    "recurrence_rule": {"type": "string", "description": "Recurrence rule: 'daily', 'weekly', 'monthly', 'yearly', or a full RRULE string. Set to empty string to remove recurrence."},
                 },
                 "required": ["task_id"],
             },
@@ -498,15 +500,20 @@ async def _list_tasks(db, args: dict) -> list[TextContent]:
     if not tasks:
         return [TextContent(type="text", text="No tasks found.")]
 
+    from api.utils.recurrence import human_readable_rule
+
     lines = []
     for t in tasks:
         due = f", due: {t.due_date.strftime('%Y-%m-%d')}" if t.due_date else ""
-        lines.append(f"- [{t.status}] **{t.title}** (id: {t.id}, priority: {t.priority}{due})")
+        recur = f", {human_readable_rule(t.recurrence_rule)}" if t.recurrence_rule else ""
+        lines.append(f"- [{t.status}] **{t.title}** (id: {t.id}, priority: {t.priority}{due}{recur})")
 
     return [TextContent(type="text", text=f"Found {len(tasks)} tasks:\n\n" + "\n".join(lines))]
 
 
 async def _create_task(db, args: dict) -> list[TextContent]:
+    from api.utils.recurrence import generate_series_id, normalize_rule, human_readable_rule
+
     title = args.get("title", "").strip()
     if not title:
         return [TextContent(type="text", text="Title is required.")]
@@ -518,6 +525,10 @@ async def _create_task(db, args: dict) -> list[TextContent]:
         except ValueError:
             return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD or full ISO 8601 with timezone.")]
 
+    recurrence_rule = None
+    if args.get("recurrence_rule"):
+        recurrence_rule = normalize_rule(args["recurrence_rule"])
+
     # Get next position
     pos_result = await db.execute(select(func.coalesce(func.max(Task.position), -1)))
     next_pos = pos_result.scalar() + 1
@@ -528,6 +539,8 @@ async def _create_task(db, args: dict) -> list[TextContent]:
         priority=args.get("priority", "medium"),
         due_date=due_date,
         project_id=args.get("project_id", "proj_inbox"),
+        recurrence_rule=recurrence_rule,
+        recurring_series_id=generate_series_id() if recurrence_rule else None,
         position=next_pos,
     )
     db.add(task)
@@ -548,18 +561,26 @@ async def _create_task(db, args: dict) -> list[TextContent]:
     await db.refresh(task)
 
     result_text = f"Task created: **{task.title}** (id: {task.id})"
+    if recurrence_rule:
+        result_text += f"\nRecurrence: {human_readable_rule(recurrence_rule)}"
     if linked_notes:
         result_text += f"\nLinked notes: {', '.join(linked_notes)}"
     return [TextContent(type="text", text=result_text)]
 
 
 async def _update_task(db, args: dict) -> list[TextContent]:
+    from api.utils.recurrence import normalize_rule, generate_series_id, next_occurrence, human_readable_rule
+    from api.models.task import TaskChecklist
+
     task_id = args.get("task_id", "")
     if not task_id:
         return [TextContent(type="text", text="task_id is required.")]
 
     result = await db.execute(
-        select(Task).where(Task.id == task_id).options(selectinload(Task.notes))
+        select(Task).where(Task.id == task_id).options(
+            selectinload(Task.notes),
+            selectinload(Task.checklist),
+        )
     )
     task = result.scalar_one_or_none()
     if not task:
@@ -582,6 +603,30 @@ async def _update_task(db, args: dict) -> list[TextContent]:
             except ValueError:
                 return [TextContent(type="text", text="Invalid due_date format. Use YYYY-MM-DD or full ISO 8601 with timezone.")]
 
+    # Handle recurrence_rule
+    if "recurrence_rule" in args:
+        old_series_id = task.recurring_series_id
+        rule_val = args["recurrence_rule"]
+        if rule_val:
+            task.recurrence_rule = normalize_rule(rule_val)
+            if not task.recurring_series_id:
+                task.recurring_series_id = generate_series_id()
+        else:
+            task.recurrence_rule = None
+            task.recurring_series_id = None
+
+        # Propagate recurrence change to all tasks in the same series
+        if old_series_id:
+            from sqlalchemy import update as sql_update
+            await db.execute(
+                sql_update(Task)
+                .where(Task.recurring_series_id == old_series_id, Task.id != task.id)
+                .values(
+                    recurrence_rule=task.recurrence_rule,
+                    recurring_series_id=task.recurring_series_id,
+                )
+            )
+
     # Handle note_ids: replace all linked notes
     linked_notes = []
     if "note_ids" in args:
@@ -599,9 +644,51 @@ async def _update_task(db, args: dict) -> list[TextContent]:
                 linked_notes.append(note.title)
 
     task.updated_at = datetime.now(timezone.utc)
+
+    # Spawn next recurring instance when completing a recurring task with a due date
+    spawned_task = None
+    if (
+        args.get("status") == "done"
+        and task.recurrence_rule
+        and task.due_date
+    ):
+        next_due = next_occurrence(task.recurrence_rule, task.due_date)
+        if next_due is not None:
+            pos_result = await db.execute(
+                select(func.coalesce(func.max(Task.position), -1))
+                .where(Task.milestone_id == task.milestone_id)
+            )
+            next_pos = pos_result.scalar() + 1
+            spawned_task = Task(
+                title=task.title,
+                description=task.description,
+                priority=task.priority,
+                due_date=next_due,
+                project_id=task.project_id,
+                milestone_id=task.milestone_id,
+                recurrence_rule=task.recurrence_rule,
+                recurring_series_id=task.recurring_series_id,
+                position=next_pos,
+            )
+            db.add(spawned_task)
+            await db.flush()
+            # Copy checklist items (all unchecked)
+            for item in task.checklist:
+                db.add(TaskChecklist(
+                    task_id=spawned_task.id,
+                    text=item.text,
+                    is_checked=False,
+                    position=item.position,
+                ))
+
     await db.commit()
 
     result_text = f"Task updated: **{task.title}** (status: {task.status}, priority: {task.priority})"
+    if task.recurrence_rule:
+        result_text += f"\nRecurrence: {human_readable_rule(task.recurrence_rule)}"
+    if spawned_task:
+        due_str = spawned_task.due_date.strftime('%Y-%m-%d') if spawned_task.due_date else "no date"
+        result_text += f"\nNext instance spawned: **{spawned_task.title}** (id: {spawned_task.id}, due: {due_str})"
     if "note_ids" in args:
         if linked_notes:
             result_text += f"\nLinked notes: {', '.join(linked_notes)}"

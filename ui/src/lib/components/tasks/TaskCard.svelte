@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { TaskResponse, DashboardTask, MilestoneResponse } from '$lib/types';
-	import { AlertCircle, GripVertical, StickyNote, CalendarDays, Check, X, Trash2, MoreVertical } from 'lucide-svelte';
+	import { AlertCircle, GripVertical, StickyNote, CalendarDays, Check, X, Trash2, MoreVertical, Repeat } from 'lucide-svelte';
 
 	interface Props {
 		task: TaskResponse | DashboardTask;
@@ -154,6 +154,7 @@
 	let isAiSuggested = $derived(fullTask?.ai_suggested ?? false);
 	let hasLinkedNote = $derived((fullTask?.note_ids?.length ?? 0) > 0);
 	let hasLinkedEvent = $derived(fullTask?.calendar_event_id != null);
+	let hasRecurrence = $derived(fullTask?.recurrence_rule != null);
 	let isDone = $derived(task.status === 'done');
 	let overdue = $derived(task.status !== 'done' && isOverdue(task.due_date));
 	let hasPriorityIcon = $derived(task.priority === 'urgent' || task.priority === 'high');
@@ -196,6 +197,9 @@
 				{/if}
 				-->
 				<span class="font-medium truncate text-sm flex-1 min-w-0 {isDone ? 'line-through text-base-content/40' : ''}">{task.title}</span>
+				{#if hasRecurrence}
+					<span class="text-base-content/40 shrink-0" title="Recurring task"><Repeat size={12} /></span>
+				{/if}
 				{#if hasLinkedNote}
 					<span class="text-base-content/40 shrink-0" title="Linked note"><StickyNote size={12} /></span>
 				{/if}
