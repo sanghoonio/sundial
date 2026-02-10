@@ -112,7 +112,7 @@ export function chipClasses(item: CalendarItem): string {
 			item.data.due_date &&
 			new Date(item.data.due_date) < new Date(new Date().toDateString());
 		if (isOverdue) return 'bg-error/20 text-error border-error/30';
-		return 'bg-warning/20 text-warning-content border-warning/30';
+		return 'bg-warning/20 text-yellow-500 border-warning/30';
 	}
 	if (item.data.all_day) return 'bg-primary/20 text-primary border-primary/30';
 	return 'bg-info/20 text-info border-info/30';

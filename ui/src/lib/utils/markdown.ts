@@ -8,6 +8,15 @@ import python from 'highlight.js/lib/languages/python';
 import r from 'highlight.js/lib/languages/r';
 import rust from 'highlight.js/lib/languages/rust';
 import cpp from 'highlight.js/lib/languages/cpp';
+import css from 'highlight.js/lib/languages/css';
+import xml from 'highlight.js/lib/languages/xml';
+import bash from 'highlight.js/lib/languages/bash';
+import json from 'highlight.js/lib/languages/json';
+import sql from 'highlight.js/lib/languages/sql';
+import yaml from 'highlight.js/lib/languages/yaml';
+import go from 'highlight.js/lib/languages/go';
+import java from 'highlight.js/lib/languages/java';
+import markdown from 'highlight.js/lib/languages/markdown';
 
 // Register syntax highlighting languages
 hljs.registerLanguage('javascript', javascript);
@@ -20,6 +29,20 @@ hljs.registerLanguage('r', r);
 hljs.registerLanguage('rust', rust);
 hljs.registerLanguage('cpp', cpp);
 hljs.registerLanguage('c++', cpp);
+hljs.registerLanguage('css', css);
+hljs.registerLanguage('html', xml);
+hljs.registerLanguage('xml', xml);
+hljs.registerLanguage('bash', bash);
+hljs.registerLanguage('sh', bash);
+hljs.registerLanguage('shell', bash);
+hljs.registerLanguage('json', json);
+hljs.registerLanguage('sql', sql);
+hljs.registerLanguage('yaml', yaml);
+hljs.registerLanguage('yml', yaml);
+hljs.registerLanguage('go', go);
+hljs.registerLanguage('java', java);
+hljs.registerLanguage('markdown', markdown);
+hljs.registerLanguage('md', markdown);
 
 // Custom extension for [[wiki-links]]
 const wikiLinkExtension = {

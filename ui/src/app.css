@@ -42,38 +42,29 @@
 		@apply my-4 overflow-x-auto;
 	}
 
-	/* Syntax highlighting - GitHub-inspired colors adapted for DaisyUI */
-	.prose pre code .hljs-keyword { @apply text-purple-600; }
-	.prose pre code .hljs-string { @apply text-green-600; }
-	.prose pre code .hljs-number { @apply text-blue-600; }
-	.prose pre code .hljs-comment { @apply text-base-content/50 italic; }
-	.prose pre code .hljs-function { @apply text-blue-500; }
-	.prose pre code .hljs-title { @apply text-amber-600; }
-	.prose pre code .hljs-built_in { @apply text-cyan-600; }
-	.prose pre code .hljs-params { @apply text-base-content; }
-	.prose pre code .hljs-attr { @apply text-amber-500; }
-	.prose pre code .hljs-literal { @apply text-red-500; }
-	.prose pre code .hljs-type { @apply text-cyan-600; }
-	.prose pre code .hljs-meta { @apply text-base-content/60; }
-	.prose pre code .hljs-variable { @apply text-orange-500; }
-	.prose pre code .hljs-operator { @apply text-pink-600; }
-	.prose pre code .hljs-property { @apply text-blue-600; }
-	.prose pre code .hljs-class { @apply text-amber-600; }
-	.prose pre code .hljs-symbol { @apply text-amber-600; }
+	/* Syntax highlighting - VS Code Dark+ colors */
+	.prose pre code .hljs-keyword { color: #569CD6; }
+	.prose pre code .hljs-string { color: #CE9178; }
+	.prose pre code .hljs-number { color: #B5CEA8; }
+	.prose pre code .hljs-comment { color: #6A9955; font-style: italic; }
+	.prose pre code .hljs-function { color: #DCDCAA; }
+	.prose pre code .hljs-title { color: #DCDCAA; }
+	.prose pre code .hljs-built_in { color: #4EC9B0; }
+	.prose pre code .hljs-params { color: #9CDCFE; }
+	.prose pre code .hljs-attr { color: #9CDCFE; }
+	.prose pre code .hljs-literal { color: #569CD6; }
+	.prose pre code .hljs-type { color: #4EC9B0; }
+	.prose pre code .hljs-meta { color: #C586C0; }
+	.prose pre code .hljs-variable { color: #9CDCFE; }
+	.prose pre code .hljs-operator { color: #D4D4D4; }
+	.prose pre code .hljs-property { color: #9CDCFE; }
+	.prose pre code .hljs-class { color: #4EC9B0; }
+	.prose pre code .hljs-symbol { color: #569CD6; }
 }
 
-/* Dark mode overrides for syntax highlighting */
-[data-theme="dark"] .prose pre code .hljs-keyword { @apply text-purple-400; }
-[data-theme="dark"] .prose pre code .hljs-string { @apply text-green-400; }
-[data-theme="dark"] .prose pre code .hljs-number { @apply text-blue-400; }
-[data-theme="dark"] .prose pre code .hljs-function { @apply text-blue-400; }
-[data-theme="dark"] .prose pre code .hljs-title { @apply text-amber-400; }
-[data-theme="dark"] .prose pre code .hljs-built_in { @apply text-cyan-400; }
-[data-theme="dark"] .prose pre code .hljs-attr { @apply text-amber-400; }
-[data-theme="dark"] .prose pre code .hljs-literal { @apply text-red-400; }
-[data-theme="dark"] .prose pre code .hljs-type { @apply text-cyan-400; }
-[data-theme="dark"] .prose pre code .hljs-variable { @apply text-orange-400; }
-[data-theme="dark"] .prose pre code .hljs-operator { @apply text-pink-400; }
-[data-theme="dark"] .prose pre code .hljs-property { @apply text-blue-400; }
-[data-theme="dark"] .prose pre code .hljs-class { @apply text-amber-400; }
-[data-theme="dark"] .prose pre code .hljs-symbol { @apply text-amber-400; }
+/* Light mode calendar chip text colors */
+[data-theme="light"] .bg-warning\/20 { @apply text-yellow-800; }
+[data-theme="light"] .bg-error\/20 { @apply text-red-700; }
+[data-theme="light"] .bg-primary\/20 { @apply text-blue-700; }
+[data-theme="light"] .bg-info\/20 { @apply text-sky-700; }
+

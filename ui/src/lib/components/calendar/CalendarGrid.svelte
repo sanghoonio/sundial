@@ -100,7 +100,7 @@
 	function chipClasses(item: CalendarItem): string {
 		if (item.type === 'task') {
 			if (isOverdue(item)) return 'bg-error/20 text-error';
-			return 'bg-warning/20 text-warning-content';
+			return 'bg-warning/20 text-yellow-500';
 		}
 		if (item.data.all_day) return 'bg-primary/20 text-primary';
 		return 'bg-info/20 text-info';
