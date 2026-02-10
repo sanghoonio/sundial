@@ -157,7 +157,7 @@
 	$effect(() => {
 		const projectId = selectedProjectId;
 		return ws.on(
-			['task_created', 'task_updated', 'task_deleted', 'project_updated'],
+			['task_created', 'task_updated', 'task_deleted', 'project_updated', 'project_reordered'],
 			async () => {
 				if (projectId) {
 					try {

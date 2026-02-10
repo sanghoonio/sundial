@@ -23,6 +23,7 @@
 		Trash2, Save, Check, Clock, X, ArrowLeft, GripVertical, GanttChart
 	} from 'lucide-svelte';
 	import ProjectTimeline from '$lib/components/projects/ProjectTimeline.svelte';
+	import { ws } from '$lib/stores/websocket.svelte';
 
 	let projects = $state<ProjectResponse[]>([]);
 	let loading = $state(true);
@@ -98,6 +99,15 @@
 
 	$effect(() => {
 		loadProjects();
+	});
+
+	// WebSocket: refresh project list on reorder/update from other clients
+	$effect(() => {
+		return ws.on(
+			['project_reordered', 'project_updated'],
+			() => { loadProjects(); },
+			500
+		);
 	});
 
 	// Load sidebar data when a project is selected

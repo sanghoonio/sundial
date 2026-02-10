@@ -7,7 +7,7 @@ from api.database import get_db
 from api.schemas.task import ChecklistItemCreate, TaskCreate, TaskList, TaskMove, TaskResponse, TaskUpdate
 from api.services import task_service
 from api.utils.auth import get_current_user
-from api.utils.websocket import manager
+from api.utils.websocket import get_client_id, manager
 
 router = APIRouter(prefix="/tasks", tags=["tasks"], dependencies=[Depends(get_current_user)])
 
@@ -22,7 +22,7 @@ def _ensure_utc(dt: datetime | None) -> datetime | None:
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
-async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)):
+async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     checklist = [item.model_dump() for item in body.checklist] if body.checklist else None
     task = await task_service.create_task(
         db,
@@ -38,7 +38,7 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)):
         recurrence_rule=body.recurrence_rule,
     )
     resp = _task_to_response(task)
-    await manager.broadcast("task_created", {"id": task.id, "title": task.title})
+    await manager.broadcast("task_created", {"id": task.id, "title": task.title}, exclude_client_id=client_id)
     return resp
 
 
@@ -77,7 +77,7 @@ async def get_task(task_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{task_id}", response_model=TaskResponse)
-async def update_task(task_id: str, body: TaskUpdate, db: AsyncSession = Depends(get_db)):
+async def update_task(task_id: str, body: TaskUpdate, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     checklist = [item.model_dump() for item in body.checklist] if body.checklist is not None else None
     # Only pass fields that were actually in the request body to distinguish
     # "not provided" (keep current) from "explicitly set to null" (clear).
@@ -99,35 +99,35 @@ async def update_task(task_id: str, body: TaskUpdate, db: AsyncSession = Depends
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     resp = _task_to_response(task)
-    await manager.broadcast("task_updated", {"id": task.id, "title": task.title})
+    await manager.broadcast("task_updated", {"id": task.id, "title": task.title}, exclude_client_id=client_id)
     if spawned is not None:
-        await manager.broadcast("task_created", {"id": spawned.id, "title": spawned.title})
+        await manager.broadcast("task_created", {"id": spawned.id, "title": spawned.title}, exclude_client_id=client_id)
     return resp
 
 
 @router.put("/{task_id}/move", response_model=TaskResponse)
-async def move_task(task_id: str, body: TaskMove, db: AsyncSession = Depends(get_db)):
+async def move_task(task_id: str, body: TaskMove, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     task = await task_service.move_task(db, task_id, milestone_id=body.milestone_id, position=body.position)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     resp = _task_to_response(task)
-    await manager.broadcast("task_updated", {"id": task.id, "title": task.title})
+    await manager.broadcast("task_updated", {"id": task.id, "title": task.title}, exclude_client_id=client_id)
     return resp
 
 
 @router.post("/{task_id}/checklist", response_model=TaskResponse)
-async def update_checklist(task_id: str, items: list[ChecklistItemCreate], db: AsyncSession = Depends(get_db)):
+async def update_checklist(task_id: str, items: list[ChecklistItemCreate], db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     checklist = [item.model_dump() for item in items]
     task, _ = await task_service.update_task(db, task_id, checklist=checklist)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     resp = _task_to_response(task)
-    await manager.broadcast("task_updated", {"id": task.id, "title": task.title})
+    await manager.broadcast("task_updated", {"id": task.id, "title": task.title}, exclude_client_id=client_id)
     return resp
 
 
 @router.post("/{task_id}/accept", response_model=TaskResponse)
-async def accept_task(task_id: str, db: AsyncSession = Depends(get_db)):
+async def accept_task(task_id: str, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     task = await task_service.get_task(db, task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -135,16 +135,16 @@ async def accept_task(task_id: str, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(task, attribute_names=["checklist"])
     resp = _task_to_response(task)
-    await manager.broadcast("task_updated", {"id": task.id, "title": task.title})
+    await manager.broadcast("task_updated", {"id": task.id, "title": task.title}, exclude_client_id=client_id)
     return resp
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(task_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_task(task_id: str, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     deleted = await task_service.delete_task(db, task_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Task not found")
-    await manager.broadcast("task_deleted", {"id": task_id})
+    await manager.broadcast("task_deleted", {"id": task_id}, exclude_client_id=client_id)
 
 
 def _task_to_response(task) -> TaskResponse:

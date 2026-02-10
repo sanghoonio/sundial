@@ -1,4 +1,5 @@
 import { base } from '$app/paths';
+import { clientId } from '$lib/clientId';
 import type { WSMessage } from '$lib/types';
 
 type MessageHandler = (msg: WSMessage) => void;
@@ -12,7 +13,7 @@ export function createWebSocket() {
 
 	function getUrl(): string {
 		const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-		return `${protocol}//${location.host}${base}/ws`;
+		return `${protocol}//${location.host}${base}/ws?client_id=${clientId}`;
 	}
 
 	function connect() {

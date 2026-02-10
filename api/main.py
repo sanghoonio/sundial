@@ -105,7 +105,8 @@ from api.utils.websocket import manager
 
 @api_app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+    client_id = websocket.query_params.get("client_id")
+    await manager.connect(websocket, client_id)
     try:
         while True:
             await websocket.receive_text()

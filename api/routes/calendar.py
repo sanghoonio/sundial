@@ -27,7 +27,7 @@ from api.schemas.calendar import (
 )
 from api.services.calendar_sync import caldav_sync_service
 from api.utils.auth import get_current_user
-from api.utils.websocket import manager
+from api.utils.websocket import get_client_id, manager
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +130,7 @@ def _ensure_utc(dt: datetime | None) -> datetime | None:
 
 
 @router.post("/events", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
-async def create_event(body: EventCreate, db: AsyncSession = Depends(get_db)):
+async def create_event(body: EventCreate, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     event = CalendarEvent(
         title=body.title,
         description=body.description,
@@ -144,7 +144,7 @@ async def create_event(body: EventCreate, db: AsyncSession = Depends(get_db)):
     db.add(event)
     await db.commit()
     await db.refresh(event)
-    await manager.broadcast("event_created", {"id": event.id, "title": event.title})
+    await manager.broadcast("event_created", {"id": event.id, "title": event.title}, exclude_client_id=client_id)
 
     # Push to CalDAV if enabled and direction allows export (non-blocking)
     try:
@@ -331,7 +331,7 @@ async def get_event(event_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/events/{event_id}", response_model=EventResponse)
-async def update_event(event_id: str, body: EventUpdate, db: AsyncSession = Depends(get_db)):
+async def update_event(event_id: str, body: EventUpdate, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     event = await db.get(CalendarEvent, event_id)
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -344,7 +344,7 @@ async def update_event(event_id: str, body: EventUpdate, db: AsyncSession = Depe
 
     await db.commit()
     await db.refresh(event)
-    await manager.broadcast("event_updated", {"id": event.id, "title": event.title})
+    await manager.broadcast("event_updated", {"id": event.id, "title": event.title}, exclude_client_id=client_id)
 
     # Push update to CalDAV if event has a remote href and direction allows export (non-blocking)
     if event.caldav_href:
@@ -360,7 +360,7 @@ async def update_event(event_id: str, body: EventUpdate, db: AsyncSession = Depe
 
 
 @router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_event(event_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_event(event_id: str, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     event = await db.get(CalendarEvent, event_id)
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -377,11 +377,11 @@ async def delete_event(event_id: str, db: AsyncSession = Depends(get_db)):
 
     await db.delete(event)
     await db.commit()
-    await manager.broadcast("event_deleted", {"id": event_id})
+    await manager.broadcast("event_deleted", {"id": event_id}, exclude_client_id=client_id)
 
 
 @router.delete("/events/{event_id}/series", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_event_series(event_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_event_series(event_id: str, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     """Delete a recurring master event and all its exception instances."""
     master = await db.get(CalendarEvent, event_id)
     if master is None:
@@ -405,11 +405,11 @@ async def delete_event_series(event_id: str, db: AsyncSession = Depends(get_db))
     # Delete the master
     await db.delete(master)
     await db.commit()
-    await manager.broadcast("event_series_deleted", {"id": event_id})
+    await manager.broadcast("event_series_deleted", {"id": event_id}, exclude_client_id=client_id)
 
 
 @router.put("/events/{event_id}/recurrence", response_model=EventResponse)
-async def update_event_recurrence(event_id: str, body: EventUpdate, db: AsyncSession = Depends(get_db)):
+async def update_event_recurrence(event_id: str, body: EventUpdate, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     """Update the RRULE on a master recurring event."""
     event = await db.get(CalendarEvent, event_id)
     if event is None:
@@ -429,7 +429,7 @@ async def update_event_recurrence(event_id: str, body: EventUpdate, db: AsyncSes
         except Exception:
             logger.exception("CalDAV update failed for recurrence change (non-blocking)")
 
-    await manager.broadcast("event_updated", {"id": event.id, "title": event.title})
+    await manager.broadcast("event_updated", {"id": event.id, "title": event.title}, exclude_client_id=client_id)
     return await _build_event_response(event, db)
 
 

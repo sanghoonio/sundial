@@ -1,4 +1,5 @@
 import { base } from '$app/paths';
+import { clientId } from '$lib/clientId';
 
 const TOKEN_KEY = 'sundial_token';
 
@@ -24,7 +25,9 @@ export function clearToken(): void {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-	const headers: Record<string, string> = {};
+	const headers: Record<string, string> = {
+		'X-Client-ID': clientId
+	};
 	const token = getToken();
 	if (token) {
 		headers['Authorization'] = `Bearer ${token}`;

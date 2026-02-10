@@ -24,13 +24,13 @@ from api.schemas.note import (
 from api.services import note_service
 from api.services.block_parser import extract_markdown_text, parse_blocks, serialize_blocks
 from api.utils.auth import get_current_user
-from api.utils.websocket import manager
+from api.utils.websocket import get_client_id, manager
 
 router = APIRouter(prefix="/notes", tags=["notes"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
-async def create_note(body: NoteCreate, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+async def create_note(body: NoteCreate, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     content = body.content
     if body.blocks is not None:
         content = serialize_blocks(body.blocks)
@@ -38,7 +38,7 @@ async def create_note(body: NoteCreate, background_tasks: BackgroundTasks, db: A
         db, title=body.title, content=content, tags=body.tags, project_id=body.project_id,
     )
     resp = await _note_to_response(note, db)
-    await manager.broadcast("note_created", {"id": note.id, "title": note.title})
+    await manager.broadcast("note_created", {"id": note.id, "title": note.title}, exclude_client_id=client_id)
 
     from api.services.ai_background import process_note_ai
     background_tasks.add_task(process_note_ai, note.id)
@@ -80,7 +80,7 @@ async def get_note(note_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{note_id}", response_model=NoteResponse)
-async def update_note(note_id: str, body: NoteUpdate, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+async def update_note(note_id: str, body: NoteUpdate, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     content = body.content
     if body.blocks is not None:
         content = serialize_blocks(body.blocks)
@@ -90,7 +90,7 @@ async def update_note(note_id: str, body: NoteUpdate, background_tasks: Backgrou
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
     resp = await _note_to_response(note, db)
-    await manager.broadcast("note_updated", {"id": note.id, "title": note.title})
+    await manager.broadcast("note_updated", {"id": note.id, "title": note.title}, exclude_client_id=client_id)
 
     from api.services.ai_background import process_note_ai
     background_tasks.add_task(process_note_ai, note.id)
@@ -99,11 +99,11 @@ async def update_note(note_id: str, body: NoteUpdate, background_tasks: Backgrou
 
 
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_note(note_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_note(note_id: str, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     deleted = await note_service.delete_note(db, note_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Note not found")
-    await manager.broadcast("note_deleted", {"id": note_id})
+    await manager.broadcast("note_deleted", {"id": note_id}, exclude_client_id=client_id)
 
 
 @router.get("/{note_id}/backlinks", response_model=BacklinksResponse)

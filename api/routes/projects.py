@@ -10,7 +10,7 @@ from api.models.project import Project, ProjectMilestone
 from api.models.task import Task
 from api.schemas.project import MilestoneUpdate, ProjectCreate, ProjectList, ProjectReorder, ProjectResponse, ProjectUpdate
 from api.utils.auth import get_current_user
-from api.utils.websocket import manager
+from api.utils.websocket import get_client_id, manager
 
 router = APIRouter(prefix="/projects", tags=["projects"], dependencies=[Depends(get_current_user)])
 
@@ -59,13 +59,14 @@ async def list_projects(db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/reorder", response_model=ProjectList)
-async def reorder_projects(body: ProjectReorder, db: AsyncSession = Depends(get_db)):
+async def reorder_projects(body: ProjectReorder, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     """Reorder projects by providing the full list of project IDs in desired order."""
     for i, project_id in enumerate(body.project_ids):
         project = await db.get(Project, project_id)
         if project:
             project.position = i
     await db.commit()
+    await manager.broadcast("project_reordered", {"project_ids": body.project_ids}, exclude_client_id=client_id)
     return await list_projects(db)
 
 
@@ -78,7 +79,7 @@ async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)
-async def update_project(project_id: str, body: ProjectUpdate, db: AsyncSession = Depends(get_db)):
+async def update_project(project_id: str, body: ProjectUpdate, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
     project = await db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -100,7 +101,7 @@ async def update_project(project_id: str, body: ProjectUpdate, db: AsyncSession 
 
     await db.commit()
     resp = await _get_project_response(db, project_id)
-    await manager.broadcast("project_updated", {"id": project_id, "name": project.name})
+    await manager.broadcast("project_updated", {"id": project_id, "name": project.name}, exclude_client_id=client_id)
     return resp
 
 
