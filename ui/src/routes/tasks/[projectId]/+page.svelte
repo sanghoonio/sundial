@@ -454,7 +454,7 @@
 				/>
 			</div>
 			<button
-				class="btn btn-ghost btn-sm {showCompleted ? 'btn-active' : ''}"
+				class="btn btn-ghost btn-xs sm:btn-sm {showCompleted ? 'btn-active' : ''}"
 				onclick={() => (showCompleted = !showCompleted)}
 				title={showCompleted ? 'Hide completed' : 'Show completed'}
 			>

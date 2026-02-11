@@ -81,7 +81,7 @@
 	<div class="dropdown">
 		<button
 			tabindex="0"
-			class="btn btn-sm {hasPriorityFilter ? 'btn-primary' : 'btn-ghost'}"
+			class="btn btn-xs sm:btn-sm {hasPriorityFilter ? 'btn-primary' : 'btn-ghost'}"
 			title="Priority filter"
 		>
 			<AlertCircle size={14} />
@@ -99,7 +99,7 @@
 	<div class="dropdown">
 		<button
 			tabindex="0"
-			class="btn btn-sm {hasDateFilter ? 'btn-primary' : 'btn-ghost'}"
+			class="btn btn-xs sm:btn-sm {hasDateFilter ? 'btn-primary' : 'btn-ghost'}"
 			title="Due date filter"
 		>
 			<CalendarClock size={14} />
@@ -115,13 +115,13 @@
 
 	<!-- Sort dropdown -->
 	<div class="dropdown">
-		<button tabindex="0" class="btn btn-ghost btn-sm" title="Sort">
+		<button tabindex="0" class="btn btn-ghost btn-xs sm:btn-sm" title="Sort">
 			{#if sortDir === 'asc'}
 				<ArrowDownNarrowWide size={14} />
 			{:else}
 				<ArrowUpNarrowWide size={14} />
 			{/if}
-			<span class="text-xs">{sortLabels[sortBy]}</span>
+			<span class="hidden sm:inline text-xs">{sortLabels[sortBy]}</span>
 		</button>
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-40 p-1 border border-base-300 mt-1">
@@ -141,8 +141,8 @@
 
 	<!-- Search: button that smoothly expands into an input -->
 	<button
-		class="btn btn-ghost btn-sm shrink-0 transition-[width] duration-200 !outline-none !shadow-none
-			{searchOpen ? 'w-64 bg-base-200' : 'w-auto'}"
+		class="btn btn-ghost btn-xs sm:btn-sm shrink-0 transition-[width] duration-200 !outline-none !shadow-none
+			{searchOpen ? 'w-40 sm:w-64 bg-base-200' : 'w-auto'}"
 		onclick={() => { if (!searchOpen) openSearch(); }}
 	>
 		<Search size={14} class="shrink-0" />
@@ -165,7 +165,7 @@
 				</span>
 			{/if}
 		{:else}
-			Search
+			<span class="hidden sm:inline">Search</span>
 		{/if}
 	</button>
 </div>

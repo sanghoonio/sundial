@@ -459,7 +459,7 @@
 				{/each}
 			</div>
 			<button
-				class="btn btn-ghost btn-sm shrink-0 {viewMode === 'timeline' ? 'btn-active' : ''}"
+				class="btn btn-ghost btn-xs sm:btn-sm shrink-0 {viewMode === 'timeline' ? 'btn-active' : ''}"
 				onclick={() => {
 					viewMode = viewMode === 'timeline' ? 'grid' : 'timeline';
 					const url = new URL(window.location.href);
@@ -472,7 +472,7 @@
 				<GanttChart size={14} />
 				<span class="hidden sm:inline text-xs">Timeline</span>
 			</button>
-			<button class="btn btn-primary btn-sm shrink-0" onclick={openCreateSidebar}>
+			<button class="btn btn-primary btn-xs sm:btn-sm shrink-0" onclick={openCreateSidebar}>
 				<Plus size={16} />
 				<span class="hidden md:inline">New Project</span>
 			</button>
