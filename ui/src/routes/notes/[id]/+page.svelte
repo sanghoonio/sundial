@@ -388,13 +388,13 @@
 				findOpen = true;
 				requestAnimationFrame(() => findBar?.focus());
 			}
-		} else if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+		} else if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
 			e.preventDefault();
 			preview = !preview;
 		} else if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
 			e.preventDefault();
 			showMeta = !showMeta;
-		} else if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+		} else if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
 			e.preventDefault();
 			fullscreen.toggle();
 		} else if (e.key === 'Escape' && findOpen) {
@@ -541,7 +541,7 @@
 			<button
 				class="btn btn-ghost btn-sm btn-square"
 				onclick={() => (preview = !preview)}
-				title={preview ? 'Edit (Ctrl+D)' : 'Preview (Ctrl+D)'}
+				title={preview ? 'Edit (Ctrl+E)' : 'Preview (Ctrl+E)'}
 			>
 				{#if preview}
 					<Pencil size={16} />
@@ -553,7 +553,7 @@
 			<button
 				class="btn btn-ghost btn-sm btn-square hidden md:flex"
 				onclick={() => fullscreen.toggle()}
-				title={fullscreen.active ? 'Exit fullscreen (Ctrl+E)' : 'Fullscreen (Ctrl+E)'}
+				title={fullscreen.active ? 'Exit fullscreen (Ctrl+D)' : 'Fullscreen (Ctrl+D)'}
 			>
 				{#if fullscreen.active}
 					<Minimize size={16} />

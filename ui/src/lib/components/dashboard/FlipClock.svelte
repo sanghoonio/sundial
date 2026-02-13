@@ -98,6 +98,7 @@
 		flex: 1;
 		display: flex;
 		justify-content: center;
+		padding-left: 0.05rem;
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 		font-size: 2.75rem;
 		font-weight: 500;
@@ -110,13 +111,13 @@
 
 	.digit-top {
 		align-items: flex-start;
-		padding-top: 0.6rem;
+		padding-top: 0.58rem;
 		border-radius: 0.375rem 0.375rem 0 0;
 	}
 
 	.digit-bottom {
 		align-items: flex-end;
-		padding-bottom: 0.6rem;
+		padding-bottom: 0.62rem;
 		border-radius: 0 0 0.375rem 0.375rem;
 	}
 
