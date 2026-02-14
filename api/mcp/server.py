@@ -21,7 +21,7 @@ from api.models.note import Note, NoteLink, NoteTag, Tag
 from api.models.project import Project
 from api.models.task import Task, TaskNote
 from api.services.block_parser import extract_markdown_text
-from api.services.note_service import create_note as service_create_note, update_note as service_update_note
+from api.services.note_service import create_note as service_create_note, update_note as service_update_note, patch_note_content as service_patch_note_content
 
 
 async def _resolve_project(db, value: str) -> tuple[str | None, str | None]:
@@ -227,7 +227,7 @@ def _tool_list() -> list[Tool]:
         ),
         Tool(
             name="update_note",
-            description="Update an existing note's title, content, tags, or project.",
+            description="Update an existing note's title, content, tags, or project. For small content edits, prefer patch_note instead — it accepts line-number-based operations so you don't need to resend the entire content.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -238,6 +238,30 @@ def _tool_list() -> list[Tool]:
                     "project": {"type": "string", "description": "Project name or ID to move the note to. Accepts partial or full project names. Use empty string to unassign from project."},
                 },
                 "required": ["note_id"],
+            },
+        ),
+        Tool(
+            name="patch_note",
+            description="Apply line-based edits to a note's content without resending the full text. Use this instead of update_note when making small changes to long notes. Read the note first to see line numbers, then send precise operations. Each operation specifies start_line, end_line (1-indexed), and replacement content. To replace lines: start_line <= end_line. To delete lines: set content to empty string. To insert: set start_line = end_line + 1 (inserts before start_line).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "note_id": {"type": "string", "description": "Note ID to patch"},
+                    "operations": {
+                        "type": "array",
+                        "description": "List of line-based edit operations",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "start_line": {"type": "integer", "description": "Start line (1-indexed)"},
+                                "end_line": {"type": "integer", "description": "End line (1-indexed)"},
+                                "content": {"type": "string", "description": "Replacement content (use empty string to delete lines)"},
+                            },
+                            "required": ["start_line", "end_line", "content"],
+                        },
+                    },
+                },
+                "required": ["note_id", "operations"],
             },
         ),
         Tool(
@@ -375,6 +399,8 @@ async def handle_call_tool(name: str, arguments: dict) -> list[TextContent]:
             return await _create_note(db, arguments)
         elif name == "update_note":
             return await _update_note(db, arguments)
+        elif name == "patch_note":
+            return await _patch_note(db, arguments)
         elif name == "link_note_to_task":
             return await _link_note_to_task(db, arguments)
         elif name == "get_note_links":
@@ -1060,6 +1086,24 @@ async def _update_note(db, args: dict) -> list[TextContent]:
     tag_str = ", ".join(t.name for t in note.tags) if note.tags else "none"
     project_str = f"\nProject: {note.project_id}" if note.project_id else ""
     return [TextContent(type="text", text=f"Note updated: **{note.title}** (id: {note.id})\nTags: {tag_str}{project_str}")]
+
+
+async def _patch_note(db, args: dict) -> list[TextContent]:
+    note_id = args.get("note_id", "")
+    if not note_id:
+        return [TextContent(type="text", text="note_id is required.")]
+
+    operations = args.get("operations", [])
+    if not operations:
+        return [TextContent(type="text", text="At least one operation is required.")]
+
+    try:
+        note = await service_patch_note_content(db, note_id, operations)
+    except ValueError as e:
+        return [TextContent(type="text", text=f"Patch failed: {e}")]
+
+    await manager.broadcast("note_updated", {"id": note.id, "title": note.title})
+    return [TextContent(type="text", text=f"Note patched: **{note.title}** (id: {note.id})\n{len(operations)} operation(s) applied.")]
 
 
 async def _link_note_to_task(db, args: dict) -> list[TextContent]:

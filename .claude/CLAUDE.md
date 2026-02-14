@@ -1,5 +1,9 @@
 # Sundial Project
 
+## Deployment
+
+This is a local working directory. Changes made here are **not** automatically deployed — the MCP server and API endpoints won't reflect edits until the user manually deploys to their server.
+
 ## Environment
 
 - Python virtual environment is at `.venv/`. Always use it.

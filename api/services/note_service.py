@@ -285,6 +285,77 @@ async def update_note(db: AsyncSession, note_id: str, title: str | None = None, 
     return await get_note(db, note_id)
 
 
+async def patch_note_content(db: AsyncSession, note_id: str, operations: list[dict]) -> Note:
+    """Apply line-based patch operations to a note's content.
+
+    Each operation has start_line, end_line, content.  Lines are 1-indexed.
+    - Replace: start_line <= end_line — replaces lines[start..end] with content
+    - Delete:  start_line <= end_line, content="" — removes those lines
+    - Insert:  start_line > end_line — inserts content before start_line
+    """
+    note = await get_note(db, note_id)
+    if note is None:
+        raise ValueError(f"Note '{note_id}' not found.")
+
+    lines = (note.content or "").split("\n")
+    num_lines = len(lines)
+
+    # Validate all operations first
+    for i, op in enumerate(operations):
+        s, e = op["start_line"], op["end_line"]
+        is_insert = s > e
+        if is_insert:
+            # Insert: end_line is the anchor, must be in [0, num_lines]
+            # end_line=0 means insert at the very beginning
+            if e < 0 or e > num_lines:
+                raise ValueError(f"Operation {i}: end_line {e} out of range (0-{num_lines}).")
+            if s != e + 1:
+                raise ValueError(f"Operation {i}: for insert, start_line must be end_line + 1.")
+        else:
+            if s < 1 or s > num_lines:
+                raise ValueError(f"Operation {i}: start_line {s} out of range (1-{num_lines}).")
+            if e < 1 or e > num_lines:
+                raise ValueError(f"Operation {i}: end_line {e} out of range (1-{num_lines}).")
+
+    # Check for overlapping operations
+    # Normalize each op to an affected range for overlap detection
+    ranges = []
+    for i, op in enumerate(operations):
+        s, e = op["start_line"], op["end_line"]
+        if s > e:
+            # Insert at position s — affects no existing lines, but we track
+            # the insertion point to prevent two inserts at the same spot
+            ranges.append((s, s, i))
+        else:
+            ranges.append((s, e, i))
+
+    ranges.sort(key=lambda r: (r[0], r[1]))
+    for j in range(len(ranges) - 1):
+        _, end_a, idx_a = ranges[j]
+        start_b, _, idx_b = ranges[j + 1]
+        if end_a >= start_b:
+            raise ValueError(
+                f"Operations {idx_a} and {idx_b} overlap (lines {end_a} and {start_b})."
+            )
+
+    # Sort operations by start_line descending for bottom-to-top application
+    sorted_ops = sorted(operations, key=lambda op: op["start_line"], reverse=True)
+
+    for op in sorted_ops:
+        s, e, content = op["start_line"], op["end_line"], op["content"]
+        new_lines = content.split("\n") if content else []
+
+        if s > e:
+            # Insert before line s (after line e)
+            lines[e:e] = new_lines
+        else:
+            # Replace lines[s-1:e] with new content
+            lines[s - 1:e] = new_lines
+
+    patched_content = "\n".join(lines)
+    return await update_note(db, note_id, content=patched_content)
+
+
 async def delete_note(db: AsyncSession, note_id: str) -> bool:
     note = await get_note(db, note_id)
     if note is None:

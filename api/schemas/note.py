@@ -32,6 +32,16 @@ class NoteUpdate(BaseModel):
     blocks: list[dict] | None = None
 
 
+class LinePatchOperation(BaseModel):
+    start_line: int
+    end_line: int
+    content: str
+
+
+class NotePatchContent(BaseModel):
+    operations: list[LinePatchOperation]
+
+
 class NoteResponse(BaseModel):
     id: str
     title: str

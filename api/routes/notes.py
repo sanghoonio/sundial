@@ -18,6 +18,7 @@ from api.schemas.note import (
     NoteCreate,
     NoteList,
     NoteListItem,
+    NotePatchContent,
     NoteResponse,
     NoteUpdate,
 )
@@ -89,6 +90,26 @@ async def update_note(note_id: str, body: NoteUpdate, background_tasks: Backgrou
     )
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
+    resp = await _note_to_response(note, db)
+    await manager.broadcast("note_updated", {"id": note.id, "title": note.title}, exclude_client_id=client_id)
+
+    from api.services.ai_background import process_note_ai
+    background_tasks.add_task(process_note_ai, note.id)
+
+    return resp
+
+
+@router.patch("/{note_id}/content", response_model=NoteResponse)
+async def patch_note_content(note_id: str, body: NotePatchContent, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), client_id: str | None = Depends(get_client_id)):
+    try:
+        note = await note_service.patch_note_content(
+            db, note_id, operations=[op.model_dump() for op in body.operations],
+        )
+    except ValueError as e:
+        msg = str(e)
+        if "not found" in msg:
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=422, detail=msg)
     resp = await _note_to_response(note, db)
     await manager.broadcast("note_updated", {"id": note.id, "title": note.title}, exclude_client_id=client_id)
 
