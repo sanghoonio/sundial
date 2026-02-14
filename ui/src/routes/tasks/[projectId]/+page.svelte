@@ -393,7 +393,7 @@
 		<div class="flex-1 flex flex-col gap-1 px-2 py-2 overflow-y-auto">
 			<button
 				class="rounded-lg flex items-center justify-center transition-colors shrink-0 h-9 px-3
-					hover:bg-base-300 text-base-content/70"
+					hover:bg-base-300 text-base-content/90"
 				onclick={() => (sidebarExpanded = !sidebarExpanded)}
 				title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
 			>
@@ -409,7 +409,7 @@
 						{sidebarExpanded ? 'w-full px-3 gap-3' : 'px-3 justify-center'}
 						{selectedProjectId === project.id
 							? 'text-base-100'
-							: 'hover:bg-base-300 text-base-content/70'}"
+							: 'hover:bg-base-300 text-base-content/90'}"
 					onclick={() => selectProject(project.id)}
 					title={sidebarExpanded ? undefined : project.name}
 					style={selectedProjectId === project.id
