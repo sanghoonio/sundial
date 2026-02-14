@@ -19,8 +19,11 @@
 		Github,
 		Sun,
 		Moon,
-		LogOut
+		LogOut,
+		Wifi,
+		WifiOff
 	} from 'lucide-svelte';
+	import { ws } from '$lib/stores/websocket.svelte';
 
 	// Initialize from localStorage cache for fast render, then sync with API
 	const cachedCollapsed = typeof localStorage !== 'undefined'
@@ -133,6 +136,21 @@
 			{/if}
 		</a>
 
+		<!-- GitHub -->
+		<a
+			href="https://github.com/sanghoonio/sundial"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-base-300
+				{collapsed ? 'justify-center' : ''}"
+			title={collapsed ? 'GitHub' : undefined}
+		>
+			<Github size={20} />
+			{#if !collapsed}
+				<span>GitHub</span>
+			{/if}
+		</a>
+
 		<!-- API Docs -->
 		<a
 			href="{base}/api/docs"
@@ -148,20 +166,82 @@
 			{/if}
 		</a>
 
-		<!-- GitHub -->
-		<a
-			href="https://github.com/sanghoonio/sundial"
-			target="_blank"
-			rel="noopener noreferrer"
-			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-base-300
-				{collapsed ? 'justify-center' : ''}"
-			title={collapsed ? 'GitHub' : undefined}
-		>
-			<Github size={20} />
-			{#if !collapsed}
-				<span>GitHub</span>
-			{/if}
-		</a>
+		<!-- Connection status -->
+		{#if ws.connectionState === 'connected'}
+			<div class="dropdown {collapsed ? 'dropdown-right w-full' : 'dropdown-top'}">
+				<button
+					class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-base-300 w-full
+						{collapsed ? 'justify-center' : ''}"
+					title={collapsed ? 'Connected' : undefined}
+				>
+					<span class="relative inline-flex">
+						<Wifi size={20} />
+						<span class="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-success ring-2 ring-base-200"></span>
+					</span>
+					{#if !collapsed}
+						<span>Connected</span>
+					{/if}
+				</button>
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div tabindex="0" class="dropdown-content bg-base-100 rounded-box shadow-lg z-10 w-48 p-3 border border-base-300 {collapsed ? 'ml-1' : 'mb-1'}">
+					<div class="flex items-center gap-2 text-sm">
+						<span class="block h-2 w-2 rounded-full bg-success"></span>
+						<span>Connected</span>
+					</div>
+					<p class="text-xs text-base-content/50 mt-1">Live updates active</p>
+				</div>
+			</div>
+		{:else if ws.connectionState === 'reconnecting'}
+			<div class="dropdown {collapsed ? 'dropdown-right w-full' : 'dropdown-top'}">
+				<button
+					class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-base-300 w-full
+						{collapsed ? 'justify-center' : ''}"
+					title={collapsed ? 'Reconnecting...' : undefined}
+					onclick={() => ws.reconnect()}
+				>
+					<span class="relative inline-flex">
+						<WifiOff size={20} class="animate-pulse" />
+						<span class="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-warning ring-2 ring-base-200"></span>
+					</span>
+					{#if !collapsed}
+						<span>Reconnecting...</span>
+					{/if}
+				</button>
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div tabindex="0" class="dropdown-content bg-base-100 rounded-box shadow-lg z-10 w-48 p-3 border border-base-300 {collapsed ? 'ml-1' : 'mb-1'}">
+					<div class="flex items-center gap-2 text-sm">
+						<span class="block h-2 w-2 rounded-full bg-warning"></span>
+						<span>Reconnecting...</span>
+					</div>
+					<p class="text-xs text-base-content/50 mt-1">Click to retry now</p>
+				</div>
+			</div>
+		{:else}
+			<div class="dropdown {collapsed ? 'dropdown-right w-full' : 'dropdown-top'}">
+				<button
+					class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-base-300 w-full
+						{collapsed ? 'justify-center' : ''}"
+					title={collapsed ? 'Disconnected' : undefined}
+					onclick={() => ws.reconnect()}
+				>
+					<span class="relative inline-flex">
+						<WifiOff size={20} />
+						<span class="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-error ring-2 ring-base-200"></span>
+					</span>
+					{#if !collapsed}
+						<span>Disconnected</span>
+					{/if}
+				</button>
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div tabindex="0" class="dropdown-content bg-base-100 rounded-box shadow-lg z-10 w-48 p-3 border border-base-300 {collapsed ? 'ml-1' : 'mb-1'}">
+					<div class="flex items-center gap-2 text-sm">
+						<span class="block h-2 w-2 rounded-full bg-error"></span>
+						<span>Disconnected</span>
+					</div>
+					<p class="text-xs text-base-content/50 mt-1">Click to reconnect</p>
+				</div>
+			</div>
+		{/if}
 	</div>
 
 	<!-- User profile + toggles -->

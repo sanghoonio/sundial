@@ -4,8 +4,13 @@ import { toast } from 'svelte-sonner';
 
 const client = createWebSocket();
 
-let connected = $state(false);
+type ConnectionState = 'connected' | 'reconnecting' | 'disconnected';
+let connectionState = $state<ConnectionState>('disconnected');
 let lastMessage = $state<WSMessage | null>(null);
+
+client.onStateChange((state) => {
+	connectionState = state;
+});
 
 const refreshCallbacks = new Set<() => void>();
 
@@ -20,7 +25,6 @@ const subscriptions = new Map<string, Set<Sub>>();
 
 client.onMessage((msg) => {
 	lastMessage = msg;
-	connected = true;
 
 	// Handle AI background processing events
 	if (msg.type === 'ai_tags_suggested') {
@@ -61,7 +65,8 @@ client.onMessage((msg) => {
 });
 
 export const ws = {
-	get connected() { return connected; },
+	get connected() { return connectionState === 'connected'; },
+	get connectionState() { return connectionState; },
 	get lastMessage() { return lastMessage; },
 
 	start() {
@@ -70,7 +75,10 @@ export const ws = {
 
 	stop() {
 		client.disconnect();
-		connected = false;
+	},
+
+	reconnect() {
+		client.reconnect();
 	},
 
 	onRefresh(cb: () => void): () => void {
