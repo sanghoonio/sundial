@@ -9,6 +9,7 @@
 	let showSavedText = $state(false);
 	let theme = $state('light');
 	let sidebarDefaultCollapsed = $state(false);
+	let editorToolbarStyle = $state('float');
 
 	async function loadSettings() {
 		loading = true;
@@ -16,6 +17,7 @@
 			const res = await api.get<SettingsResponse>('/api/settings');
 			theme = res.theme;
 			sidebarDefaultCollapsed = res.sidebar_default_collapsed;
+			editorToolbarStyle = res.editor_toolbar_style;
 		} catch (e) {
 			console.error('Failed to load settings', e);
 		} finally {
@@ -30,12 +32,18 @@
 	async function handleSave() {
 		saveStatus = 'saving';
 		try {
-			const update: SettingsUpdate = { theme, sidebar_default_collapsed: sidebarDefaultCollapsed };
+			const update: SettingsUpdate = { theme, sidebar_default_collapsed: sidebarDefaultCollapsed, editor_toolbar_style: editorToolbarStyle };
 			const res = await api.put<SettingsResponse>('/api/settings', update);
 			theme = res.theme;
 			sidebarDefaultCollapsed = res.sidebar_default_collapsed;
+			editorToolbarStyle = res.editor_toolbar_style;
 			localStorage.setItem('sundial_sidebar_collapsed', String(sidebarDefaultCollapsed));
-			document.documentElement.setAttribute('data-theme', theme);
+			localStorage.setItem('sundial_editor_toolbar_style', editorToolbarStyle);
+			localStorage.setItem('sundial_theme', theme);
+			const resolved = theme === 'system'
+				? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+				: theme;
+			document.documentElement.setAttribute('data-theme', resolved);
 			saveStatus = 'saved';
 			showSavedText = true;
 			setTimeout(() => { showSavedText = false; }, 2000);
@@ -99,6 +107,7 @@
 			<select class="select select-bordered select-sm w-full max-w-xs" bind:value={theme}>
 				<option value="light">Light</option>
 				<option value="dark">Dark</option>
+				<option value="system">System</option>
 			</select>
 		</div>
 		<div>
@@ -106,6 +115,14 @@
 			<select class="select select-bordered select-sm w-full max-w-xs" bind:value={sidebarDefaultCollapsed}>
 				<option value={false}>Expanded</option>
 				<option value={true}>Collapsed</option>
+			</select>
+		</div>
+		<div>
+			<p class="text-sm font-medium mb-1">Note Editor Toolbar</p>
+			<p class="text-xs text-base-content/60 mb-1">How the formatting toolbar appears when editing a text block</p>
+			<select class="select select-bordered select-sm w-full max-w-xs" bind:value={editorToolbarStyle}>
+				<option value="float">Float</option>
+				<option value="slide">Slide</option>
 			</select>
 		</div>
 	</div>

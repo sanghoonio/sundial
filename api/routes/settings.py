@@ -29,6 +29,7 @@ _SETTINGS_KEYS = {
     "theme": ("str", "light"),
     "sidebar_default_collapsed": ("bool", False),
     "mcp_enabled": ("bool", True),
+    "editor_toolbar_style": ("str", "float"),
 }
 
 # Keys that should be masked in GET responses

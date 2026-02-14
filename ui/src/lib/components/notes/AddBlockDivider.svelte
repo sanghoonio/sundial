@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { fade, scale } from 'svelte/transition';
 	import { Plus, MessageSquare, FileText } from 'lucide-svelte';
 
 	interface Props {
@@ -29,6 +30,8 @@
 	{#if hovered}
 		<div
 			class="absolute z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 bg-base-100 border border-base-300 rounded-full px-2 py-0.5 shadow-md"
+			in:scale={{ start: 0.9, duration: 150 }}
+			out:fade={{ duration: 100 }}
 		>
 			<button class="btn btn-ghost btn-xs gap-1" onclick={onaddmd} title="Add text block">
 				<FileText size={12} />

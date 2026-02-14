@@ -17,6 +17,7 @@ class SettingsResponse(BaseModel):
     theme: str = "light"
     sidebar_default_collapsed: bool = False
     mcp_enabled: bool = True
+    editor_toolbar_style: str = "float"
 
 
 class SettingsUpdate(BaseModel):
@@ -35,3 +36,4 @@ class SettingsUpdate(BaseModel):
     theme: str | None = None
     sidebar_default_collapsed: bool | None = None
     mcp_enabled: bool | None = None
+    editor_toolbar_style: str | None = None

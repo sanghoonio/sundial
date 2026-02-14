@@ -86,6 +86,17 @@
 
 		onchange(newBlocks);
 	}
+
+	$effect(() => {
+		function handleDocClick(e: MouseEvent) {
+			const target = e.target as HTMLElement;
+			if (!target.closest('[data-block-editor]')) {
+				focusedBlockId = null;
+			}
+		}
+		document.addEventListener('mousedown', handleDocClick);
+		return () => document.removeEventListener('mousedown', handleDocClick);
+	});
 </script>
 
 <div class="space-y-0">

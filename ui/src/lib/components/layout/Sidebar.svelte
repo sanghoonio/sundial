@@ -38,18 +38,42 @@
 	});
 	let darkMode = $state(false);
 
+	function resolveTheme(pref: string): 'light' | 'dark' {
+		if (pref === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+		return pref === 'dark' ? 'dark' : 'light';
+	}
+
 	// Initialize theme from localStorage (default to light)
 	$effect(() => {
-		const stored = localStorage.getItem('sundial_theme');
-		darkMode = stored === 'dark';
-		document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+		const stored = localStorage.getItem('sundial_theme') ?? 'light';
+		const resolved = resolveTheme(stored);
+		darkMode = resolved === 'dark';
+		document.documentElement.setAttribute('data-theme', resolved);
+
+		const mq = window.matchMedia('(prefers-color-scheme: dark)');
+		const handler = () => {
+			const current = localStorage.getItem('sundial_theme') ?? 'light';
+			if (current === 'system') {
+				const r = resolveTheme('system');
+				darkMode = r === 'dark';
+				document.documentElement.setAttribute('data-theme', r);
+			}
+		};
+		mq.addEventListener('change', handler);
+		return () => mq.removeEventListener('change', handler);
 	});
 
 	function toggleTheme() {
-		darkMode = !darkMode;
-		const theme = darkMode ? 'dark' : 'light';
-		document.documentElement.setAttribute('data-theme', theme);
-		localStorage.setItem('sundial_theme', theme);
+		const stored = localStorage.getItem('sundial_theme') ?? 'light';
+		let next: string;
+		if (stored === 'system') {
+			next = darkMode ? 'light' : 'dark';
+		} else {
+			next = darkMode ? 'light' : 'dark';
+		}
+		darkMode = next === 'dark';
+		document.documentElement.setAttribute('data-theme', next);
+		localStorage.setItem('sundial_theme', next);
 	}
 
 	function handleLogout() {

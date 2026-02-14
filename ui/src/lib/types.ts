@@ -418,6 +418,7 @@ export interface SettingsResponse {
 	theme: string;
 	sidebar_default_collapsed: boolean;
 	mcp_enabled: boolean;
+	editor_toolbar_style: string;
 }
 
 export interface SettingsUpdate {
@@ -436,6 +437,7 @@ export interface SettingsUpdate {
 	theme?: string;
 	sidebar_default_collapsed?: boolean;
 	mcp_enabled?: boolean;
+	editor_toolbar_style?: string;
 }
 
 // Calendar Settings (CalDAV)

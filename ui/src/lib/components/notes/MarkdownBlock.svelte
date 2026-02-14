@@ -7,6 +7,7 @@
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import { renderMermaidInContainer } from '$lib/utils/mermaid';
 	import { notesSearch } from '$lib/stores/notesSearch.svelte';
+	import { slide, fly, fade } from 'svelte/transition';
 	import MarkdownToolbar from './MarkdownToolbar.svelte';
 	import WikiLinkSuggest from './WikiLinkSuggest.svelte';
 
@@ -21,11 +22,55 @@
 
 	let { content, preview, focused, blockIndex, onfocus, onupdate }: Props = $props();
 
+	const toolbarStyle = typeof localStorage !== 'undefined'
+		? (localStorage.getItem('sundial_editor_toolbar_style') ?? 'float')
+		: 'float';
+
 	let textareaEl = $state<HTMLTextAreaElement>();
 	let userMinHeight = $state<number | null>(null);
 	let lastAutoHeight: number | null = null;
 	let editorWrapperEl = $state<HTMLDivElement>();
 	let previewEl = $state<HTMLDivElement>();
+	let hovered = $state(false);
+	let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	function handleHoverEnter() {
+		if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
+		if (toolbarStyle === 'float' && editorWrapperEl) {
+			const rect = editorWrapperEl.getBoundingClientRect();
+			floatPos = { top: rect.top, left: rect.left, width: rect.width };
+		}
+		hovered = true;
+	}
+
+	function handleHoverLeave(e: MouseEvent) {
+		const related = e.relatedTarget as HTMLElement | null;
+		if (related && editorWrapperEl?.contains(related)) return;
+		hoverTimeout = setTimeout(() => { hovered = false; }, 100);
+	}
+
+	// Float toolbar position (fixed positioning to escape scroll container clipping)
+	let floatPos = $state({ top: 0, left: 0, width: 0 });
+
+	$effect(() => {
+		if (!focused || toolbarStyle !== 'float' || !editorWrapperEl) return;
+
+		function updatePos() {
+			const rect = editorWrapperEl!.getBoundingClientRect();
+			floatPos = { top: rect.top, left: rect.left, width: rect.width };
+		}
+
+		updatePos();
+
+		const scrollParent = getScrollParent(editorWrapperEl!);
+		scrollParent?.addEventListener('scroll', updatePos, { passive: true });
+		window.addEventListener('resize', updatePos, { passive: true });
+
+		return () => {
+			scrollParent?.removeEventListener('scroll', updatePos);
+			window.removeEventListener('resize', updatePos);
+		};
+	});
 
 	let renderedHtml = $derived(preview ? renderMarkdown(content) : '');
 
@@ -439,20 +484,36 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div bind:this={previewEl} class="prose prose-sm max-w-none min-h-8 py-1" class:hidden={!preview} onclick={handlePreviewClick}>
+<div bind:this={previewEl} class="prose prose-sm max-w-none min-h-8 py-1" class:hidden={!preview} onclick={handlePreviewClick} data-block-editor>
 	{#if content}
 		{@html previewHtmlWithHighlights}
 	{:else}
 		<p class="text-base-content/30 italic">Empty block</p>
 	{/if}
 </div>
-<div bind:this={editorWrapperEl} class="relative w-full" class:hidden={preview}>
+<div bind:this={editorWrapperEl} class="relative w-full" class:hidden={preview} data-block-editor onmouseenter={handleHoverEnter} onmouseleave={handleHoverLeave}>
+	{#if focused && hovered && toolbarStyle === 'float'}
+		<div
+			class="fixed z-50 pb-1"
+			style="bottom: {window.innerHeight - floatPos.top}px; left: {floatPos.left}px; width: {floatPos.width}px;"
+			in:fly={{ y: 4, duration: 150 }}
+			out:fade={{ duration: 100 }}
+			onmouseenter={handleHoverEnter}
+			onmouseleave={handleHoverLeave}
+		>
+			<div class="px-2 py-1 bg-base-200 rounded-lg border border-base-content/20 shadow-sm">
+				<MarkdownToolbar textarea={textareaEl} />
+			</div>
+		</div>
+	{/if}
 	<div
 		class="w-full overflow-hidden rounded-lg border border-base-content/20 {focused ? 'shadow-[0_0_8px_rgba(0,0,0,0.06)]' : ''}"
 	>
-		{#if focused}
-			<div class="px-2 py-1 bg-base-200/50 border-b border-base-content/20">
-				<MarkdownToolbar textarea={textareaEl} />
+		{#if focused && toolbarStyle === 'slide'}
+			<div transition:slide={{ duration: 150 }}>
+				<div class="px-2 py-1 bg-base-200/50 border-b border-base-content/20">
+					<MarkdownToolbar textarea={textareaEl} />
+				</div>
 			</div>
 		{/if}
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
