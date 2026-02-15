@@ -78,6 +78,7 @@ def _ensure_utc(dt: datetime | None) -> datetime | None:
 async def get_today(db: AsyncSession = Depends(get_db), tz: str | None = Query(None)):
     today_start, today_end, local_date = resolve_today(tz)
     seven_days_ago = today_start - timedelta(days=7)
+    user_tz = zoneinfo.ZoneInfo(tz) if tz else timezone.utc
 
     # Tasks due today or overdue
     task_result = await db.execute(
@@ -95,18 +96,35 @@ async def get_today(db: AsyncSession = Depends(get_db), tz: str | None = Query(N
     # Events for today - with recurring event expansion
     events_out: list[tuple[datetime, str, datetime | None, bool, str]] = []  # (start_time, title, end_time, all_day, id)
 
-    # Non-recurring events today (no rrule, no recurring_event_id)
-    non_recurring_result = await db.execute(
+    # Non-recurring TIMED events today
+    timed_result = await db.execute(
         select(CalendarEvent)
         .where(
             CalendarEvent.rrule.is_(None),
             CalendarEvent.recurring_event_id.is_(None),
+            CalendarEvent.all_day.is_(False),
             CalendarEvent.start_time >= today_start,
             CalendarEvent.start_time < today_end,
         )
     )
-    for e in non_recurring_result.scalars().all():
+    for e in timed_result.scalars().all():
         events_out.append((_ensure_utc(e.start_time), e.title, e.end_time, e.all_day, e.id))
+
+    # Non-recurring ALL-DAY events: widen range +-1 day, filter by local date
+    allday_result = await db.execute(
+        select(CalendarEvent)
+        .where(
+            CalendarEvent.rrule.is_(None),
+            CalendarEvent.recurring_event_id.is_(None),
+            CalendarEvent.all_day.is_(True),
+            CalendarEvent.start_time >= today_start - timedelta(days=1),
+            CalendarEvent.start_time < today_end + timedelta(days=1),
+        )
+    )
+    for e in allday_result.scalars().all():
+        st = _ensure_utc(e.start_time)
+        if st.astimezone(user_tz).strftime("%Y-%m-%d") == local_date:
+            events_out.append((st, e.title, e.end_time, e.all_day, e.id))
 
     # Recurring masters - expand their RRULEs
     masters_result = await db.execute(
@@ -117,15 +135,24 @@ async def get_today(db: AsyncSession = Depends(get_db), tz: str | None = Query(N
     )
     masters = masters_result.scalars().all()
 
-    # Exception instances for today
+    # Exception instances: wider range for all-day edge cases, filter in Python
     exc_result = await db.execute(
         select(CalendarEvent).where(
             CalendarEvent.recurring_event_id.isnot(None),
-            CalendarEvent.start_time >= today_start,
-            CalendarEvent.start_time < today_end,
+            CalendarEvent.start_time >= today_start - timedelta(days=1),
+            CalendarEvent.start_time < today_end + timedelta(days=1),
         )
     )
-    exceptions = exc_result.scalars().all()
+    exceptions = []
+    for exc in exc_result.scalars().all():
+        st = _ensure_utc(exc.start_time)
+        if exc.all_day:
+            if st.astimezone(user_tz).strftime("%Y-%m-%d") == local_date:
+                exceptions.append(exc)
+        else:
+            if today_start <= st < today_end:
+                exceptions.append(exc)
+
     exc_by_master: dict[str, dict[str, CalendarEvent]] = {}
     for exc in exceptions:
         if exc.recurring_event_id not in exc_by_master:
@@ -151,17 +178,43 @@ async def get_today(db: AsyncSession = Depends(get_db), tz: str | None = Query(N
                 if dtstart_utc.tzinfo is None:
                     dtstart_utc = dtstart_utc.replace(tzinfo=timezone.utc)
                 dtstart_local = dtstart_utc.astimezone(orig_tz)
-                local_start = today_start.astimezone(orig_tz)
-                local_end = today_end.astimezone(orig_tz)
                 rule = rrulestr(master.rrule, dtstart=dtstart_local)
-                occurrences_local = rule.between(local_start, local_end, inc=True)
-                occurrences = [occ.astimezone(timezone.utc) for occ in occurrences_local]
+
+                if master.all_day:
+                    # Widen range for all-day, filter by local date
+                    wide_start = (today_start - timedelta(days=1)).astimezone(orig_tz)
+                    wide_end = (today_end + timedelta(days=1)).astimezone(orig_tz)
+                    occurrences_local = rule.between(wide_start, wide_end, inc=True)
+                    occurrences = [
+                        occ.astimezone(timezone.utc) for occ in occurrences_local
+                        if occ.astimezone(timezone.utc).astimezone(user_tz).strftime("%Y-%m-%d") == local_date
+                    ]
+                else:
+                    local_start = today_start.astimezone(orig_tz)
+                    local_end = today_end.astimezone(orig_tz)
+                    occurrences_local = rule.between(local_start, local_end, inc=True)
+                    # Exclude end boundary for timed events
+                    occurrences = [
+                        occ.astimezone(timezone.utc) for occ in occurrences_local
+                        if occ.astimezone(timezone.utc) < today_end
+                    ]
             else:
                 dtstart = master.start_time
                 if dtstart.tzinfo is None:
                     dtstart = dtstart.replace(tzinfo=timezone.utc)
                 rule = rrulestr(master.rrule, dtstart=dtstart)
-                occurrences = rule.between(today_start, today_end, inc=True)
+
+                if master.all_day:
+                    wide_start = today_start - timedelta(days=1)
+                    wide_end = today_end + timedelta(days=1)
+                    raw_occurrences = rule.between(wide_start, wide_end, inc=True)
+                    occurrences = [
+                        occ for occ in raw_occurrences
+                        if occ.astimezone(user_tz).strftime("%Y-%m-%d") == local_date
+                    ]
+                else:
+                    raw_occurrences = rule.between(today_start, today_end, inc=True)
+                    occurrences = [occ for occ in raw_occurrences if occ < today_end]
 
             master_exceptions = exc_by_master.get(master.id, {})
 

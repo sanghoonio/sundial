@@ -11,6 +11,7 @@ class EventCreate(BaseModel):
     all_day: bool = False
     location: str = ""
     rrule: str | None = None
+    original_timezone: str | None = None
 
 
 class EventUpdate(BaseModel):

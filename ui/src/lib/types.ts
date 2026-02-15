@@ -292,6 +292,7 @@ export interface EventCreate {
 	all_day?: boolean;
 	location?: string;
 	rrule?: string | null;
+	original_timezone?: string;
 }
 
 export interface EventUpdate {

@@ -139,6 +139,7 @@ async def create_event(body: EventCreate, db: AsyncSession = Depends(get_db), cl
         all_day=body.all_day,
         location=body.location,
         rrule=body.rrule,
+        original_timezone=body.original_timezone,
         calendar_source="local",
     )
     db.add(event)

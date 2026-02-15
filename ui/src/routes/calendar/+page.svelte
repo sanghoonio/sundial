@@ -94,8 +94,8 @@
 
 	let itemDates = $derived(new Set(calendarItems.map((item) => getItemDate(item)).filter(Boolean)));
 
-	async function loadData() {
-		loading = true;
+	async function loadData(silent = false) {
+		if (!silent) loading = true;
 		try {
 			const { start, end } = getDateRange(currentDate, view);
 			const [eventRes, taskRes] = await Promise.all([
@@ -105,8 +105,10 @@
 			events = eventRes.events;
 			tasks = taskRes.tasks;
 		} catch (e) {
-			console.error('Failed to load calendar data', e);
-			toast.error('Failed to load calendar');
+			if (!silent) {
+				console.error('Failed to load calendar data', e);
+				toast.error('Failed to load calendar');
+			}
 		} finally {
 			loading = false;
 		}
@@ -201,7 +203,7 @@
 	}
 
 	function handleEventSaved(evt: EventResponse, isNew: boolean) {
-		if (evt.rrule) {
+		if (evt.rrule || evt.recurring_event_id) {
 			loadData();
 		} else if (isNew) {
 			events = [...events, evt];

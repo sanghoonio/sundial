@@ -34,35 +34,61 @@
 	let endTouched = $state(false);
 	let saving = $state(false);
 
+	let editingAsSeries = $state(false);
+	let saveEventId = $state<string | null>(null);
 	let isEditing = $derived(!!event);
 
 	// Recurring instance detection
+	// When editingAsSeries, treat as non-instance so RecurrenceInput renders
 	let isRecurringInstance = $derived(
-		!!(event?.recurring_event_id) || !!(event?.id?.includes('__rec__'))
+		!editingAsSeries && (!!(event?.recurring_event_id) || !!(event?.id?.includes('__rec__')))
 	);
-	let masterEventId = $derived(event?.recurring_event_id ?? null);
+	let masterEventId = $derived(
+		editingAsSeries ? saveEventId : (event?.recurring_event_id ?? null)
+	);
+
+	function initFromEventData(evt: EventResponse) {
+		title = evt.title;
+		description = evt.description || '';
+		location = evt.location || '';
+		allDay = evt.all_day;
+		rrule = evt.rrule ?? null;
+		const start = new Date(evt.start_time);
+		startDate = formatLocalDate(start);
+		startTime = allDay ? '' : formatLocalTime(start);
+		if (evt.end_time) {
+			const end = new Date(evt.end_time);
+			endDate = formatLocalDate(end);
+			endTime = allDay ? '' : formatLocalTime(end);
+		} else {
+			endDate = '';
+			endTime = '';
+		}
+		endTouched = true;
+	}
 
 	// Reset form when event changes or modal opens
 	$effect(() => {
 		if (open) {
+			editingAsSeries = false;
+			saveEventId = null;
+
 			if (event) {
-				title = event.title;
-				description = event.description || '';
-				location = event.location || '';
-				allDay = event.all_day;
-				rrule = event.rrule ?? null;
-				const start = new Date(event.start_time);
-				startDate = formatLocalDate(start);
-				startTime = allDay ? '' : formatLocalTime(start);
-				if (event.end_time) {
-					const end = new Date(event.end_time);
-					endDate = formatLocalDate(end);
-					endTime = allDay ? '' : formatLocalTime(end);
-				} else {
-					endDate = '';
-					endTime = '';
+				// Virtual recurring instance → fetch master event
+				if (event.id?.includes('__rec__')) {
+					const masterId = event.recurring_event_id || event.id.split('__rec__')[0];
+					api.get<EventResponse>(`/api/calendar/events/${masterId}`).then((master) => {
+						initFromEventData(master);
+						saveEventId = master.id;
+						editingAsSeries = true;
+					}).catch(() => {
+						initFromEventData(event!);
+						saveEventId = event!.id;
+					});
+					return;
 				}
-				endTouched = true;
+				initFromEventData(event);
+				saveEventId = event.id;
 			} else {
 				title = '';
 				description = '';
@@ -130,9 +156,11 @@
 		try {
 			let result: EventResponse;
 			if (event) {
-				result = await api.put<EventResponse>(`/api/calendar/events/${event.id}`, data);
+				const id = saveEventId || event.id;
+				result = await api.put<EventResponse>(`/api/calendar/events/${id}`, data);
 				onsaved(result, false);
 			} else {
+				(data as EventCreate).original_timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 				result = await api.post<EventResponse>('/api/calendar/events', data);
 				onsaved(result, true);
 			}
@@ -145,7 +173,8 @@
 	}
 
 	async function handleDelete() {
-		if (!event || !ondeleted) return;
+		const id = saveEventId || event?.id;
+		if (!id || !ondeleted) return;
 		const confirmed = await confirmModal.confirm({
 			title: 'Delete Event',
 			message: 'Are you sure you want to delete this event?',
@@ -153,7 +182,7 @@
 			variant: 'danger'
 		});
 		if (!confirmed) return;
-		ondeleted(event.id);
+		ondeleted(id);
 		open = false;
 	}
 
@@ -219,8 +248,19 @@
 			<RecurrenceInput bind:value={rrule} />
 		{/if}
 
-		<!-- Recurring instance badge + series controls -->
-		{#if isRecurringInstance}
+		<!-- Recurring series badge + controls -->
+		{#if editingAsSeries}
+			<div class="flex items-center gap-1.5 text-xs text-info py-1">
+				<Repeat size={12} />
+				<span>Editing recurring series</span>
+			</div>
+			{#if onseriesdeleted}
+				<button class="btn btn-ghost btn-xs text-error gap-1 self-start" onclick={handleDeleteSeries}>
+					<Trash2 size={12} />
+					<span>Delete series</span>
+				</button>
+			{/if}
+		{:else if isRecurringInstance}
 			<div class="flex items-center gap-1.5 text-xs text-base-content/60 py-1">
 				<Repeat size={12} />
 				<span>Part of a recurring series</span>

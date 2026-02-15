@@ -49,12 +49,16 @@
 	let createTaskOpen = $state(false);
 	let createTaskProjectId = $state('');
 	let createTaskProjects = $state<ProjectResponse[]>([]);
+	let editingAsSeries = $state(false);
 
 	// Recurring instance detection: synthetic IDs contain __rec__
+	// When editingAsSeries, treat as non-instance so RecurrenceInput renders
 	let isRecurringInstance = $derived(
-		!!(event?.recurring_event_id) || !!(event?.id?.includes('__rec__'))
+		!editingAsSeries && (!!(event?.recurring_event_id) || !!(event?.id?.includes('__rec__')))
 	);
-	let masterEventId = $derived(event?.recurring_event_id ?? null);
+	let masterEventId = $derived(
+		editingAsSeries ? liveEventId : (event?.recurring_event_id ?? null)
+	);
 
 	// Track linked items from event (may update after task creation)
 	let currentLinkedNotes = $derived(event?.linked_notes ?? []);
@@ -77,6 +81,33 @@
 		}
 	});
 
+	function initFromEventData(evt: EventResponse) {
+		title = evt.title;
+		description = evt.description || '';
+		location = evt.location || '';
+		allDay = evt.all_day;
+		rrule = evt.rrule ?? null;
+		const start = new Date(evt.start_time);
+		startDate = formatLocalDate(start);
+		startTime = evt.all_day ? '' : formatLocalTime(start);
+		if (evt.end_time) {
+			const end = new Date(evt.end_time);
+			endDate = formatLocalDate(end);
+			endTime = evt.all_day ? '' : formatLocalTime(end);
+		} else {
+			endDate = '';
+			endTime = '';
+		}
+		endTouched = true;
+	}
+
+	function finishInit() {
+		setTimeout(() => {
+			lastSnapshot = currentSnapshot();
+			loaded = true;
+		}, 0);
+	}
+
 	// Only re-initialize the form when the event identity actually changes
 	// For new events, include defaultDate/defaultTime so clicking a different day re-inits
 	$effect(() => {
@@ -84,6 +115,7 @@
 		if (key === initEventKey) return;
 		initEventKey = key;
 		loaded = false;
+		editingAsSeries = false;
 
 		// Trigger flash animation
 		clearTimeout(flashTimer);
@@ -91,23 +123,22 @@
 		flashTimer = setTimeout(() => (flash = false), 600);
 
 		if (event) {
-			title = event.title;
-			description = event.description || '';
-			location = event.location || '';
-			allDay = event.all_day;
-			rrule = event.rrule ?? null;
-			const start = new Date(event.start_time);
-			startDate = formatLocalDate(start);
-			startTime = event.all_day ? '' : formatLocalTime(start);
-			if (event.end_time) {
-				const end = new Date(event.end_time);
-				endDate = formatLocalDate(end);
-				endTime = event.all_day ? '' : formatLocalTime(end);
-			} else {
-				endDate = '';
-				endTime = '';
+			// Virtual recurring instance → fetch master event
+			if (event.id?.includes('__rec__')) {
+				const masterId = event.recurring_event_id || event.id.split('__rec__')[0];
+				api.get<EventResponse>(`/api/calendar/events/${masterId}`).then((master) => {
+					initFromEventData(master);
+					liveEventId = master.id;
+					editingAsSeries = true;
+					finishInit();
+				}).catch(() => {
+					initFromEventData(event);
+					liveEventId = event!.id;
+					finishInit();
+				});
+				return;
 			}
-			endTouched = true;
+			initFromEventData(event);
 			liveEventId = event.id;
 		} else {
 			title = '';
@@ -123,10 +154,7 @@
 			endTouched = false;
 			liveEventId = null;
 		}
-		setTimeout(() => {
-			lastSnapshot = currentSnapshot();
-			loaded = true;
-		}, 0);
+		finishInit();
 	});
 
 	function currentSnapshot(): string {
@@ -203,6 +231,7 @@
 				result = await api.put<EventResponse>(`/api/calendar/events/${liveEventId}`, data);
 				onsaved(result, false);
 			} else {
+				(data as EventCreate).original_timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 				result = await api.post<EventResponse>('/api/calendar/events', data);
 				liveEventId = result.id;
 				onsaved(result, true);
@@ -341,8 +370,19 @@
 		}} />
 	{/if}
 
-	<!-- Recurring instance badge + series controls -->
-	{#if isRecurringInstance}
+	<!-- Recurring series badge + controls -->
+	{#if editingAsSeries}
+		<div class="flex items-center gap-1.5 text-xs text-info py-1">
+			<Repeat size={12} />
+			<span>Editing recurring series</span>
+		</div>
+		{#if onseriesdeleted}
+			<button class="btn btn-ghost btn-xs text-error gap-1 self-start" onclick={handleDeleteSeries}>
+				<Trash2 size={12} />
+				<span>Delete series</span>
+			</button>
+		{/if}
+	{:else if isRecurringInstance}
 		<div class="flex items-center gap-1.5 text-xs text-base-content/60 py-1">
 			<Repeat size={12} />
 			<span>Part of a recurring series</span>
