@@ -242,7 +242,7 @@ def _tool_list() -> list[Tool]:
         ),
         Tool(
             name="patch_note",
-            description="Preferred tool for editing note content when changing specific sections. Avoids resending unchanged content and reduces the risk of accidentally dropping or altering sections. For extensive rewrites or short notes, update_note may be simpler. Read the note first to see line numbers, then send precise operations. Each operation specifies start_line, end_line (1-indexed), and replacement content. To replace lines: start_line <= end_line. To delete lines: set content to empty string. To insert: set start_line = end_line + 1 (inserts before start_line).",
+            description="Preferred tool for editing note content when changing specific sections. Avoids resending unchanged content and reduces the risk of accidentally dropping or altering sections. For extensive rewrites or short notes, update_note may be simpler. Read the note first to see line numbers, then send precise operations. Each operation specifies start_line, end_line (1-indexed), and replacement content. Lines not covered by any operation are preserved unchanged, so when rewriting a section, ensure the ranges cover all lines being replaced. To replace lines: start_line <= end_line. To delete lines: set content to empty string. To insert: set start_line = end_line + 1 (inserts before start_line).",
             inputSchema={
                 "type": "object",
                 "properties": {

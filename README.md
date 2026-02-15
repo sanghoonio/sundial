@@ -56,7 +56,7 @@ FastAPI backend at `/api/*` with JWT auth. REST endpoints for notes, tasks, proj
 
 ### MCP Server
 
-Model Context Protocol server at `/mcp` over SSE. Exposes 24 tools for notes, tasks, calendar, projects, tags, dashboard, and cross-entity linking. Bearer token auth via API keys. Lets external AI assistants (e.g., Claude Desktop, Claude Code) read and write Sundial data directly.
+Model Context Protocol server at `/mcp` over SSE. Exposes 21 tools for notes, tasks, calendar, projects, tags, dashboard, and cross-entity linking. Bearer token auth via API keys. Lets external AI assistants (e.g., Claude Desktop, Claude Code) read and write Sundial data directly.
 
 ### Frontend
 
@@ -106,7 +106,6 @@ Environment variables in `.env`:
 | `WORKSPACE_DIR` | Markdown files directory | `./workspace` |
 | `CORS_ORIGINS` | Allowed origins (comma-separated) | `http://localhost:5173,http://localhost:3000` |
 | `BASE_PATH` | Subpath for deployment (e.g., `/sundial`) | empty (root) |
-| `ANTHROPIC_API_KEY` | Claude API key (optional) | — |
 
 Generate a secure secret key:
 
