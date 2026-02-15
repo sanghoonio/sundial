@@ -122,21 +122,29 @@
 
 	// WebSocket: silently refresh calendar when events or tasks change externally
 	$effect(() => {
-		return ws.on(
-			['event_created', 'event_updated', 'event_deleted', 'event_series_deleted', 'task_created', 'task_updated', 'task_deleted'],
+		const eventUnsub = ws.on(
+			['event_created', 'event_updated', 'event_deleted', 'event_series_deleted'],
 			async () => {
 				try {
 					const { start, end } = getDateRange(currentDate, view);
-					const [eventRes, taskRes] = await Promise.all([
-						api.get<EventList>(`/api/calendar/events?start=${start}&end=${end}`),
-						api.get<TaskList>(`/api/tasks?due_after=${start}&due_before=${end}&limit=200`)
-					]);
+					const eventRes = await api.get<EventList>(`/api/calendar/events?start=${start}&end=${end}`);
 					events = eventRes.events;
+				} catch { /* ignore */ }
+			},
+			500
+		);
+		const taskUnsub = ws.on(
+			['task_created', 'task_updated', 'task_deleted'],
+			async () => {
+				try {
+					const { start, end } = getDateRange(currentDate, view);
+					const taskRes = await api.get<TaskList>(`/api/tasks?due_after=${start}&due_before=${end}&limit=200`);
 					tasks = taskRes.tasks;
 				} catch { /* ignore */ }
 			},
 			500
 		);
+		return () => { eventUnsub(); taskUnsub(); };
 	});
 
 	function navigate(direction: -1 | 1) {
@@ -204,7 +212,8 @@
 
 	function handleEventSaved(evt: EventResponse, isNew: boolean) {
 		if (evt.rrule || evt.recurring_event_id) {
-			loadData();
+			// Recurring events need server-side expansion — refresh silently
+			loadData(true);
 		} else if (isNew) {
 			events = [...events, evt];
 		} else {
@@ -250,7 +259,7 @@
 				interval = setInterval(async () => {
 					try {
 						await api.post('/api/calendar/sync');
-						loadData();
+						loadData(true);
 					} catch (e) {
 						console.error('Periodic sync failed', e);
 					}

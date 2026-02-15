@@ -84,14 +84,16 @@
 		return filtered.slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 	});
 
-	async function loadProjects() {
-		loading = true;
+	async function loadProjects(silent = false) {
+		if (!silent) loading = true;
 		try {
 			const res = await api.get<ProjectList>('/api/projects');
 			projects = res.projects;
 		} catch (e) {
-			console.error('Failed to load projects', e);
-			toast.error('Failed to load projects');
+			if (!silent) {
+				console.error('Failed to load projects', e);
+				toast.error('Failed to load projects');
+			}
 		} finally {
 			loading = false;
 		}
@@ -105,7 +107,7 @@
 	$effect(() => {
 		return ws.on(
 			['project_reordered', 'project_updated'],
-			() => { loadProjects(); },
+			() => { loadProjects(true); },
 			500
 		);
 	});

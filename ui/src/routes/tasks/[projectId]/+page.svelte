@@ -127,16 +127,18 @@
 		}
 	}
 
-	async function loadTasks(projectId: string) {
-		loading = true;
+	async function loadTasks(projectId: string, silent = false) {
+		if (!silent) loading = true;
 		try {
 			const res = await api.get<TaskList>(
 				`/api/tasks?project_id=${projectId}&limit=200`
 			);
 			tasks = res.tasks;
 		} catch (e) {
-			console.error('Failed to load tasks', e);
-			toast.error('Failed to load tasks');
+			if (!silent) {
+				console.error('Failed to load tasks', e);
+				toast.error('Failed to load tasks');
+			}
 		} finally {
 			loading = false;
 		}
@@ -153,23 +155,28 @@
 		}
 	});
 
-	// WebSocket: silently refresh tasks when modified externally (no loading spinner)
+	// WebSocket: silently refresh when modified externally (no loading spinner)
 	$effect(() => {
 		const projectId = selectedProjectId;
-		return ws.on(
-			['task_created', 'task_updated', 'task_deleted', 'project_updated', 'project_reordered'],
+		const taskUnsub = ws.on(
+			['task_created', 'task_updated', 'task_deleted'],
 			async () => {
 				if (projectId) {
 					try {
 						const res = await api.get<TaskList>(`/api/tasks?project_id=${projectId}&limit=200`);
 						tasks = res.tasks;
-						// Update selectedTask in-place if it's still present
 						if (selectedTask) {
 							const updated = res.tasks.find((t) => t.id === selectedTask!.id);
 							if (updated) selectedTask = updated;
 						}
 					} catch { /* ignore */ }
 				}
+			},
+			500
+		);
+		const projectUnsub = ws.on(
+			['project_updated', 'project_reordered'],
+			async () => {
 				try {
 					const res = await api.get<ProjectList>('/api/projects');
 					projects = res.projects;
@@ -177,6 +184,7 @@
 			},
 			500
 		);
+		return () => { taskUnsub(); projectUnsub(); };
 	});
 
 	// Auto-select task from URL query param (for linked task navigation)
@@ -241,7 +249,7 @@
 		}
 		// Recurring task just completed → refetch to pick up spawned next instance
 		if (task.status === 'done' && task.recurrence_rule && oldTask?.status !== 'done') {
-			loadTasks(selectedProjectId);
+			loadTasks(selectedProjectId, true);
 		}
 	}
 
@@ -279,7 +287,7 @@
 			if (selectedTask?.id === taskId) selectedTask = updated;
 			// Recurring task completed → refetch to pick up the spawned next instance
 			if (newStatus === 'done' && oldTask?.recurrence_rule) {
-				await loadTasks(selectedProjectId);
+				await loadTasks(selectedProjectId, true);
 			}
 		} catch (e) {
 			tasks = oldTasks;
