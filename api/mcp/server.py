@@ -218,7 +218,7 @@ def _tool_list() -> list[Tool]:
                 "type": "object",
                 "properties": {
                     "title": {"type": "string", "description": "Note title"},
-                    "content": {"type": "string", "description": "Note content in markdown"},
+                    "content": {"type": "string", "description": "Note content in markdown. Supports code blocks with syntax highlighting, mermaid diagrams (```mermaid), LaTeX math ($inline$ and $$display$$), and wiki links ([[Note Title]], [[task:id]], [[event:id]])."},
                     "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags to apply"},
                     "project": {"type": "string", "description": "Project name or ID to file the note under. Accepts partial or full project names."},
                 },
@@ -227,7 +227,7 @@ def _tool_list() -> list[Tool]:
         ),
         Tool(
             name="update_note",
-            description="Update an existing note's title, content, tags, or project. For small content edits, prefer patch_note instead — it accepts line-number-based operations so you don't need to resend the entire content.",
+            description="Update an existing note's title, content, tags, or project. For partial content edits, prefer patch_note — it avoids resending unchanged content and reduces the risk of accidentally dropping sections. Use update_note for metadata changes (title, tags, project), full rewrites, or when the number of changes makes patch_note unwieldy.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -242,7 +242,7 @@ def _tool_list() -> list[Tool]:
         ),
         Tool(
             name="patch_note",
-            description="Apply line-based edits to a note's content without resending the full text. Use this instead of update_note when making small changes to long notes. Read the note first to see line numbers, then send precise operations. Each operation specifies start_line, end_line (1-indexed), and replacement content. To replace lines: start_line <= end_line. To delete lines: set content to empty string. To insert: set start_line = end_line + 1 (inserts before start_line).",
+            description="Preferred tool for editing note content when changing specific sections. Avoids resending unchanged content and reduces the risk of accidentally dropping or altering sections. For extensive rewrites or short notes, update_note may be simpler. Read the note first to see line numbers, then send precise operations. Each operation specifies start_line, end_line (1-indexed), and replacement content. To replace lines: start_line <= end_line. To delete lines: set content to empty string. To insert: set start_line = end_line + 1 (inserts before start_line).",
             inputSchema={
                 "type": "object",
                 "properties": {
