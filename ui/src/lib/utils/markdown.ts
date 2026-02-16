@@ -112,12 +112,16 @@ marked.use(markedKatex({ throwOnError: false }));
 // Custom renderer for task list checkboxes (remove disabled) and code blocks
 marked.use({
 	renderer: {
-		listitem({ text, task, checked }) {
-			if (task) {
-				const c = checked ? ' checked' : '';
-				return `<li class="task-list-item"><input type="checkbox" class="checkbox checkbox-xs"${c}> ${text}</li>\n`;
+		listitem(token) {
+			// Must use this.parser.parse() to render nested lists/inline content
+			const body = this.parser.parse(token.tokens);
+			if (token.task) {
+				const c = token.checked ? ' checked' : '';
+				// Strip the default disabled checkbox that parse() emits (may be inside <p> for loose lists)
+				const stripped = body.replace(/<input[^>]*type="checkbox"[^>]*>\s*/i, '');
+				return `<li class="task-list-item"><input type="checkbox" class="checkbox checkbox-xs"${c}> ${stripped}</li>\n`;
 			}
-			return `<li>${text}</li>\n`;
+			return `<li>${body}</li>\n`;
 		},
 		code({ text, lang }) {
 			// Parse "mermaid width=400" into { language: "mermaid", params: { width: "400" } }
@@ -146,7 +150,9 @@ marked.use({
  */
 export function renderMarkdown(content: string): string {
 	if (!content) return '';
-	const raw = marked.parse(content) as string;
+	// marked doesn't recognize `- [ ]` as a task without trailing text — add zero-width space
+	const preprocessed = content.replace(/^(\s*- \[[ xX]\])(\s*)$/gm, '$1 \u200B');
+	const raw = marked.parse(preprocessed) as string;
 	return DOMPurify.sanitize(raw, {
 		ADD_ATTR: [
 			'data-title', 'data-type', 'data-id', 'data-width',

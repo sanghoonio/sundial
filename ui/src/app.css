@@ -46,6 +46,12 @@
 	.prose li.task-list-item > .checkbox {
 		cursor: pointer;
 		vertical-align: middle;
+		margin-right: 0.35em;
+	}
+	/* Loose lists wrap content in <p> — keep it inline for task items */
+	.prose li.task-list-item p {
+		display: inline;
+		margin: 0;
 	}
 
 	/* KaTeX display math — vertical spacing + horizontal scroll for wide equations */
