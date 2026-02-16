@@ -52,6 +52,9 @@
 	// Reset fullscreen when navigating away
 	$effect(() => () => fullscreen.exit());
 
+	// Keep store in sync so MarkdownBlock can hide float toolbar
+	$effect(() => { notesSearch.findOpen = findOpen; });
+
 	let noteId = $derived(page.params.id);
 	let isNew = $derived(noteId === 'new');
 	let loaded = $state(false);
@@ -391,7 +394,7 @@
 		} else if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
 			e.preventDefault();
 			preview = !preview;
-		} else if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+		} else if ((e.metaKey || e.ctrlKey) && e.key === 'm') {
 			e.preventDefault();
 			showMeta = !showMeta;
 		} else if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
@@ -581,7 +584,7 @@
 				class="btn btn-ghost btn-sm btn-square hidden md:flex"
 				class:btn-active={showMeta}
 				onclick={() => (showMeta = !showMeta)}
-				title="Note info (Ctrl+I)"
+				title="Note info (Ctrl+M)"
 			>
 				<Info size={16} />
 			</button>

@@ -10,6 +10,7 @@
 	import { slide, fly, fade } from 'svelte/transition';
 	import MarkdownToolbar from './MarkdownToolbar.svelte';
 	import WikiLinkSuggest from './WikiLinkSuggest.svelte';
+	import { wrap } from '$lib/utils/editorFormatting';
 
 	interface Props {
 		content: string;
@@ -38,7 +39,9 @@
 		if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
 		if (toolbarStyle === 'float' && editorWrapperEl) {
 			const rect = editorWrapperEl.getBoundingClientRect();
-			floatPos = { top: rect.top, left: rect.left, width: rect.width };
+			const scrollParent = getScrollParent(editorWrapperEl);
+			const minBottom = scrollParent ? scrollParent.getBoundingClientRect().top : 0;
+			floatPos = { top: rect.top, left: rect.left, width: rect.width, minBottom };
 		}
 		hovered = true;
 	}
@@ -46,30 +49,46 @@
 	function handleHoverLeave(e: MouseEvent) {
 		const related = e.relatedTarget as HTMLElement | null;
 		if (related && editorWrapperEl?.contains(related)) return;
-		hoverTimeout = setTimeout(() => { hovered = false; }, 100);
+		if (hoverTimeout) clearTimeout(hoverTimeout);
+		hoverTimeout = setTimeout(() => {
+			// Don't hide if cursor came back over the wrapper or toolbar
+			if (editorWrapperEl?.matches(':hover')) return;
+			hovered = false;
+		}, 400);
 	}
 
 	// Float toolbar position (fixed positioning to escape scroll container clipping)
-	let floatPos = $state({ top: 0, left: 0, width: 0 });
+	let floatPos = $state({ top: 0, left: 0, width: 0, minBottom: 0 });
+	let floatToolbarEl = $state<HTMLDivElement>();
 
 	$effect(() => {
-		if (!focused || toolbarStyle !== 'float' || !editorWrapperEl) return;
+		if (!focused || !hovered || toolbarStyle !== 'float' || !editorWrapperEl) return;
+
+		let raf: number;
+		let lastTop = 0;
+		let lastLeft = 0;
+		let lastWidth = 0;
+		let lastMinBottom = 0;
+
+		const scrollParent = getScrollParent(editorWrapperEl!);
 
 		function updatePos() {
 			const rect = editorWrapperEl!.getBoundingClientRect();
-			floatPos = { top: rect.top, left: rect.left, width: rect.width };
+			// Taskbar bottom + p-1 gap = minimum allowed bottom edge for the toolbar
+			const minBottom = scrollParent ? scrollParent.getBoundingClientRect().top : 0;
+			if (rect.top !== lastTop || rect.left !== lastLeft || rect.width !== lastWidth || minBottom !== lastMinBottom) {
+				lastTop = rect.top;
+				lastLeft = rect.left;
+				lastWidth = rect.width;
+				lastMinBottom = minBottom;
+				floatPos = { top: rect.top, left: rect.left, width: rect.width, minBottom };
+			}
+			raf = requestAnimationFrame(updatePos);
 		}
 
 		updatePos();
 
-		const scrollParent = getScrollParent(editorWrapperEl!);
-		scrollParent?.addEventListener('scroll', updatePos, { passive: true });
-		window.addEventListener('resize', updatePos, { passive: true });
-
-		return () => {
-			scrollParent?.removeEventListener('scroll', updatePos);
-			window.removeEventListener('resize', updatePos);
-		};
+		return () => cancelAnimationFrame(raf);
 	});
 
 	let renderedHtml = $derived(preview ? renderMarkdown(content) : '');
@@ -311,11 +330,44 @@
 		};
 	}
 
+	function editorCtx() {
+		return { textarea: textareaEl!, onchange: () => onupdate(textareaEl!.value) };
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		// Forward to WikiLinkSuggest when active
 		if (suggestActive && suggestComponent) {
 			const handled = suggestComponent.handleKey(e);
 			if (handled) return;
+		}
+
+		// Formatting keyboard shortcuts
+		if ((e.metaKey || e.ctrlKey) && textareaEl) {
+			if (e.key === 'b') {
+				e.preventDefault();
+				wrap(editorCtx(), '**', '**');
+				return;
+			}
+			if (e.key === 'i') {
+				e.preventDefault();
+				wrap(editorCtx(), '*', '*');
+				return;
+			}
+			if (e.key === '`') {
+				e.preventDefault();
+				wrap(editorCtx(), '`', '`');
+				return;
+			}
+			if (e.key === 'k') {
+				e.preventDefault();
+				wrap(editorCtx(), '[', '](url)');
+				return;
+			}
+			if (e.shiftKey && (e.key === 's' || e.key === 'S')) {
+				e.preventDefault();
+				wrap(editorCtx(), '~~', '~~');
+				return;
+			}
 		}
 
 		// Tab/Shift+Tab: indent/unindent (supports multi-line selection)
@@ -362,8 +414,8 @@
 		const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
 		const line = value.slice(lineStart, selectionStart);
 
-		// Match leading whitespace + list prefix
-		const match = line.match(/^(\s*)([-*]|\d+\.|>) /);
+		// Match leading whitespace + list prefix (including task lists)
+		const match = line.match(/^(\s*)(- \[[ xX]\] |[-*] |\d+\. |> )/);
 		if (!match) return;
 
 		const [fullPrefix, indent, bullet] = match;
@@ -378,10 +430,12 @@
 
 		e.preventDefault();
 
-		// Auto-increment numbered lists
+		// Auto-increment numbered lists, new task items always unchecked
 		let newPrefix: string;
-		if (/^\d+$/.test(bullet)) {
+		if (/^\d+\. $/.test(bullet)) {
 			newPrefix = `${indent}${parseInt(bullet) + 1}. `;
+		} else if (/^- \[[ xX]\] $/.test(bullet)) {
+			newPrefix = `${indent}- [ ] `;
 		} else {
 			newPrefix = fullPrefix;
 		}
@@ -410,6 +464,35 @@
 
 	async function handlePreviewClick(e: MouseEvent) {
 		const target = e.target as HTMLElement;
+
+		// Toggle task list checkboxes
+		if (target instanceof HTMLInputElement && target.type === 'checkbox' && target.closest('.task-list-item')) {
+			// Find the nth checkbox in the preview to map back to source
+			const allCheckboxes = previewEl?.querySelectorAll('.task-list-item input[type="checkbox"]');
+			if (!allCheckboxes) return;
+			let idx = -1;
+			for (let i = 0; i < allCheckboxes.length; i++) {
+				if (allCheckboxes[i] === target) { idx = i; break; }
+			}
+			if (idx === -1) return;
+
+			// Find and toggle the nth `- [ ]` or `- [x]` in the source
+			const taskRegex = /- \[([ xX])\]/g;
+			let match: RegExpExecArray | null;
+			let count = 0;
+			while ((match = taskRegex.exec(content)) !== null) {
+				if (count === idx) {
+					const isChecked = match[1] !== ' ';
+					const replacement = isChecked ? '- [ ]' : '- [x]';
+					const newContent = content.slice(0, match.index) + replacement + content.slice(match.index + match[0].length);
+					onupdate(newContent);
+					return;
+				}
+				count++;
+			}
+			return;
+		}
+
 		const link = target.closest('a.wiki-link') as HTMLAnchorElement | null;
 		if (!link) return;
 		e.preventDefault();
@@ -492,10 +575,11 @@
 	{/if}
 </div>
 <div bind:this={editorWrapperEl} class="relative w-full" class:hidden={preview} data-block-editor onmouseenter={handleHoverEnter} onmouseleave={handleHoverLeave}>
-	{#if focused && hovered && toolbarStyle === 'float'}
+	{#if focused && hovered && toolbarStyle === 'float' && !notesSearch.findOpen}
 		<div
+			bind:this={floatToolbarEl}
 			class="fixed z-50 pb-1"
-			style="bottom: {window.innerHeight - floatPos.top}px; left: {floatPos.left}px; width: {floatPos.width}px;"
+			style="top: {Math.max(floatPos.top, floatPos.minBottom) - (floatToolbarEl?.offsetHeight ?? 36)}px; left: {floatPos.left}px; width: {floatPos.width}px;"
 			in:fly={{ y: 4, duration: 150 }}
 			out:fade={{ duration: 100 }}
 			onmouseenter={handleHoverEnter}

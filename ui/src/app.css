@@ -37,6 +37,17 @@
 		@apply my-4 p-3 rounded-lg bg-error/10 border border-error/20;
 	}
 
+	/* GFM task list checkboxes — hide bullet and align */
+	.prose li.task-list-item {
+		list-style: none !important;
+		padding-left: 0 !important;
+		margin-left: -1.25em;
+	}
+	.prose li.task-list-item > .checkbox {
+		cursor: pointer;
+		vertical-align: middle;
+	}
+
 	/* KaTeX display math — vertical spacing + horizontal scroll for wide equations */
 	.prose .katex-display {
 		@apply my-4 overflow-x-auto;

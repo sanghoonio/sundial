@@ -109,9 +109,16 @@ const marked = new Marked();
 marked.use({ extensions: [wikiLinkExtension] });
 marked.use(markedKatex({ throwOnError: false }));
 
-// Custom renderer for code blocks with syntax highlighting
+// Custom renderer for task list checkboxes (remove disabled) and code blocks
 marked.use({
 	renderer: {
+		listitem({ text, task, checked }) {
+			if (task) {
+				const c = checked ? ' checked' : '';
+				return `<li class="task-list-item"><input type="checkbox" class="checkbox checkbox-xs"${c}> ${text}</li>\n`;
+			}
+			return `<li>${text}</li>\n`;
+		},
 		code({ text, lang }) {
 			// Parse "mermaid width=400" into { language: "mermaid", params: { width: "400" } }
 			const [language, ...paramParts] = (lang || '').split(/\s+/);
@@ -143,12 +150,15 @@ export function renderMarkdown(content: string): string {
 	return DOMPurify.sanitize(raw, {
 		ADD_ATTR: [
 			'data-title', 'data-type', 'data-id', 'data-width',
+			'checked', 'type',
 			// KaTeX needs inline styles, aria attrs, and SVG attrs
 			'style', 'aria-hidden', 'xmlns', 'encoding',
 			'd', 'viewBox', 'preserveAspectRatio', 'width', 'height',
 			'x1', 'x2', 'y1', 'y2', 'stroke', 'fill', 'stroke-width', 'fill-rule', 'clip-rule'
 		],
 		ADD_TAGS: [
+			// Task list checkboxes
+			'input',
 			// MathML elements
 			'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'mfrac', 'msup', 'msub',
 			'msubsup', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd', 'mtext', 'mspace',
