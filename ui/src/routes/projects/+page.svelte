@@ -3,13 +3,12 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
-	import { api } from '$lib/services/api';
+	import { api, fetchAllTasks } from '$lib/services/api';
 	import type {
 		ProjectResponse,
 		ProjectList,
 		ProjectCreate,
 		ProjectUpdate,
-		TaskList,
 		NoteListItem,
 		NoteList
 	} from '$lib/types';
@@ -140,11 +139,11 @@
 		try {
 			const [p, t] = await Promise.all([
 				api.get<ProjectResponse>(`/api/projects/${id}`),
-				api.get<TaskList>(`/api/tasks?project_id=${id}&limit=200`)
+				fetchAllTasks(`project_id=${id}`, true)
 			]);
 			selectedProject = p;
 			const done = t.tasks.filter((tk) => tk.status === 'done').length;
-			sidebarTasks = { done, total: t.tasks.length };
+			sidebarTasks = { done, total: t.total };
 			editName = p.name;
 			editDescription = p.description || '';
 			editColor = p.color || '#3b82f6';

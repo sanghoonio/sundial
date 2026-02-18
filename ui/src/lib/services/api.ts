@@ -1,5 +1,6 @@
 import { base } from '$app/paths';
 import { clientId } from '$lib/clientId';
+import type { TaskList, TaskResponse } from '$lib/types';
 
 const TOKEN_KEY = 'sundial_token';
 
@@ -59,6 +60,36 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 	}
 
 	return res.json();
+}
+
+const PAGE_SIZE = 200;
+
+/**
+ * Fetch tasks matching a query, paginating through the API automatically.
+ * The backend returns incomplete tasks first, so when `includeCompleted`
+ * is false (default) we can stop after the first page — no need to fetch
+ * done tasks that won't be displayed.
+ */
+export async function fetchAllTasks(query = '', includeCompleted = false): Promise<TaskList> {
+	const sep = query ? `${query}&` : '';
+	const tasks: TaskResponse[] = [];
+	let offset = 0;
+	let total = 0;
+	do {
+		const res = await request<TaskList>(
+			'GET',
+			`/api/tasks?${sep}limit=${PAGE_SIZE}&offset=${offset}`
+		);
+		tasks.push(...res.tasks);
+		total = res.total;
+		offset += PAGE_SIZE;
+		// Backend sorts incomplete first. If we don't need completed tasks,
+		// stop as soon as we see one (everything after is also done).
+		if (!includeCompleted && res.tasks.some((t) => t.status === 'done')) {
+			return { tasks: tasks.filter((t) => t.status !== 'done'), total };
+		}
+	} while (tasks.length < total);
+	return { tasks, total };
 }
 
 export const api = {

@@ -3,8 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
-	import { api } from '$lib/services/api';
-	import type { ProjectResponse, ProjectList, TaskResponse, TaskList, TaskMove, MilestoneCreate } from '$lib/types';
+	import { api, fetchAllTasks } from '$lib/services/api';
+	import type { ProjectResponse, ProjectList, TaskResponse, TaskMove, MilestoneCreate } from '$lib/types';
 	import KanbanBoard from '$lib/components/tasks/KanbanBoard.svelte';
 	import TaskDetailPanel from '$lib/components/tasks/TaskDetailPanel.svelte';
 	import TaskCreateModal from '$lib/components/tasks/TaskCreateModal.svelte';
@@ -130,9 +130,7 @@
 	async function loadTasks(projectId: string, silent = false) {
 		if (!silent) loading = true;
 		try {
-			const res = await api.get<TaskList>(
-				`/api/tasks?project_id=${projectId}&limit=200`
-			);
+			const res = await fetchAllTasks(`project_id=${projectId}`, showCompleted);
 			tasks = res.tasks;
 		} catch (e) {
 			if (!silent) {
@@ -150,6 +148,7 @@
 
 	$effect(() => {
 		const projectId = selectedProjectId;
+		const _completed = showCompleted; // track toggle to re-fetch
 		if (projectId) {
 			loadTasks(projectId);
 		}
@@ -163,7 +162,7 @@
 			async () => {
 				if (projectId) {
 					try {
-						const res = await api.get<TaskList>(`/api/tasks?project_id=${projectId}&limit=200`);
+						const res = await fetchAllTasks(`project_id=${projectId}`, showCompleted);
 						tasks = res.tasks;
 						if (selectedTask) {
 							const updated = res.tasks.find((t) => t.id === selectedTask!.id);

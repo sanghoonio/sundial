@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select, func
+from sqlalchemy import case, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -95,7 +95,11 @@ async def list_tasks(
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[Task], int]:
-    query = select(Task).options(selectinload(Task.checklist), selectinload(Task.notes)).order_by(Task.position)
+    status_order = case(
+        (Task.status == "done", 1),
+        else_=0,
+    )
+    query = select(Task).options(selectinload(Task.checklist), selectinload(Task.notes)).order_by(status_order, Task.position)
 
     if project_id:
         query = query.where(Task.project_id == project_id)

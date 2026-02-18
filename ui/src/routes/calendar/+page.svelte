@@ -2,12 +2,11 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { toast } from 'svelte-sonner';
-	import { api } from '$lib/services/api';
+	import { api, fetchAllTasks } from '$lib/services/api';
 	import type {
 		EventResponse,
 		EventList,
 		TaskResponse,
-		TaskList,
 		CalendarItem,
 		CalendarSettingsResponse
 	} from '$lib/types';
@@ -100,7 +99,7 @@
 			const { start, end } = getDateRange(currentDate, view);
 			const [eventRes, taskRes] = await Promise.all([
 				api.get<EventList>(`/api/calendar/events?start=${start}&end=${end}`),
-				api.get<TaskList>(`/api/tasks?due_after=${start}&due_before=${end}&limit=200`)
+				fetchAllTasks(`due_after=${start}&due_before=${end}`, true)
 			]);
 			events = eventRes.events;
 			tasks = taskRes.tasks;
@@ -138,7 +137,7 @@
 			async () => {
 				try {
 					const { start, end } = getDateRange(currentDate, view);
-					const taskRes = await api.get<TaskList>(`/api/tasks?due_after=${start}&due_before=${end}&limit=200`);
+					const taskRes = await fetchAllTasks(`due_after=${start}&due_before=${end}`, true);
 					tasks = taskRes.tasks;
 				} catch { /* ignore */ }
 			},

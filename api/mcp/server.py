@@ -11,7 +11,7 @@ from dateutil.rrule import rrulestr
 from mcp.server import Server
 from mcp.types import TextContent, Tool
 
-from sqlalchemy import select, func
+from sqlalchemy import case, select, func
 from sqlalchemy.orm import selectinload
 
 from api.database import async_session
@@ -514,7 +514,8 @@ async def _list_tasks(db, args: dict) -> list[TextContent]:
     status_filter = args.get("status")
     project_id = args.get("project_id")
 
-    query = select(Task).order_by(Task.priority.desc(), Task.created_at)
+    status_order = case((Task.status == "done", 1), else_=0)
+    query = select(Task).order_by(status_order, Task.priority.desc(), Task.created_at)
 
     if status_filter:
         query = query.where(Task.status == status_filter)

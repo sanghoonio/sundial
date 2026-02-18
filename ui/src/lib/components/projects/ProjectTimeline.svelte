@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	import { api } from '$lib/services/api';
+	import { api, fetchAllTasks } from '$lib/services/api';
 	import type {
 		ProjectResponse,
 		TaskResponse,
-		TaskList,
 		NoteListItem,
 		NoteList
 	} from '$lib/types';
@@ -37,7 +36,7 @@
 		loading = true;
 		try {
 			const [taskRes, noteRes] = await Promise.all([
-				api.get<TaskList>('/api/tasks?limit=200'),
+				fetchAllTasks('', true),
 				api.get<NoteList>('/api/notes?limit=200')
 			]);
 			allTasks = taskRes.tasks;
