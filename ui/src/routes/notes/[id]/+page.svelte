@@ -88,10 +88,18 @@
 			}
 
 			// Use blocks from API response, fallback to single md block
+			// Preserve existing block IDs at matching positions to avoid
+			// focus-losing component re-mounts (server generates new IDs each fetch)
 			if (n.blocks && n.blocks.length > 0) {
-				blocks = n.blocks.map((b) => ({ ...b }));
+				blocks = n.blocks.map((b, i) => {
+					const existing = blocks[i];
+					const id = (existing && existing.type === b.type) ? existing.id : (b.id || newBlockId());
+					return { ...b, id };
+				});
 			} else {
-				blocks = [{ id: newBlockId(), type: 'md', content: n.content || '' }];
+				const existing = blocks[0];
+				const id = (existing && existing.type === 'md') ? existing.id : newBlockId();
+				blocks = [{ id, type: 'md', content: n.content || '' }];
 			}
 		} catch (e) {
 			console.error('Failed to load note', e);
@@ -161,7 +169,7 @@
 			lastSavedSnapshot = currentSnapshot();
 			// Navigate to real ID — component stays mounted since both match [id] route
 			justCreated = true;
-			goto(`${base}/notes/${created.id}`, { replaceState: true });
+			goto(`${base}/notes/${created.id}`, { replaceState: true, keepFocus: true });
 		} catch (e) {
 			console.error('Failed to create note', e);
 			toast.error('Failed to create note');
@@ -522,6 +530,12 @@
 				bind:value={title}
 				placeholder="Untitled"
 				class="flex-1 min-w-0 font-semibold bg-transparent border-none outline-none focus:bg-base-200 rounded px-2 py-0.5 truncate"
+				onkeydown={(e) => {
+					if (e.key === 'Tab' && !e.shiftKey) {
+						const ta = editorContentEl?.querySelector('[data-note-block] textarea');
+						if (ta) { e.preventDefault(); ta.focus(); }
+					}
+				}}
 			/>
 			<!-- Save status -->
 			<button
