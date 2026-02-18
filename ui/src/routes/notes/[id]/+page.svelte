@@ -552,9 +552,9 @@
 					<Eye size={16} />
 				{/if}
 			</button>
-			<!-- Fullscreen toggle (desktop only) -->
+			<!-- Fullscreen toggle -->
 			<button
-				class="btn btn-ghost btn-sm btn-square hidden md:flex"
+				class="btn btn-ghost btn-sm btn-square flex"
 				onclick={() => fullscreen.toggle()}
 				title={fullscreen.active ? 'Exit fullscreen (Ctrl+D)' : 'Fullscreen (Ctrl+D)'}
 			>
@@ -641,7 +641,7 @@
 				onclose={() => (findOpen = false)}
 			/>
 		{/if}
-		<div class="h-full overflow-y-auto p-4 md:p-6" ondblclick={handleContentDblClick} bind:this={editorContentEl}>
+		<div class="h-full overflow-y-auto p-4 pb-20 md:p-6" ondblclick={handleContentDblClick} bind:this={editorContentEl}>
 		<!-- Metadata section -->
 		{#if showMeta}
 			<div class="mb-4 md:mb-6 rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 flex flex-col">

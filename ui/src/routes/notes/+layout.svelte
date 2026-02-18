@@ -653,7 +653,7 @@
 		</div>
 
 		<!-- Scrollable note list -->
-		<div class="flex-1 overflow-y-auto overscroll-x-contain">
+		<div class="flex-1 overflow-y-auto overscroll-x-contain pb-20 md:pb-0">
 			{#if loading}
 				<div class="flex items-center justify-center py-10">
 					<span class="loading loading-spinner loading-md"></span>

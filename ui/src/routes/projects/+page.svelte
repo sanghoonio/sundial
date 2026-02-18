@@ -79,6 +79,17 @@
 	let projectDragOverIndex = $state<number | null>(null);
 	let gridDragLeaveTimer: ReturnType<typeof setTimeout>;
 
+	// Snapshotted grid geometry for stable drag computation (no DOM reads during drag)
+	let dragGrid: {
+		cols: number;
+		cellWidth: number;
+		cellHeight: number;
+		gapX: number;
+		gapY: number;
+		totalVisible: number;
+		dragIdx: number;
+	} | null = null;
+
 	let filteredProjects = $derived.by(() => {
 		let filtered = statusFilter === 'all' ? projects : projects.filter((p) => p.status === statusFilter);
 		return filtered.slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
@@ -351,6 +362,34 @@
 			e.dataTransfer.setDragImage(clone, e.clientX - rect.left, e.clientY - rect.top);
 			requestAnimationFrame(() => clone.remove());
 
+			// Snapshot grid geometry BEFORE the card is hidden (structure stays valid after hide)
+			const gridEl = card.parentElement as HTMLElement;
+			const allCards = Array.from(gridEl.querySelectorAll('[data-project-id]')) as HTMLElement[];
+			if (allCards.length > 1) {
+				const rects = allCards.map(c => c.getBoundingClientRect());
+				const cellWidth = rects[0].width;
+				const cellHeight = rects[0].height;
+
+				let cols = 1;
+				for (let i = 1; i < rects.length; i++) {
+					if (Math.abs(rects[i].top - rects[0].top) < cellHeight / 2) cols++;
+					else break;
+				}
+
+				let gapX = 0;
+				if (cols > 1) gapX = rects[1].left - rects[0].right;
+				let gapY = 0;
+				if (rects.length > cols) gapY = rects[cols].top - rects[0].bottom;
+
+				dragGrid = {
+					cols,
+					cellWidth, cellHeight,
+					gapX, gapY,
+					totalVisible: allCards.length - 1,
+					dragIdx: filteredProjects.findIndex(p => p.id === project.id)
+				};
+			}
+
 			requestAnimationFrame(() => {
 				draggingProjectId = project.id;
 				draggedProjectWidth = width;
@@ -362,34 +401,52 @@
 	function handleProjectDragEnd() {
 		draggingProjectId = null;
 		projectDragOverIndex = null;
+		dragGrid = null;
 	}
 
 	function handleGridDragOver(e: DragEvent) {
-		if (!e.dataTransfer?.types.includes('application/project-id')) return;
+		if (!e.dataTransfer?.types.includes('application/project-id') || !dragGrid) return;
 		clearTimeout(gridDragLeaveTimer);
 		e.preventDefault();
 		e.dataTransfer.dropEffect = 'move';
 
+		// Pure math from snapshotted grid geometry — no DOM position reads, no layout feedback loops
 		const grid = e.currentTarget as HTMLElement;
-		const cards = Array.from(grid.querySelectorAll('[data-project-id]')) as HTMLElement[];
+		const gridRect = grid.getBoundingClientRect();
 
-		// Use 75% threshold - easier to trigger insertion point
-		for (let i = 0; i < cards.length; i++) {
-			const card = cards[i];
-			if (card.dataset.projectId === draggingProjectId) continue;
-			const rect = card.getBoundingClientRect();
-			const threshold = rect.left + rect.width * 0.85;
-			if (e.clientX < threshold) {
-				// Find the index in filteredProjects
-				const proj = filteredProjects.find(p => p.id === card.dataset.projectId);
-				if (proj) {
-					projectDragOverIndex = filteredProjects.indexOf(proj);
-				}
-				return;
-			}
+		const { cols, cellWidth, cellHeight, gapX, gapY, totalVisible, dragIdx } = dragGrid;
+		const colStep = cellWidth + gapX;
+		const rowStep = cellHeight + gapY;
+
+		const relX = e.clientX - gridRect.left;
+		const relY = e.clientY - gridRect.top;
+
+		// Determine row (clamped to valid range)
+		const maxRow = Math.max(0, Math.ceil(totalVisible / cols) - 1);
+		const row = Math.max(0, Math.min(maxRow, Math.floor(relY / rowStep)));
+
+		// How many cards are in this row?
+		const rowStart = row * cols;
+		const cardsInRow = Math.min(cols, totalVisible - rowStart);
+
+		// Determine which card the cursor is over, then check if past the card's right edge (in the gap)
+		const col = Math.max(0, Math.floor(relX / colStep));
+		let insertCol: number;
+		if (col >= cardsInRow) {
+			// Past the last card in this row
+			insertCol = cardsInRow;
+		} else {
+			const cellLocalX = relX - col * colStep;
+			// Past the card's right edge → next gap; otherwise → this card's position
+			insertCol = cellLocalX > cellWidth ? col + 1 : col;
 		}
-		// Past all cards - drop at end
-		projectDragOverIndex = filteredProjects.length;
+
+		// Convert to visible-array insertion index
+		const visInsertIdx = Math.min(rowStart + insertCol, totalVisible);
+
+		// Map visible index → filteredProjects index (account for the hidden dragged card)
+		const dropIdx = visInsertIdx >= dragIdx ? visInsertIdx + 1 : visInsertIdx;
+		projectDragOverIndex = Math.min(dropIdx, filteredProjects.length);
 	}
 
 	function handleGridDragLeave(e: DragEvent) {
@@ -514,7 +571,7 @@
 					{#each filteredProjects as project, i (project.id)}
 						{#if projectDragOverIndex === i && draggingProjectId !== project.id}
 							<div
-								class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg aspect-square"
+								data-drag-placeholder class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg aspect-square"
 								style="width: {draggedProjectWidth}px; height: {draggedProjectHeight}px;"
 							></div>
 						{/if}
@@ -567,7 +624,7 @@
 					{/each}
 					{#if projectDragOverIndex === filteredProjects.length}
 						<div
-							class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg aspect-square"
+							data-drag-placeholder class="bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg aspect-square"
 							style="width: {draggedProjectWidth}px; height: {draggedProjectHeight}px;"
 						></div>
 					{/if}

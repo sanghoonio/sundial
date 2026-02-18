@@ -60,7 +60,7 @@
 			</main>
 		</div>
 	</div>
-	<MobileNav />
+	{#if !fullscreen.active}<MobileNav />{/if}
 	<Toaster richColors closeButton />
 {/if}
 
