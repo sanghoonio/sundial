@@ -227,7 +227,7 @@ def _tool_list() -> list[Tool]:
         ),
         Tool(
             name="update_note",
-            description="Update an existing note's title, content, tags, or project. For partial content edits, prefer patch_note — it avoids resending unchanged content and reduces the risk of accidentally dropping sections. Use update_note for metadata changes (title, tags, project), full rewrites, or when the number of changes makes patch_note unwieldy.",
+            description="Update an existing note's title, content, tags, or project. For partial content edits, prefer patch_note — it avoids resending unchanged content and reduces the risk of accidentally dropping sections. Use update_note for metadata changes (title, tags, project), full rewrites, or when you need to replace the entire content.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -245,21 +245,19 @@ def _tool_list() -> list[Tool]:
             description=(
                 "Preferred tool for editing note content when changing specific sections. "
                 "Avoids resending unchanged content and reduces the risk of accidentally dropping or altering sections. "
-                "For extensive rewrites, short notes, or when multiple non-adjacent edits would change total line counts significantly, prefer update_note to avoid line-offset errors.\n\n"
-                "**Line number model:** All operations use line numbers from the ORIGINAL note content. "
-                "Operations are applied simultaneously — if operation A replaces lines 5-10 and operation B replaces lines 20-25, "
-                "B's line numbers refer to the original content, NOT the content after A is applied. "
-                "Overlapping operations are rejected.\n\n"
-                "**Workflow:** Read the note first (get_note), count lines from the returned content (line 1 = first line of content), "
-                "then send precise operations.\n\n"
-                "**Operation types:**\n"
-                "- Replace: start_line <= end_line — replaces those lines (inclusive) with content. "
-                "The replacement content can have more or fewer lines than the range it replaces.\n"
-                "- Delete: start_line <= end_line, content = \"\" — removes those lines.\n"
-                "- Insert: start_line = end_line + 1 — inserts content before start_line.\n\n"
-                "Lines not covered by any operation are preserved unchanged. "
-                "When rewriting a section, ensure the range covers ALL original lines being replaced — "
-                "any original lines not included in your range will remain in the output."
+                "For extensive rewrites or short notes, prefer update_note.\n\n"
+                "**How it works:** Each operation finds an exact substring (old_string) in the note content "
+                "and replaces it with new_string. The old_string must appear exactly once — if it appears "
+                "zero times the operation fails (read the note again, the content may have changed); "
+                "if it appears more than once, include more surrounding context to disambiguate.\n\n"
+                "**Workflow:** Read the note first (get_note), then provide exact substrings from the content as old_string.\n\n"
+                "**Operations:**\n"
+                "- Replace: old_string → new_string\n"
+                "- Delete: old_string → \"\" (empty new_string)\n"
+                "- Insert: set old_string to a nearby line, include it plus the new text in new_string\n\n"
+                "Multiple operations are applied sequentially — each sees the result of the previous. "
+                "**Tips:** Include a few surrounding lines in old_string to ensure uniqueness. "
+                "Whitespace and newlines must match exactly."
             ),
             inputSchema={
                 "type": "object",
@@ -267,15 +265,14 @@ def _tool_list() -> list[Tool]:
                     "note_id": {"type": "string", "description": "Note ID to patch"},
                     "operations": {
                         "type": "array",
-                        "description": "List of line-based edit operations",
+                        "description": "List of string-match edit operations",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "start_line": {"type": "integer", "description": "Start line (1-indexed)"},
-                                "end_line": {"type": "integer", "description": "End line (1-indexed)"},
-                                "content": {"type": "string", "description": "Replacement content (use empty string to delete lines)"},
+                                "old_string": {"type": "string", "description": "Exact substring to find (must appear exactly once)"},
+                                "new_string": {"type": "string", "description": "Replacement text (empty string to delete)"},
                             },
-                            "required": ["start_line", "end_line", "content"],
+                            "required": ["old_string", "new_string"],
                         },
                     },
                 },
