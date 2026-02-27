@@ -181,6 +181,7 @@ def _tool_list() -> list[Tool]:
                 "properties": {
                     "start_date": {"type": "string", "description": "Start date (YYYY-MM-DD)"},
                     "end_date": {"type": "string", "description": "End date (YYYY-MM-DD)"},
+                    "tz": {"type": "string", "description": "IANA timezone (e.g. America/New_York). If omitted, uses UTC."},
                 },
                 "required": ["start_date", "end_date"],
             },
@@ -743,11 +744,26 @@ async def _update_task(db, args: dict) -> list[TextContent]:
 
 
 async def _get_calendar_events(db, args: dict) -> list[TextContent]:
+    # Resolve user timezone
+    tz_str = args.get("tz")
+    user_tz = timezone.utc
+    if tz_str:
+        try:
+            user_tz = zoneinfo.ZoneInfo(tz_str)
+        except (zoneinfo.ZoneInfoNotFoundError, KeyError):
+            return [TextContent(type="text", text=f"Invalid timezone: {tz_str}")]
+
     try:
-        start = datetime.strptime(args["start_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        end = datetime.strptime(args["end_date"], "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        start_date = datetime.strptime(args["start_date"], "%Y-%m-%d")
+        end_date = datetime.strptime(args["end_date"], "%Y-%m-%d")
     except (KeyError, ValueError):
         return [TextContent(type="text", text="start_date and end_date are required in YYYY-MM-DD format.")]
+
+    # Interpret dates in user's timezone and convert to UTC for DB queries
+    start_local = start_date.replace(tzinfo=user_tz)
+    end_local = end_date.replace(hour=23, minute=59, second=59, tzinfo=user_tz)
+    start = start_local.astimezone(timezone.utc)
+    end = end_local.astimezone(timezone.utc)
 
     events_out = []
 
@@ -851,10 +867,13 @@ async def _get_calendar_events(db, args: dict) -> list[TextContent]:
 
     lines = []
     for start_time, title, end_time, all_day, location, event_id in events_out:
-        time_str = start_time.strftime("%H:%M") if not all_day else "All day"
-        end_str = f" - {end_time.strftime('%H:%M')}" if end_time and not all_day else ""
+        # Convert to user's timezone for display
+        display_start = start_time.astimezone(user_tz) if start_time.tzinfo else start_time.replace(tzinfo=timezone.utc).astimezone(user_tz)
+        display_end = end_time.astimezone(user_tz) if end_time and end_time.tzinfo else (end_time.replace(tzinfo=timezone.utc).astimezone(user_tz) if end_time else None)
+        time_str = display_start.strftime("%H:%M") if not all_day else "All day"
+        end_str = f" - {display_end.strftime('%H:%M')}" if display_end and not all_day else ""
         location_str = f" @ {location}" if location else ""
-        lines.append(f"- {start_time.strftime('%Y-%m-%d')} {time_str}{end_str}: **{title}**{location_str} (id: {event_id})")
+        lines.append(f"- {display_start.strftime('%Y-%m-%d')} {time_str}{end_str}: **{title}**{location_str} (id: {event_id})")
 
     return [TextContent(type="text", text=f"Found {len(events_out)} events:\n\n" + "\n".join(lines))]
 
@@ -968,21 +987,30 @@ async def _get_dashboard(db, args: dict) -> list[TextContent]:
     )
     tasks_due = task_result.scalars().all()
 
-    # Recent notes
+    # Recent notes (last 7 days, fallback to 5 most recent if none)
     note_result = await db.execute(
         select(Note)
         .where(Note.updated_at >= seven_days_ago)
         .order_by(Note.updated_at.desc())
         .limit(5)
     )
-    notes = note_result.scalars().all()
+    notes = list(note_result.scalars().all())
+    if not notes:
+        note_result = await db.execute(
+            select(Note)
+            .order_by(Note.updated_at.desc())
+            .limit(5)
+        )
+        notes = list(note_result.scalars().all())
 
     parts = [f"# Dashboard for {local_date}\n"]
 
     if events_out:
         parts.append("## Today's Events")
+        display_tz = zoneinfo.ZoneInfo(tz_str) if tz_str else timezone.utc
         for start_time, title, all_day in events_out:
-            time_str = start_time.strftime("%H:%M") if not all_day else "All day"
+            display_time = start_time.astimezone(display_tz) if start_time.tzinfo else start_time.replace(tzinfo=timezone.utc).astimezone(display_tz)
+            time_str = display_time.strftime("%H:%M") if not all_day else "All day"
             parts.append(f"- {time_str}: {title}")
     else:
         parts.append("## Today's Events\nNo events today.")

@@ -256,7 +256,7 @@ async def get_today(db: AsyncSession = Depends(get_db), tz: str | None = Query(N
         )
         tasks_linked = list(linked_result.scalars().all())
 
-    # Recent notes (last 7 days)
+    # Recent notes (last 7 days, fallback to 5 most recent if none)
     note_result = await db.execute(
         select(Note)
         .where(Note.updated_at >= seven_days_ago)
@@ -264,6 +264,13 @@ async def get_today(db: AsyncSession = Depends(get_db), tz: str | None = Query(N
         .limit(10)
     )
     notes = list(note_result.scalars().all())
+    if not notes:
+        note_result = await db.execute(
+            select(Note)
+            .order_by(Note.updated_at.desc())
+            .limit(5)
+        )
+        notes = list(note_result.scalars().all())
 
     return DashboardResponse(
         date=local_date,
